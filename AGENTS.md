@@ -21,20 +21,23 @@ but use the name **libe** and our own logo — never "Quest" branding).
 
 Bun lives in `~/.bun/bin` — run `export PATH=$HOME/.bun/bin:$PATH` first if `bun` is not found.
 
-| Command               | What                                              |
-| --------------------- | ------------------------------------------------- |
-| `bun install`         | install deps                                      |
-| `bun run dev`         | dev server (needs `DATABASE_URL`, see `.env`)     |
-| `bun run check`       | svelte-check / TypeScript — **must be 0 errors**  |
-| `bun run test`        | unit tests (`bun test`, files `src/**/*.test.ts`) |
-| `bun run lint`        | prettier check (`bun run format` to fix)          |
-| `bun run build`       | production build into `build/`                    |
-| `bun run db:generate` | create a SQL migration from `schema.ts` changes   |
-| `bun run db:migrate`  | apply migrations (`scripts/migrate.ts`)           |
-| `bun run db:seed`     | demo data (only if `quests` is empty)             |
-| `bun run db:dev`      | local Postgres 17 without Docker (see below)      |
-| `docker compose up`   | full stack on http://localhost:3000               |
-| `bun run tauri:dev`   | desktop app (debug); `tauri:build` = installers   |
+| Command                   | What                                                        |
+| ------------------------- | ----------------------------------------------------------- |
+| `bun install`             | install deps                                                |
+| `bun run dev`             | dev server (needs `DATABASE_URL`, see `.env`)               |
+| `bun run check`           | svelte-check / TypeScript — **must be 0 errors**            |
+| `bun run test`            | unit tests (`bun test`, files `src/**/*.test.ts`)           |
+| `bun run lint`            | prettier check (`bun run format` to fix)                    |
+| `bun run build`           | production build into `build/`                              |
+| `bun run db:generate`     | create a SQL migration from `schema.ts` changes             |
+| `bun run db:migrate`      | apply migrations (`scripts/migrate.ts`)                     |
+| `bun run db:seed`         | demo data (only if `quests` is empty)                       |
+| `bun run db:dev`          | local Postgres 17 without Docker (see below)                |
+| `docker compose up`       | full stack on http://localhost:3000                         |
+| `bun run tauri:dev`       | desktop app (debug); `tauri:build` = installers             |
+| `bun run test:e2e`        | browser e2e suite, desktop (see "End-to-end tests")         |
+| `bun run test:e2e:mobile` | the same suite's `@mobile` tests on iPhone + iPad emulation |
+| `bun run test:tauri`      | Tauri app e2e (debug build, tauri-driver, `xvfb-run`; slow) |
 
 ### Database without Docker
 
@@ -114,7 +117,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   by `validateSessionSpan` / `validateManualLog` in `#lib/manual-log.ts` — reuse them, don't
   re-implement the rules.
 - Pages hold an open SSE connection, so `networkidle` never fires in browser tests — wait for
-  `html[data-timer=live]` (set by the root layout once the stream is connected) instead.
+  `html[data-timer=live]` (set by the root layout once the stream is connected) instead
+  (`gotoLive` / `live` in `e2e/support/fixtures.ts`).
 - **Auth** (M7): `hooks.server.ts` sets `event.locals.device` (cookie `libe_device` or
   `Authorization: Bearer`). Routes outside `isPublicPath()` (`#lib/auth.ts`) can rely on
   `locals.device!`; a new public route must be added there (and to its test). Pure rules live
@@ -124,7 +128,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `Origin` = the app origin returns the `libe_device` cookie; put it into the browser context
   (`storageState`) or send it as `Authorization: Bearer <token>` to the API. `POST /api/devices/codes`
   (Bearer) issues pairing codes for multi-device tests. The rate limit is 10 failed attempts
-  per IP and minute (in memory — restart the server to reset).
+  per IP and minute (in memory — restart the server to reset); the e2e server runs with
+  `ADDRESS_HEADER=x-forwarded-for`, so tests send a fresh `X-Forwarded-For` (`freshIp()`).
 - **PWA**: the service worker (`src/service-worker/`, production only) must never cache
   `/api/**`, page data or authenticated HTML — only build assets, `static/` files and
   `/offline`. Full-screen/fixed UI must pad with the `--safe-top/right/bottom/left` tokens.
@@ -147,6 +152,54 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   Below 720px the nav is a fixed bottom tab bar (`main` already pads for it).
 - Static icons are generated from the logo (`static/favicon.svg`); keep `src-tauri/icons/` in sync.
 
+## End-to-end tests
+
+Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
+feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile),
+helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
+failure, HTML report, auth state) go to the ignored `e2e/.output/`.
+
+- **Isolation**: the suite never touches the dev DB `libe`. Playwright's `webServer` runs
+  `e2e/support/serve.ts`, which drops/creates **`libe_e2e`** on the dev Postgres (:54330,
+  `bun run db:dev` must be up), migrates, seeds, then serves the **production build**
+  (`build/index.js`) on **:3124** with its own `LIBE_SETUP_SECRET`, `ORIGIN`, `TZ=Europe/Berlin`
+  and `ADDRESS_HEADER=x-forwarded-for`. Global setup pairs one device via `/setup` and stores
+  it as the default `storageState` (token in `e2e/.output/state/`). The Tauri spec uses
+  `libe_e2e_tauri` on :3125; the PWA offline test starts a second server on :3126.
+  `reset` refuses any database not named `libe_e2e*`.
+- **Projects**: `desktop` (1600×1000 Chromium, everything except `@mobile-only`),
+  `mobile-iphone` / `mobile-ipad` (`isMobile`, `hasTouch`, iOS UA; only tests whose title
+  contains `@mobile` or `@mobile-only`). `workers: 1` — one DB, one active timer.
+- **Running**: `bun run test:e2e` builds first (`vite build`), then runs; to iterate without
+  rebuilding: `bunx playwright test -c e2e/playwright.config.ts --project=desktop plan` (add
+  `-g "<title>"`, `--repeat-each=2`, `--headed`, `--debug`). `bun run test:tauri` also builds
+  `src-tauri` (debug) and needs Xvfb, WebKitWebDriver and `~/.cargo/bin/tauri-driver`.
+- **Fixtures** (`e2e/support/fixtures.ts`): `sql` (postgres.js on `libe_e2e`), `api`
+  (Bearer-authenticated request context), `token`, and an automatic `console` guard that fails
+  a test on any browser console error/uncaught exception — expected ones are allowed
+  explicitly (`console.allow(/status of 400/)`); extra contexts are watched with
+  `console.watch(ctx)`. Helpers: `gotoLive`, `reloadLive` (waits until no page data is in
+  flight), `actionDone(page, 'name')` (form action answered **and** page data reloaded —
+  create it before the click), `timerCmd` / `discardTimer`, `expectNoHorizontalScroll`.
+  `e2e/support/db.ts`: `createQuest/createTask/createSession` (wall times converted by
+  Postgres in `Europe/Berlin`), `today`, `emptyPastWeek`, `loggedMinutes`, `uid()`.
+
+**Adding a test** — rules (the suite is meant to stay small and trustworthy):
+
+1. Assert behaviour a plausible code change could break: state **after a reload**, the DB
+   row (`sql`), propagation to another page/tab, validation boundaries, ordering, permissions.
+   Never assert static markup, constants, or values the test typed without a server round-trip;
+   "the page loads" belongs only in `pages.spec.ts` (one test per page).
+2. Create your own data with unique names (`uid()`), or read seed data without changing it.
+   Never depend on test order or on another test's leftovers (`--repeat-each=2` must pass).
+   Global state (the timer, pomodoro settings) is reset in `beforeEach`/`afterEach`.
+3. No fixed sleeps: Playwright's auto-waiting `expect`, `expect.poll` (DB), `actionDone`.
+   Shift time in the DB (`started_at - interval '…'`) instead of waiting for it.
+4. Don't re-test pure logic the unit tests cover (`src/**/*.test.ts`) — test its integration.
+   No pixel/screenshot comparisons.
+5. When a test guards a bug, check that it fails with the bug reintroduced (temporarily —
+   never commit the mutation), and that it passes again afterwards.
+
 ## Database changes
 
 1. Edit `src/lib/server/db/schema.ts`.
@@ -159,6 +212,9 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 - `bun run test` → green (add tests for non-trivial pure logic: date math, timers, ordering, aggregations)
 - `bun run lint` → clean
 - `bun run build` → succeeds
+- `bun run test:e2e` → green (and `test:e2e:mobile` when touching layout/touch UI,
+  `test:tauri` when touching `src-tauri/` or the pairing/session API); new behaviour gets an
+  e2e test that follows the rules in "End-to-end tests"
 - Manually exercised against a real DB (`bun run db:dev`): migrations apply on an empty DB, pages
   render (no SSR errors / console errors), mutations persist after reload.
 - Update `docs/ROADMAP.md` (status + any decisions) and keep this file accurate.

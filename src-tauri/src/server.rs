@@ -110,10 +110,13 @@ pub async fn check(http: &reqwest::Client, server: &str, token: &str) -> Session
 }
 
 /// `DELETE /api/pair/session`: revoke this device on the server (best effort).
+/// The JSON body matters: SvelteKit's CSRF check rejects bodyless (form-like) non-GET
+/// requests without a same-origin `Origin` header with 403.
 pub async fn revoke(http: &reqwest::Client, server: &str, token: &str) {
     let _ = http
         .delete(format!("{server}/api/pair/session"))
         .bearer_auth(token)
+        .json(&serde_json::json!({}))
         .send()
         .await;
 }

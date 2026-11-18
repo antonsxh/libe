@@ -8,3 +8,4 @@ build
 src-tauri/target
 docs
 src-tauri/gen
+e2e

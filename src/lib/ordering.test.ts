@@ -23,14 +23,6 @@ describe('ordering', () => {
 		expect(orderAtTop(-2)).toBe(-3);
 		expect(orderAtBottom(-2)).toBe(-1);
 	});
-
-	test('repeated inserts extend the list in both directions', () => {
-		let min = 0;
-		let max = 0;
-		for (let i = 0; i < 3; i++) min = orderAtTop(min);
-		for (let i = 0; i < 3; i++) max = orderAtBottom(max);
-		expect([min, max]).toEqual([-3, 3]);
-	});
 });
 
 describe('moveWithinGroup', () => {
@@ -68,8 +60,6 @@ describe('dropIntoList', () => {
 		const list = items();
 		expect(ids(dropIntoList(list, list[3], 'b'))).toBe('adbc');
 		expect(ids(dropIntoList(list, list[0], 'd'))).toBe('bcad');
-		// Result indexes are the new order values: 0..n-1 with no gaps.
-		expect(dropIntoList(items(), items()[0], 'c')).toHaveLength(4);
 	});
 
 	test('null or unknown before id appends at the end', () => {

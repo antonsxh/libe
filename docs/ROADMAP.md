@@ -514,3 +514,24 @@ Fix during M7 review:
   (`isPublicRequest` / `isRemoteCall` in `#lib/auth.ts`); remote calls always need a device
   (401 JSON). The public `/_app/` prefix is narrowed to `/_app/immutable/`, `/_app/version.json`,
   `/_app/env.js`. No remote functions exist yet — this closes the gap before one is added.
+
+## Tests — in-repo end-to-end suite (after M7)
+
+- `e2e/` (Playwright, see AGENTS.md "End-to-end tests"): per-feature specs for quests, home,
+  plan, focus/timer, calendar, review, auth/devices, PWA, per-page smoke (desktop + `@mobile`)
+  and touch-only flows (iPhone/iPad emulation); the Tauri app spec in `e2e/tauri/`. Replaces the
+  scratch scripts that used to live outside the repo.
+- Runs against the production build on its own database `libe_e2e` (reset + migrated + seeded
+  by the web server command), never the dev DB. Rate limits are isolated per test through
+  `X-Forwarded-For` (`ADDRESS_HEADER`, as behind the HTTPS proxy). Time-dependent behaviour
+  (overtime, pomodoro rollover, code expiry) is tested by shifting timestamps in the DB.
+- The important tests were checked against reintroduced bugs (menu submit closing on click,
+  per-quest list scope, bare `?/action` URLs, ↑/↓ crossing groups, missing SSE broadcast,
+  remote-call auth bypass, …).
+
+Fix found by the suite:
+
+- **Tauri "Change server / Unpair…" never revoked the device on the server**: the Rust client
+  sent a bodyless `DELETE /api/pair/session`, which SvelteKit's CSRF check answers with 403
+  (bodyless non-GET = form submission without a same-origin `Origin`). It now sends a JSON
+  body; the local unpair always worked.

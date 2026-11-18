@@ -81,15 +81,18 @@ Built and tested here (Linux x86-64, WebKitGTK 2.52, Rust 1.100, Tauri 2.12.7):
   `libwebkit2gtk-4.1-0`, `libgtk-3-0`, ships a `.desktop` entry + icons); the release binary
   starts under Xvfb and, without a Secret Service, shows "Could not read the keychain…" on the
   pairing page (and would undo a pairing whose token it can't store) instead of crashing.
-- End-to-end with **tauri-driver + WebKitWebDriver under Xvfb** against a local server
-  (19 checks): first start shows the pairing page; a wrong code shows the server's message;
+- End-to-end with **tauri-driver + WebKitWebDriver under Xvfb** against a local server —
+  in the repo as `bun run test:tauri` (`e2e/tauri/tauri.spec.ts`; builds the debug app, starts
+  its own server on `libe_e2e_tauri`, runs under `xvfb-run`): first start shows the pairing page; a wrong code shows the server's message;
   pairing lands on Home with a live timer stream and the device has kind `tauri`; in-app
   navigation keeps the session; restarting the app reuses the stored token and goes straight
   to Home; revoking the device in Settings brings the running app back to the pairing page
   (credentials deleted, server pre-filled); the native menu's **Change server / Unpair…**
   (clicked on the GTK menu bar) returns to the pairing page and revokes the device on the
   server; with the server down the app shows "Can't reach your server" and **Retry** works once
-  it is back.
+  it is back. (The in-repo spec found that the server-side revoke of **Unpair** had silently
+  failed: a bodyless `DELETE /api/pair/session` from Rust is rejected by SvelteKit's CSRF check
+  with 403 — the app now sends a JSON body.)
 - **Keychain not tested**: the headless box has no Secret Service daemon, so the debug build
   was pointed at a file via `LIBE_TAURI_CREDENTIALS_FILE` (honoured **only in debug builds**;
   release builds always use the keychain).

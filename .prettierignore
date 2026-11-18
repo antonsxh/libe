@@ -12,3 +12,6 @@ yarn.lock
 # Tauri build output / generated schemas
 /src-tauri/target/
 /src-tauri/gen/
+
+# e2e artefacts
+/e2e/.output/
