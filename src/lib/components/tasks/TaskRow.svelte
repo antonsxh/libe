@@ -1,0 +1,140 @@
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import { ArrowDown, ArrowUp, Check, Trash2 } from '@lucide/svelte';
+	import type { Task } from '#lib/server/db/schema.ts';
+
+	let {
+		task,
+		first = false,
+		last = false
+	}: {
+		task: Task;
+		/** Disable "move up" for the first row of its list. */
+		first?: boolean;
+		/** Disable "move down" for the last row of its list. */
+		last?: boolean;
+	} = $props();
+</script>
+
+<li class="task card" class:done={task.doneAt !== null}>
+	<form class="inline" method="POST" action="?/toggle" use:enhance>
+		<input type="hidden" name="taskId" value={task.id} />
+		<button
+			type="submit"
+			class="check"
+			aria-label={task.doneAt ? 'Mark as not done' : 'Mark as done'}
+		>
+			{#if task.doneAt !== null}<Check size={14} strokeWidth={3} />{/if}
+		</button>
+	</form>
+
+	<span class="title">{task.title}</span>
+
+	{#if task.durationMin !== null}
+		<span class="dur muted tabular">{task.durationMin} min</span>
+	{/if}
+
+	<span class="ops">
+		<form class="inline" method="POST" action="?/moveUp" use:enhance>
+			<input type="hidden" name="taskId" value={task.id} />
+			<button type="submit" class="op" aria-label="Move up" disabled={first}>
+				<ArrowUp size={15} />
+			</button>
+		</form>
+		<form class="inline" method="POST" action="?/moveDown" use:enhance>
+			<input type="hidden" name="taskId" value={task.id} />
+			<button type="submit" class="op" aria-label="Move down" disabled={last}>
+				<ArrowDown size={15} />
+			</button>
+		</form>
+		<form class="inline" method="POST" action="?/delete" use:enhance>
+			<input type="hidden" name="taskId" value={task.id} />
+			<button type="submit" class="op danger" aria-label="Delete task"><Trash2 size={15} /></button>
+		</form>
+	</span>
+</li>
+
+<style>
+	.task {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		min-width: 0;
+	}
+
+	.inline {
+		display: contents;
+	}
+
+	.check {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 22px;
+		height: 22px;
+		border: 1.5px solid var(--border-strong);
+		border-radius: 50%;
+		background: transparent;
+		color: transparent;
+		transition:
+			border-color var(--dur) var(--ease),
+			background var(--dur) var(--ease),
+			color var(--dur) var(--ease);
+	}
+	.check:hover {
+		border-color: var(--text-muted);
+	}
+	.done .check {
+		border-color: var(--success);
+		background: var(--success);
+		color: var(--bg);
+	}
+
+	.title {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.done .title {
+		color: var(--text-faint);
+		text-decoration: line-through;
+	}
+
+	.dur {
+		flex: none;
+		font-size: var(--fs-xs);
+	}
+
+	.ops {
+		flex: none;
+		display: flex;
+		gap: var(--space-1);
+	}
+	.op {
+		display: grid;
+		place-items: center;
+		width: 28px;
+		height: 28px;
+		border: none;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--text-faint);
+		transition:
+			color var(--dur) var(--ease),
+			background var(--dur) var(--ease);
+	}
+	.op:hover:not(:disabled) {
+		color: var(--text);
+		background: var(--surface-hover);
+	}
+	.op:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+	}
+	.op.danger:hover:not(:disabled) {
+		color: var(--danger);
+	}
+</style>

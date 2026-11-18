@@ -37,7 +37,7 @@ Notes / decisions taken in M0:
 | #   | Scope                                                                                                                       | Status  |
 | --- | --------------------------------------------------------------------------------------------------------------------------- | ------- |
 | M0  | Scaffold: SvelteKit 3 + Bun + Drizzle schema + Docker Compose (app + Postgres) + design tokens + nav shell                  | ✅ done |
-| M1  | Quests: data + CRUD incl. emoji / colour / weekly budget / close; quest backlog; quest cards (→ basis for pills)            | ⏳      |
+| M1  | Quests: data + CRUD incl. emoji / colour / weekly budget / close; quest backlog; quest cards (→ basis for pills)            | ✅ done |
 | M2  | Home/Today: Quest work + Other lists, backlog input without day, day timeline (blocks + now line), ordering via ↑/↓ buttons | ⏳      |
 | M3  | Plan: week kanban (Mon–Sun columns), add per day, collapsible "Other" zones, done/past styling                              | ⏳      |
 | M4  | Focus: server-side timer + SSE, pomodoro mode (configurable intervals), "log time afterwards" dialog (manual sessions)      | ⏳      |
@@ -54,3 +54,28 @@ Notes / decisions taken in M0:
 - Shell: `AppNav` (Home · Plan · Calendar · Focus · Quests · Review, search trigger placeholder, avatar)
 - Primitives: `Button`, `QuestPill`, `PageHeader`, `ComingSoon`, `Logo`; `/styleguide` page
 - `GET /api/health` (DB ping, used by the Docker healthcheck)
+
+## M1 — what exists
+
+- `/quests`: quest grid (emoji tile, name, description, this-week hours vs. budget, 8-week
+  sparkline, quarter hours), quarter summary, dashed "New quest" tile, collapsible "Closed" section.
+  Card menu: Edit, Move up/down, Close/Reopen, Delete (with confirm; cascades).
+- Create/Edit dialog (`components/quests/QuestForm.svelte` in `components/Dialog.svelte`): name,
+  description, single-emoji icon (+ suggestions), colour swatches, optional weekly budget.
+- `/quests/[id]`: quest header, backlog (add with optional minutes, done toggle, ↑/↓, delete),
+  read-only "Scheduled" list. 404 for unknown/invalid ids.
+- Data layer: `server/quests.ts`, `server/tasks.ts` (generic list ops for M2/M3), `server/stats.ts`
+  - pure `stats-core.ts` (week/quarter/sparkline bucketing), `sessions.ts` (`sessionElapsedMs`),
+    validation in `quest-form.ts` / `task-form.ts` / `emoji.ts` / `ids.ts` — all unit-tested.
+- Shared components: `Menu`, `Dialog`, `Sparkline`, `tasks/TaskRow`.
+- `scripts/seed.ts` (`bun run db:seed`): 4 demo quests, tasks, ~10 weeks of sessions.
+- `scripts/dev-db.sh` (`bun run db:dev`): real Postgres 17 for machines without Docker.
+
+Decisions / fixes during M1 review:
+
+- Dev DB switched from PGlite to real Postgres 17: PGlite blocks other connections during a
+  transaction, and postgres.js loads enum types lazily over a second connection → deadlock.
+- Menu actions close the menu from the `use:enhance` callback (closing on click removed the
+  form from the DOM before the browser submitted it).
+- Sparkline buckets were computed in days instead of weeks — fixed and covered by tests.
+- Sessions are attributed to the day of `started_at` (server `TZ`); only `completed` sessions count.

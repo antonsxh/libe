@@ -30,18 +30,25 @@ Bun lives in `~/.bun/bin` — run `export PATH=$HOME/.bun/bin:$PATH` first if `b
 | `bun run build`       | production build into `build/`                    |
 | `bun run db:generate` | create a SQL migration from `schema.ts` changes   |
 | `bun run db:migrate`  | apply migrations (`scripts/migrate.ts`)           |
+| `bun run db:seed`     | demo data (only if `quests` is empty)             |
+| `bun run db:dev`      | local Postgres 17 without Docker (see below)      |
 | `docker compose up`   | full stack on http://localhost:3000               |
 
 ### Database without Docker
 
-This dev machine has no Docker. Use PGlite as a wire-compatible Postgres:
+This dev machine has no Docker. `scripts/dev-db.sh` runs a **real Postgres 17** from prebuilt
+binaries (installed once into `~/.cache/libe-pg`, Linux x64):
 
 ```sh
-mkdir -p /tmp/pg && cd /tmp/pg && bun add @electric-sql/pglite@0.5.16 @electric-sql/pglite-socket@0.2.19
-node node_modules/.bin/pglite-server -p 54329 -m 10 &   # in-memory; restart = empty DB
-export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres
-bun run db:migrate && bun run dev
+bun run db:dev            # = scripts/dev-db.sh start  (stop | status | reset)
+export DATABASE_URL=postgres://libe:libe@127.0.0.1:54330/libe
+bun run db:migrate && bun run db:seed && bun run dev
 ```
+
+Do **not** use PGlite / pglite-socket as the dev database: it shares one session across all
+connections and blocks them during a transaction. postgres.js loads enum type info lazily over a
+second connection, so any transaction whose first enum parameter is new deadlocks (hangs ~60 s,
+then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 
 ## Kit 3 differences (important — training data is mostly Kit 2)
 
@@ -93,7 +100,7 @@ bun run db:migrate && bun run dev
 - `bun run test` → green (add tests for non-trivial pure logic: date math, timers, ordering, aggregations)
 - `bun run lint` → clean
 - `bun run build` → succeeds
-- Manually exercised against a real DB (PGlite is fine): migrations apply on an empty DB, pages
+- Manually exercised against a real DB (`bun run db:dev`): migrations apply on an empty DB, pages
   render (no SSR errors / console errors), mutations persist after reload.
 - Update `docs/ROADMAP.md` (status + any decisions) and keep this file accurate.
 - Commit with a clear message (`M<n>: …`). Do not commit `.env`.

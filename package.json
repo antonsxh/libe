@@ -19,8 +19,10 @@
 		"test": "bun test src",
 		"format": "prettier --write .",
 		"db:up": "docker compose up -d db",
+		"db:dev": "scripts/dev-db.sh",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "bun run scripts/migrate.ts",
+		"db:seed": "bun run scripts/seed.ts",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio"
 	},
