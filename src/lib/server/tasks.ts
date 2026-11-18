@@ -11,6 +11,7 @@ import { db } from '#lib/server/db/index.ts';
 import { quests, tasks, type Task } from '#lib/server/db/schema.ts';
 import { dropIntoList, moveWithinGroup, orderAtBottom, orderAtTop } from '#lib/ordering.ts';
 import { addDays } from '#lib/dates.ts';
+import { broadcastTimer } from '#lib/server/timer.ts';
 
 export type MoveDirection = 'up' | 'down';
 export type ListPosition = 'top' | 'bottom';
@@ -200,8 +201,11 @@ export async function setTaskDone(id: string, done: boolean): Promise<void> {
 		.where(eq(tasks.id, id));
 }
 
+/** Delete a task (cascades to blocks/sessions/pomodoro runs) and tell timer clients. */
 export async function deleteTask(id: string): Promise<void> {
 	await db.delete(tasks).where(eq(tasks.id, id));
+	// The active timer may have belonged to this task — push the fresh state.
+	await broadcastTimer();
 }
 
 /** Swap the task with its neighbour in the same list. No-op at the edges. */

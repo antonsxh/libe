@@ -133,7 +133,12 @@
 			</ul>
 		{/if}
 
-		<BacklogList tasks={data.backlog} quests={data.quests} form={taskForm} />
+		<BacklogList
+			tasks={data.backlog}
+			otherTasks={data.otherBacklog}
+			quests={data.quests}
+			form={taskForm}
+		/>
 
 		<div class="other-head">
 			<h2 class="label">Other</h2>

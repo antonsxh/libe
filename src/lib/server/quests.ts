@@ -6,6 +6,7 @@ import { asc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { quests, type Quest } from '#lib/server/db/schema.ts';
 import type { QuestDraft } from '#lib/quest-form.ts';
+import { broadcastTimer } from '#lib/server/timer.ts';
 
 export type MoveDirection = 'up' | 'down';
 
@@ -53,8 +54,10 @@ export async function setQuestClosed(id: string, closed: boolean): Promise<void>
 }
 
 /** Hard delete — cascades to tasks, blocks and sessions. Prefer closing in normal UX. */
+/** Delete a quest (cascades to tasks → sessions/runs) and tell timer clients. */
 export async function deleteQuest(id: string): Promise<void> {
 	await db.delete(quests).where(eq(quests.id, id));
+	await broadcastTimer();
 }
 
 /** Swap the quest with its neighbour in the open-quest order. No-op at the edges. */

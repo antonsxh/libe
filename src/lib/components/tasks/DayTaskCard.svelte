@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formAction } from '#lib/form-action.ts';
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import {
 		ArrowDown,
 		ArrowLeft,
@@ -8,6 +9,8 @@
 		ArrowUp,
 		CalendarPlus,
 		Check,
+		Clock,
+		Pause,
 		Play,
 		Trash2
 	} from '@lucide/svelte';
@@ -16,6 +19,7 @@
 	import { formatDuration } from '#lib/dates.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
+	import { useTimer } from '#lib/timer-store.svelte.ts';
 
 	let {
 		task,
@@ -51,11 +55,27 @@
 
 	const done = $derived(task.doneAt !== null);
 	const color = $derived(questColorVar(task.questColor));
+
+	const timer = useTimer();
+	/** Live timer view when this task owns the active timer. */
+	const live = $derived(timer.view?.taskId === task.id ? timer.view : null);
+
+	/** ▶: start a focus timer for this task (or ask to stop the current one), then open Focus. */
+	async function play(e: MouseEvent) {
+		if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // new tab → picker
+		e.preventDefault();
+		const ok = await timer.start(
+			{ task: { id: task.id, title: task.title }, mode: 'focus' },
+			{ navigate: true }
+		);
+		if (ok) await goto('/focus');
+	}
 </script>
 
 <li
 	class="task card"
 	class:done
+	class:running={live !== null}
 	class:plan={variant === 'plan'}
 	class:drop-before={dropBefore}
 	class:dragging
@@ -81,7 +101,27 @@
 			<QuestPill color={task.questColor} label={task.questName} />
 		{/if}
 
-		{#if loggedMs > 0}
+		{#if live}
+			<a
+				class="live tabular"
+				class:paused={live.status !== 'running'}
+				href="/focus"
+				aria-label={`Timer ${live.display}, ${live.label.toLowerCase()} — open focus`}
+			>
+				<span class="rec" aria-hidden="true"></span>{live.display}
+			</a>
+			{#if live.isFocus && live.status !== 'waiting'}
+				<button
+					type="button"
+					class="pause"
+					aria-label={live.status === 'paused' ? 'Resume timer' : 'Pause timer'}
+					disabled={timer.busy}
+					onclick={() => timer.command(live.status === 'paused' ? 'resume' : 'pause')}
+				>
+					{#if live.status === 'paused'}<Play size={14} />{:else}<Pause size={14} />{/if}
+				</button>
+			{/if}
+		{:else if loggedMs > 0}
 			<span class="logged tabular">
 				<span class="dot" aria-hidden="true"></span>{formatDuration(loggedMs)}
 			</span>
@@ -91,11 +131,12 @@
 
 		<!-- Home: inline with the meta row; plan: its own row under the pill. -->
 		<span class="tail">
-			{#if !done}
+			{#if !done && !live}
 				<a
 					class="play"
 					href={`/focus?task=${task.id}`}
 					aria-label="Start focus timer for this task"
+					onclick={play}
 				>
 					<Play size={14} />
 				</a>
@@ -145,6 +186,17 @@
 								</button>
 							</form>
 						{/if}
+						<button
+							type="button"
+							class="item"
+							role="menuitem"
+							onclick={() => {
+								close();
+								timer.logTarget = { id: task.id, title: task.title };
+							}}
+						>
+							<Clock size={14} /> Log time…
+						</button>
 						<form method="POST" action={formAction('toBacklog')} use:enhance={() => close()}>
 							<input type="hidden" name="taskId" value={task.id} />
 							<button type="submit" class="item" role="menuitem">Move to backlog</button>
@@ -166,6 +218,10 @@
 			</span>
 		</span>
 	</div>
+
+	{#if live && live.progress > 0}
+		<span class="progress" style:--p={live.progress} aria-hidden="true"></span>
+	{/if}
 </li>
 
 <style>
@@ -208,6 +264,76 @@
 	}
 	.dragging {
 		opacity: 0.4;
+	}
+	/* The task with the active timer: amber outline + progress line along the bottom. */
+	.running,
+	.running:hover {
+		border-color: var(--running-border);
+		box-shadow: 0 0 0 1px var(--running-border);
+	}
+	.progress {
+		position: absolute;
+		left: var(--space-1);
+		bottom: -1px;
+		height: 2px;
+		width: calc((100% - 2 * var(--space-1)) * var(--p));
+		border-radius: 1px;
+		background: linear-gradient(90deg, var(--accent) 70%, transparent);
+		pointer-events: none;
+		transition: width 1s linear;
+	}
+	.live {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--fs-md);
+		color: var(--text);
+	}
+	.live .rec {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--danger);
+		animation: rec 2s ease-in-out infinite;
+	}
+	.live.paused {
+		color: var(--text-muted);
+	}
+	.live.paused .rec {
+		background: var(--text-faint);
+		animation: none;
+	}
+	@keyframes rec {
+		50% {
+			opacity: 0.35;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.live .rec {
+			animation: none;
+		}
+	}
+	.pause {
+		display: grid;
+		place-items: center;
+		width: 28px;
+		height: 28px;
+		margin-left: calc(-1 * var(--space-2));
+		border: none;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--text-muted);
+	}
+	.pause:hover {
+		color: var(--text);
+		background: var(--surface-hover);
+	}
+	.plan .live {
+		font-size: var(--fs-sm);
+	}
+	.plan .pause {
+		width: 24px;
+		height: 24px;
 	}
 	.task[draggable='true'] {
 		cursor: grab;

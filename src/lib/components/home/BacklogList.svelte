@@ -11,17 +11,47 @@
 
 	let {
 		tasks,
+		otherTasks = [],
 		quests,
 		form
 	}: {
 		/** Open-quest backlog tasks (day = null), grouped by quest order then list order. */
 		tasks: TaskWithQuest[];
+		/** "Other" tasks without a day (no quest) — rendered as their own group. */
+		otherTasks?: TaskWithQuest[];
 		quests: Quest[];
 		form?: TaskFormResult | undefined;
 	} = $props();
 
 	let expanded = $state(true);
+	const count = $derived(tasks.length + otherTasks.length);
 </script>
+
+{#snippet row(task: TaskWithQuest)}
+	<li class="row" class:done={task.doneAt !== null} style:--q={questColorVar(task.questColor)}>
+		{#if task.questName}
+			<QuestPill color={task.questColor} label={task.questName} />
+		{:else}
+			<QuestPill color="slate" label="Other" />
+		{/if}
+		<span class="title">{task.title}</span>
+		{#if task.durationMin !== null}
+			<span class="dur muted tabular">{task.durationMin} min</span>
+		{/if}
+		<form class="inline" method="POST" action={formAction('today')} use:enhance>
+			<input type="hidden" name="taskId" value={task.id} />
+			<button type="submit" class="op primary-op" aria-label="Schedule for today">
+				<ArrowRight size={14} /> Today
+			</button>
+		</form>
+		<form class="inline" method="POST" action={formAction('deleteTask')} use:enhance>
+			<input type="hidden" name="taskId" value={task.id} />
+			<button type="submit" class="op danger" aria-label="Delete task">
+				<Trash2 size={14} />
+			</button>
+		</form>
+	</li>
+{/snippet}
 
 <section class="section">
 	<div class="head">
@@ -33,7 +63,7 @@
 			onclick={() => (expanded = !expanded)}
 			aria-expanded={expanded}
 		>
-			{tasks.length} open {tasks.length === 1 ? 'task' : 'tasks'}
+			{count} open {count === 1 ? 'task' : 'tasks'}
 			<ChevronDown size={15} />
 		</button>
 	</div>
@@ -41,31 +71,11 @@
 	<TaskAddForm action="addBacklog" placeholder="Add to backlog…" {quests} {form} />
 
 	{#if expanded}
-		{#if tasks.length > 0}
+		{#if count > 0}
 			<ul class="rows">
-				{#each tasks as task (task.id)}
-					<li class="row" style:--q={questColorVar(task.questColor)}>
-						{#if task.questName}
-							<QuestPill color={task.questColor} label={task.questName} />
-						{/if}
-						<span class="title">{task.title}</span>
-						{#if task.durationMin !== null}
-							<span class="dur muted tabular">{task.durationMin} min</span>
-						{/if}
-						<form class="inline" method="POST" action={formAction('today')} use:enhance>
-							<input type="hidden" name="taskId" value={task.id} />
-							<button type="submit" class="op primary-op" aria-label="Schedule for today">
-								<ArrowRight size={14} /> Today
-							</button>
-						</form>
-						<form class="inline" method="POST" action={formAction('deleteTask')} use:enhance>
-							<input type="hidden" name="taskId" value={task.id} />
-							<button type="submit" class="op danger" aria-label="Delete task">
-								<Trash2 size={14} />
-							</button>
-						</form>
-					</li>
-				{/each}
+				{#each tasks as task (task.id)}{@render row(task)}{/each}
+				<!-- "Other" tasks without a day, after the quest groups (like Plan's backlog rail). -->
+				{#each otherTasks as task (task.id)}{@render row(task)}{/each}
 			</ul>
 		{:else}
 			<p class="muted empty">Nothing waiting in the backlog.</p>
@@ -164,6 +174,10 @@
 		color: var(--danger);
 	}
 
+	.row.done .title {
+		color: var(--text-faint);
+		text-decoration: line-through;
+	}
 	.empty {
 		font-size: var(--fs-sm);
 		padding: var(--space-2) 0;

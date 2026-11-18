@@ -18,6 +18,10 @@ tasks(id, quest_id NULL, kind quest|other, title, description, duration_min,
 blocks(id, task_id, day, start_min, end_min, created_at)        -- planned time on the timeline
 sessions(id, task_id, state running|paused|completed, started_at, duration_min,
          paused_ms, paused_at, ended_at, source focus|manual|pomodoro, created_at)   -- logged time
+pomodoro_runs(id, task_id, phase focus|short_break|long_break, round, phase_started_at NULL,
+              phase_min, ended_at, created_at)                     -- M4, active run = ended_at NULL
+settings(id = 1, pomodoro_focus_min, pomodoro_short_break_min, pomodoro_long_break_min,
+         pomodoro_long_break_every, pomodoro_auto_start, updated_at)  -- M4, single row
 pairing_codes(code, expires_at, used, created_at)
 devices(id, token_hash, name, paired_at, last_seen_at)
 ```
@@ -30,7 +34,7 @@ Notes / decisions taken in M0:
 - `sessions.duration_min`: countdown target for focus/pomodoro (NULL = stopwatch); logged length for manual entries.
 - Session source value is `manual` (English) rather than `manuell`.
 - Deleting a quest cascades to its tasks → blocks/sessions. Normal UX should _close_ a quest (`closed_at`) instead.
-- Pomodoro settings (intervals) are not in the schema yet → decide in M4 (table `settings` or per-session columns).
+- Pomodoro settings (intervals) → decided in M4: single-row `settings` table (migration `0001_focus_timer`).
 
 ## Milestones
 
@@ -40,7 +44,7 @@ Notes / decisions taken in M0:
 | M1  | Quests: data + CRUD incl. emoji / colour / weekly budget / close; quest backlog; quest cards (→ basis for pills)            | ✅ done |
 | M2  | Home/Today: Quest work + Other lists, backlog input without day, day timeline (blocks + now line), ordering via ↑/↓ buttons | ✅ done |
 | M3  | Plan: week kanban (Mon–Sun columns), add per day, collapsible "Other" zones, done/past styling                              | ✅ done |
-| M4  | Focus: server-side timer + SSE, pomodoro mode (configurable intervals), "log time afterwards" dialog (manual sessions)      | ⏳      |
+| M4  | Focus: server-side timer + SSE, pomodoro mode (configurable intervals), "log time afterwards" dialog (manual sessions)      | ✅ done |
 | M5  | Calendar: weekly log of sessions with overlap columns, day totals, now line, today column tint                              | ⏳      |
 | M6  | Review: KPIs (quest hours vs budget, daily avg, quest vs other), per-day bars, hours by quest, sparklines, quarter sums     | ⏳      |
 | M7  | Tauri 2 shell (thin client loading the server URL) + pairing flow (code → device token in OS keychain)                      | ⏳      |
@@ -180,5 +184,83 @@ Decisions / fixes during M3:
   `replaceState`); the scroll-to-today effect re-ran on every mutation (now keyed on a derived
   week string, minimal scroll); `TaskAddForm` echo lost its `form.errors` guard; `moveTo` passed
   an unvalidated `beforeId`; DOM-class juggling for the dragged card replaced by state.
-- Known gap: an "other" task moved to the backlog from Home still disappears from Home (it only
-  shows in the Plan backlog's Other group).
+- Known gap (fixed in M4): an "other" task moved to the backlog from Home disappeared from Home
+  (it only showed in the Plan backlog's Other group).
+
+## M4 — what exists
+
+- **Server timer** (`server/timer.ts`, migration `drizzle/0001_focus_timer.sql`): at most one
+  active session (`running`/`paused`, partial unique index `sessions_one_active_idx`) and at most
+  one active pomodoro run (`pomodoro_runs_one_active_idx`). Operations: `start(taskId, mode,
+plannedMin?, replace?)`, `pause`, `resume`, `complete` (ends session + marks task done), `stop`
+  (ends session, task stays open), `discard` (deletes the active session), pomodoro `startPhase`
+  / `skip`, settings update. Each runs in a transaction that locks the active rows, rolls a
+  pomodoro run forward, validates the transition and uses server timestamps; starting while a
+  timer is active → 409 `conflict` unless `replace` (= stop current, keep its time).
+- **Pure model** `src/lib/timer.ts` (tested): pause/resume/finish clock transitions with
+  `paused_at`/`paused_ms` bookkeeping, `rolloverPomodoro` (lazy phase rollover from timestamps),
+  `startPendingPhase`/`skipBreak`, `timerView` (display text, label, overtime, progress, cycle
+  dots, `stale`), `parseTimerCommand`, `parsePlannedMin`, `parsePomodoroSettings`.
+- **Countdown**: target = planned minutes (task duration, else 25; empty = stopwatch); past the
+  target the timer keeps counting as overtime (`+02:13`, label OVERTIME) until completed/stopped.
+- **API**: `GET /api/timer` (snapshot), `POST /api/timer` JSON `{ action, … }` → `{ ok, snapshot }`
+  or `{ ok: false, code, error }` (400/404/409); plain form posts (no JS) are accepted and answered
+  with a 303 to `redirectTo` (`?timerError=` on failure). `GET /api/timer/stream` = SSE
+  (`event: timer` with the full snapshot on connect + every change, `: ping` every 25 s,
+  listener removed on abort). `GET/POST /api/sessions`, `DELETE /api/sessions/[id]` for manual logs.
+- **Client store** `timer-store.svelte.ts` (`TimerStore`, context via `setTimerStore`/`useTimer`):
+  seeded from the root layout `load`, one SSE connection (exponential backoff 1 s → 30 s), 250 ms
+  local tick, clock offset = snapshot `now` − `Date.now()`. Stale snapshots (older `now`) are
+  ignored. When the active session id changes it calls `refreshAll()` (logged times, done state,
+  header hours). `html[data-timer=live|offline]` reflects the stream.
+- **Focus screen** `/focus` (outside the `(app)` route group → no nav): "● FOCUS · QUEST" crumb,
+  gear (pomodoro settings dialog, form action `?/settings`), ← back to the previous in-app page;
+  running view = outlined quest pill, title, huge tabular clock (`--fs-timer`, shrinks with
+  `vw`), state label, pomodoro dots, Pause/Resume · Complete · ⋯ (Log time… / Stop (keep task
+  open) / Discard session); pomodoro waiting states "Start break / Skip", "Start focus".
+  Without a timer: picker of today's open quest + other tasks and the backlog (`?task=`
+  preselects, also tasks of other days), Focus/Pomodoro toggle, planned minutes, Start, "Log
+  time afterwards…". `<title>` = "36:00 · Task title". `?task=` of another task while running →
+  "Start X instead? Stop current and start".
+- **Live timer elsewhere**: `DayTaskCard` (Home + Plan) of the active task gets the amber outline
+  (`--running-border`), red pulsing dot + live time (link to /focus), pause/resume icon and a
+  bottom progress line (elapsed/target). ▶ on other cards starts a focus timer and opens /focus;
+  on conflict the root-layout `SwitchTimerDialog` asks "Stop current and start". `AppNav` shows a
+  chip (dot · time · truncated title → /focus; title hidden below 900px).
+- **Log time afterwards** (`components/focus/LogTimeDialog.svelte`, mounted once in the root
+  layout; opened from card ⋯ "Log time…" on Home/Plan and from the Focus screen): date (≤ 365
+  days back), start, minutes ↔ end time kept in sync (end ≤ start = next day), "Mark task as
+  done"; lists the task's completed sessions of that day (any source) with delete. Server
+  validation in pure `src/lib/manual-log.ts` (tested): valid day/HH:MM, 1–1440 min, not in the
+  future (60 s slack), within 365 days, no overlap with the active session's `[started_at, now)`;
+  wall times interpreted in server `TZ` (`wallTimeToDate`, DST-aware).
+- **Home backlog** now also lists "other" tasks without a day (after the quest rows, "Other" pill).
+
+Decisions / fixes during M4:
+
+- **Timer state model**: the DB rows are the only state. Focus mode = one `sessions` row
+  (`source = 'focus'`, `duration_min` = target or NULL). Pomodoro = a `pomodoro_runs` row (phase,
+  round, `phase_started_at` — NULL means "waiting for the user" —, `phase_min`) plus one
+  `sessions` row per focus round (`source = 'pomodoro'`). Breaks are not sessions.
+- **Lazy rollover, no server timers**: every read/mutation first calls `rolloverPomodoro` up to
+  `now`; a finished focus round's session is completed at its exact end
+  (`start + focus + pauses`), auto-started breaks/rounds begin at the computed instants. Clients
+  project the same function locally, so the display flips at the right second; when the
+  projection is ahead of the snapshot (`view.stale`) the store calls `GET /api/timer` once,
+  which persists the rollover and broadcasts it.
+- **After a long break the run always waits** for "Start focus", even with auto-start — an
+  unattended run logs at most one cycle of rounds.
+- **Settings** live in the single-row `settings` table and are global, not snapshotted per run.
+  Saving rolls the active run forward with the old values first, so new intervals apply from the
+  next phase (the current phase keeps its stored `phase_min` / session `duration_min`).
+- **SSE / single process**: fan-out is an in-process listener set (`server/timer-hub.ts`). This
+  only works with one server process; several instances would need Postgres `LISTEN/NOTIFY`
+  (or similar). Each push carries the server `now` for the client's clock offset.
+- **Stop vs. complete vs. discard**: stop and complete both log the session (completed, live
+  pause folded into `paused_ms`); only complete marks the task done; discard deletes it. A
+  pomodoro's earlier completed rounds are kept on discard.
+- Task/quest deletion broadcasts the timer (the cascade may remove the active session/run).
+- Root layout skips its post-change `refreshAll` while the page is unloading (a reload could
+  otherwise abort it and Kit logs "Failed to fetch").
+- Browser tests can't use `networkidle` any more (open SSE stream) — they wait for
+  `html[data-timer=live]`.

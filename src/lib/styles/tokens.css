@@ -31,6 +31,11 @@
 	--accent-ink: #1b1305; /* text on accent */
 	--accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 	--today-tint: color-mix(in srgb, var(--accent) 7%, transparent); /* today column / timeline */
+	--running-border: color-mix(
+		in srgb,
+		var(--accent) 50%,
+		var(--border)
+	); /* card with the active timer */
 
 	/* ── Semantic ─────────────────────────────────────────── */
 	--danger: #e5645f;

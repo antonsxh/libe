@@ -3,6 +3,9 @@
 	import { Search } from '@lucide/svelte';
 	import { NAV_ITEMS, isActive } from '#lib/nav.ts';
 	import Logo from './Logo.svelte';
+	import { useTimer } from '#lib/timer-store.svelte.ts';
+
+	const timer = useTimer();
 
 	const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 </script>
@@ -26,6 +29,19 @@
 	</nav>
 
 	<div class="right">
+		{#if timer.view && timer.timer}
+			<a
+				class="chip"
+				class:paused={timer.view.status !== 'running'}
+				href="/focus"
+				title={`${timer.view.label} · ${timer.timer.task.title}`}
+				aria-label={`Timer ${timer.view.display} (${timer.view.label.toLowerCase()}): ${timer.timer.task.title} — open focus`}
+			>
+				<span class="rec" aria-hidden="true"></span>
+				<span class="chip-time tabular">{timer.view.display}</span>
+				<span class="chip-title">{timer.timer.task.title}</span>
+			</a>
+		{/if}
 		<!-- Command palette lands in a later milestone; the trigger is already part of the shell. -->
 		<button class="search" type="button" title="Search (coming soon)" disabled>
 			<Search size={16} strokeWidth={1.75} />
@@ -93,6 +109,48 @@
 		gap: var(--space-4);
 	}
 
+	.chip {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		max-width: 260px;
+		height: 36px;
+		padding: 0 var(--space-3);
+		border: 1px solid var(--running-border);
+		border-radius: var(--radius-pill);
+		background: var(--surface);
+		color: var(--text);
+		font-size: var(--fs-sm);
+		transition: background var(--dur) var(--ease);
+	}
+	.chip:hover {
+		background: var(--surface-hover);
+	}
+	.chip .rec {
+		flex: none;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--danger);
+	}
+	.chip.paused {
+		border-color: var(--border-strong);
+	}
+	.chip.paused .rec {
+		background: var(--text-faint);
+	}
+	.chip-time {
+		flex: none;
+		font-weight: var(--fw-medium);
+	}
+	.chip-title {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		color: var(--text-muted);
+	}
+
 	.search {
 		display: flex;
 		align-items: center;
@@ -139,6 +197,7 @@
 			gap: var(--space-4);
 			padding: 0 var(--space-4);
 		}
+		.chip-title,
 		.brand span,
 		.search span,
 		.search kbd {

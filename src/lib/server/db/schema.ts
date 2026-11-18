@@ -21,6 +21,7 @@ import {
 	real,
 	text,
 	timestamp,
+	uniqueIndex,
 	uuid
 } from 'drizzle-orm/pg-core';
 
@@ -31,6 +32,7 @@ const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull(
 export const taskKind = pgEnum('task_kind', ['quest', 'other']);
 export const sessionState = pgEnum('session_state', ['running', 'paused', 'completed']);
 export const sessionSource = pgEnum('session_source', ['focus', 'manual', 'pomodoro']);
+export const pomodoroPhase = pgEnum('pomodoro_phase', ['focus', 'short_break', 'long_break']);
 
 // ─── Quests ─────────────────────────────────────────────────────────────────
 
@@ -132,8 +134,63 @@ export const sessions = pgTable(
 	(t) => [
 		index('sessions_task_idx').on(t.taskId),
 		index('sessions_started_idx').on(t.startedAt),
-		check('sessions_paused_chk', sql`${t.pausedMs} >= 0`)
+		check('sessions_paused_chk', sql`${t.pausedMs} >= 0`),
+		// At most one active (running/paused) session across the whole app.
+		uniqueIndex('sessions_one_active_idx')
+			.on(sql`(${t.state} <> 'completed')`)
+			.where(sql`${t.state} <> 'completed'`)
 	]
+);
+
+// ─── Pomodoro (M4) ──────────────────────────────────────────────────────────
+
+/**
+ * The active pomodoro run (at most one with `ended_at IS NULL`). Each focus round is a
+ * `sessions` row (`source = 'pomodoro'`); breaks are not logged, but the current phase lives
+ * here so every client/reload sees the same state. Phase rollover is derived lazily from the
+ * timestamps when the timer is read (see `#lib/timer.ts` → `rolloverPomodoro`).
+ */
+export const pomodoroRuns = pgTable(
+	'pomodoro_runs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		taskId: uuid('task_id')
+			.notNull()
+			.references(() => tasks.id, { onDelete: 'cascade' }),
+		phase: pomodoroPhase('phase').notNull().default('focus'),
+		/** 1-based number of the current/last focus round in this run (keeps counting across cycles). */
+		round: integer('round').notNull().default(1),
+		/** Start of the current phase; null = the phase waits for the user (auto-start off). */
+		phaseStartedAt: timestamp('phase_started_at', { withTimezone: true }),
+		/** Length of the current phase in minutes (fixed when the phase is entered). */
+		phaseMin: integer('phase_min').notNull(),
+		endedAt: timestamp('ended_at', { withTimezone: true }),
+		createdAt: createdAt()
+	},
+	(t) => [
+		uniqueIndex('pomodoro_runs_one_active_idx')
+			.on(sql`(${t.endedAt} IS NULL)`)
+			.where(sql`${t.endedAt} IS NULL`),
+		check('pomodoro_runs_round_chk', sql`${t.round} >= 1`),
+		check('pomodoro_runs_phase_min_chk', sql`${t.phaseMin} > 0`)
+	]
+);
+
+/** App settings — a single row (`id = 1`). Pomodoro intervals in minutes. */
+export const settings = pgTable(
+	'settings',
+	{
+		id: integer('id').primaryKey().default(1),
+		pomodoroFocusMin: integer('pomodoro_focus_min').notNull().default(25),
+		pomodoroShortBreakMin: integer('pomodoro_short_break_min').notNull().default(5),
+		pomodoroLongBreakMin: integer('pomodoro_long_break_min').notNull().default(15),
+		/** A long break follows every N-th focus round. */
+		pomodoroLongBreakEvery: integer('pomodoro_long_break_every').notNull().default(4),
+		/** Start the next phase automatically when one ends. */
+		pomodoroAutoStart: boolean('pomodoro_auto_start').notNull().default(true),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(t) => [check('settings_single_row_chk', sql`${t.id} = 1`)]
 );
 
 // ─── Device pairing (Tauri thin client) ─────────────────────────────────────
@@ -168,6 +225,10 @@ export const blocksRelations = relations(blocks, ({ one }) => ({
 	task: one(tasks, { fields: [blocks.taskId], references: [tasks.id] })
 }));
 
+export const pomodoroRunsRelations = relations(pomodoroRuns, ({ one }) => ({
+	task: one(tasks, { fields: [pomodoroRuns.taskId], references: [tasks.id] })
+}));
+
 export const sessionsRelations = relations(sessions, ({ one }) => ({
 	task: one(tasks, { fields: [sessions.taskId], references: [tasks.id] })
 }));
@@ -182,5 +243,7 @@ export type Block = typeof blocks.$inferSelect;
 export type NewBlock = typeof blocks.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
+export type PomodoroRun = typeof pomodoroRuns.$inferSelect;
+export type Settings = typeof settings.$inferSelect;
 export type PairingCode = typeof pairingCodes.$inferSelect;
 export type Device = typeof devices.$inferSelect;

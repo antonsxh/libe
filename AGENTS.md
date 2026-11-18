@@ -86,6 +86,19 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   backlog, delete, `addTaskAction` factory) in `src/lib/server/task-actions.ts`.
 - `Menu` popovers are `position: fixed` (placed from the trigger rect) so they escape
   scrolling/clipping containers such as the plan board.
+- **Routes/layouts**: pages with the top nav live in the route group `src/routes/(app)/`
+  (its `+layout.svelte` renders `AppNav` + `<main>`). `/focus` sits outside the group
+  (full-screen, no nav). The root layout only loads global CSS, the timer snapshot and the
+  app-wide dialogs.
+- **Timer**: never compute timer state on the client. Mutations go through
+  `POST /api/timer` (`server/timer.ts`); clients render from the snapshot via the pure
+  `timerView()` (`#lib/timer.ts`). In components use `useTimer()` (`#lib/timer-store.svelte.ts`,
+  context store created in the root layout — not a module singleton, SSR-safe):
+  `timer.view`, `timer.command('pause')`, `timer.start({...})`, `timer.logTarget = task`
+  (opens "Log time…"). Code that deletes tasks/sessions behind the timer's back must call
+  `broadcastTimer()`.
+- Pages hold an open SSE connection, so `networkidle` never fires in browser tests — wait for
+  `html[data-timer=live]` (set by the root layout once the stream is connected) instead.
 - UI copy is English (matches the references). Code and comments in English.
 
 ## Styling rules

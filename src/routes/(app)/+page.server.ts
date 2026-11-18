@@ -1,7 +1,13 @@
 import { fail } from '@sveltejs/kit';
 import { isUuid } from '#lib/ids.ts';
 import { listOpenQuests } from '#lib/server/quests.ts';
-import { getTask, listDayTasks, listOpenBacklog, moveTaskToDay } from '#lib/server/tasks.ts';
+import {
+	getTask,
+	listDayTasks,
+	listOpenBacklog,
+	listOtherBacklog,
+	moveTaskToDay
+} from '#lib/server/tasks.ts';
 import {
 	addTaskAction,
 	formStr,
@@ -24,14 +30,16 @@ import type { Actions, PageServerLoad } from './$types';
 export const load = (async ({ url }) => {
 	const day = todayISO();
 
-	const [quests_, questTasksAll, otherTasksAll, backlog, blocks, time] = await Promise.all([
-		listOpenQuests(),
-		listDayTasks(day, 'quest'),
-		listDayTasks(day, 'other'),
-		listOpenBacklog(),
-		listDayBlocks(day),
-		homeTime()
-	]);
+	const [quests_, questTasksAll, otherTasksAll, backlog, otherBacklog, blocks, time] =
+		await Promise.all([
+			listOpenQuests(),
+			listDayTasks(day, 'quest'),
+			listDayTasks(day, 'other'),
+			listOpenBacklog(),
+			listOtherBacklog(),
+			listDayBlocks(day),
+			homeTime()
+		]);
 
 	// `?q=<id>,<id>` — a *proper subset* of the open quest ids filters the quest
 	// column; none or all checked means "no filter" (the client removes the param).
@@ -73,6 +81,8 @@ export const load = (async ({ url }) => {
 		otherTasks: otherSplit.open.concat(hideDone ? [] : otherSplit.done),
 		hideDone,
 		backlog,
+		/** "Other" tasks without a day (shown as their own group in the backlog card). */
+		otherBacklog,
 		blocks
 	};
 }) satisfies PageServerLoad;
