@@ -63,6 +63,16 @@
 		}
 	}
 
+	/**
+	 * The popover lives in `<body>` while open: `position: fixed` alone doesn't escape an
+	 * ancestor's stacking context (e.g. the dimmed past-day plan columns use `opacity`), so
+	 * the next column painted over it.
+	 */
+	function toBody(node: HTMLElement) {
+		document.body.appendChild(node);
+		return () => node.remove();
+	}
+
 	$effect(() => {
 		if (!open) return;
 		function onKey(e: KeyboardEvent) {
@@ -107,6 +117,7 @@
 			class="pop"
 			role="menu"
 			bind:this={pop}
+			{@attach toBody}
 			style:top={pos ? `${pos.top}px` : undefined}
 			style:left={pos ? `${pos.left}px` : undefined}
 			style:visibility={pos ? undefined : 'hidden'}

@@ -38,6 +38,16 @@ const STREAM_URL = '/api/timer/stream';
 const API_URL = '/api/timer';
 const TICK_MS = 250;
 const MAX_BACKOFF_MS = 30_000;
+/** Hidden longer than this → also refresh page data when coming back. */
+const LONG_HIDDEN_MS = 5 * 60_000;
+/** Hidden longer than this → reopen the SSE stream even if it still looks open. */
+const SHORT_HIDDEN_MS = 15_000;
+
+/** The device was revoked / its cookie is gone: full reload into the pairing page. */
+function toPairing() {
+	const next = location.pathname + location.search;
+	location.assign(next === '/' ? '/pair' : `/pair?next=${encodeURIComponent(next)}`);
+}
 
 export class TimerStore {
 	snapshot = $state() as TimerSnapshot;
@@ -107,6 +117,7 @@ export class TimerStore {
 
 		const open = () => {
 			if (stopped) return;
+			source?.close();
 			source = new EventSource(STREAM_URL);
 			source.addEventListener('timer', (e) => {
 				attempt = 0;
@@ -122,11 +133,46 @@ export class TimerStore {
 				source?.close();
 				source = null;
 				if (stopped) return;
+				// A revoked device gets 401s: `refresh()` notices and sends it to /pair.
+				void this.refresh();
 				const delay = Math.min(MAX_BACKOFF_MS, 1000 * 2 ** attempt++);
 				retry = setTimeout(open, delay);
 			};
 		};
 		open();
+
+		/**
+		 * iOS (and other mobile browsers) silently kill background connections and freeze
+		 * timers. Coming back to the page — tab visible again, restored from the back/forward
+		 * cache, network back — reconnects at once and resyncs the snapshot, instead of
+		 * waiting for a backoff timer that may have been frozen.
+		 */
+		let hiddenAt: number | null = null;
+		const revive = () => {
+			if (stopped) return;
+			// A short tab switch on desktop keeps a healthy stream; anything longer (or a
+			// stream that is already gone) reconnects — iOS may leave a dead socket "open".
+			const away = hiddenAt === null ? Infinity : Date.now() - hiddenAt;
+			if (!source || source.readyState !== EventSource.OPEN || away > SHORT_HIDDEN_MS) {
+				clearTimeout(retry);
+				attempt = 0;
+				open();
+			}
+			void this.refresh();
+			// After a long absence other devices may have changed lists, too.
+			if (hiddenAt !== null && Date.now() - hiddenAt > LONG_HIDDEN_MS) this.#queueRefresh();
+			hiddenAt = null;
+		};
+		const onVisibility = () => {
+			if (document.visibilityState === 'hidden') hiddenAt ??= Date.now();
+			else revive();
+		};
+		const onPageShow = (e: PageTransitionEvent) => {
+			if (e.persisted) revive();
+		};
+		document.addEventListener('visibilitychange', onVisibility);
+		window.addEventListener('pageshow', onPageShow);
+		window.addEventListener('online', revive);
 
 		// A reload can make the server roll a pomodoro forward and push to *this* (old)
 		// document; don't start a data refresh the unload would abort. Reset in case the
@@ -147,6 +193,9 @@ export class TimerStore {
 			clearTimeout(retry);
 			clearInterval(tick);
 			window.removeEventListener('beforeunload', onUnload);
+			document.removeEventListener('visibilitychange', onVisibility);
+			window.removeEventListener('pageshow', onPageShow);
+			window.removeEventListener('online', revive);
 			source?.close();
 			this.connected = false;
 		};
@@ -172,6 +221,7 @@ export class TimerStore {
 	async refresh(): Promise<void> {
 		try {
 			const res = await fetch(API_URL, { headers: { accept: 'application/json' } });
+			if (res.status === 401) return toPairing();
 			if (res.ok) this.apply((await res.json()) as TimerSnapshot);
 		} catch {
 			// offline — the SSE reconnect will catch up
@@ -186,6 +236,10 @@ export class TimerStore {
 				headers: { 'content-type': 'application/json', accept: 'application/json' },
 				body: JSON.stringify(body)
 			});
+			if (res.status === 401) {
+				toPairing();
+				return { ok: false, code: 'unauthorized', error: 'This device is not paired.' };
+			}
 			const data = (await res.json().catch(() => null)) as
 				{ ok: true; snapshot: TimerSnapshot } | { ok: false; code: string; error: string } | null;
 			if (!data) {

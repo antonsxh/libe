@@ -1,0 +1,36 @@
+# Optional HTTPS front end: Caddy gets a certificate for LIBE_DOMAIN automatically
+# (Let's Encrypt; ports 80 + 443 must be reachable from the internet for that).
+#
+#   docker compose -f compose.yaml -f compose.caddy.yaml up -d --build
+#
+# .env needs LIBE_DOMAIN=libe.example.com (and LIBE_SETUP_SECRET). iOS home-screen apps,
+# service workers and the `Secure` device cookie all require HTTPS.
+services:
+  app:
+    environment:
+      ORIGIN: https://${LIBE_DOMAIN:?LIBE_DOMAIN is required for compose.caddy.yaml, e.g. libe.example.com}
+      # Real client IPs for the pairing rate limit (Caddy appends to X-Forwarded-For).
+      ADDRESS_HEADER: X-Forwarded-For
+      XFF_DEPTH: '1'
+    # Only Caddy talks to the app.
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      LIBE_DOMAIN: ${LIBE_DOMAIN}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

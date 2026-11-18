@@ -9,6 +9,10 @@
 html,
 body {
 	margin: 0;
+	/* iOS: no grey flash on tap, no font inflation in landscape. */
+	-webkit-tap-highlight-color: transparent;
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
 	min-height: 100%;
 	background: var(--bg);
 	color: var(--text);
@@ -125,4 +129,40 @@ button {
 * {
 	scrollbar-width: thin;
 	scrollbar-color: var(--border-strong) transparent;
+}
+
+/*
+ * Touch screens (iPhone / iPad / touch laptops).
+ * - Inputs ≥ 16px: iOS Safari zooms the page into any smaller focused field.
+ * - Every button gets an invisible hit area of at least 44×44 (Apple HIG) centred on it,
+ *   so compact icon controls (↑/↓, ⋯, checks) keep their look but are easy to tap.
+ *   Components that position a button themselves (absolute) keep their own positioning.
+ */
+@media (pointer: coarse) {
+	input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']),
+	textarea,
+	select {
+		font-size: max(var(--fs-input-touch), 1em) !important;
+	}
+
+	[role='menuitem'] {
+		min-height: var(--hit-min);
+	}
+
+	button,
+	summary,
+	.hit-target {
+		position: relative;
+	}
+	button::after,
+	summary::after,
+	.hit-target::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: max(100%, var(--hit-min));
+		height: max(100%, var(--hit-min));
+		transform: translate(-50%, -50%);
+	}
 }

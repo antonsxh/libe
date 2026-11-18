@@ -22,8 +22,10 @@ pomodoro_runs(id, task_id, phase focus|short_break|long_break, round, phase_star
               phase_min, ended_at, created_at)                     -- M4, active run = ended_at NULL
 settings(id = 1, pomodoro_focus_min, pomodoro_short_break_min, pomodoro_long_break_min,
          pomodoro_long_break_every, pomodoro_auto_start, updated_at)  -- M4, single row
-pairing_codes(code, expires_at, used, created_at)
-devices(id, token_hash, name, paired_at, last_seen_at)
+devices(id, token_hash UNIQUE, name, kind browser|pwa|tauri, user_agent, paired_at, last_seen_at,
+        cookie_renewed_at, revoked_at)                                    -- M7 (0002_devices)
+pairing_codes(id, code_hash, expires_at, used_at, attempts, created_by_device_id → devices,
+              device_id → devices, created_at)                            -- M7, 6-digit codes, hashed
 ```
 
 Notes / decisions taken in M0:
@@ -47,7 +49,7 @@ Notes / decisions taken in M0:
 | M4  | Focus: server-side timer + SSE, pomodoro mode (configurable intervals), "log time afterwards" dialog (manual sessions)      | ✅ done |
 | M5  | Calendar: weekly log of sessions with overlap columns, day totals, now line, today column tint                              | ✅ done |
 | M6  | Review: KPIs (quest hours vs budget, daily avg, quest vs other), per-day bars, hours by quest, sparklines, quarter sums     | ✅ done |
-| M7  | Tauri 2 shell (thin client loading the server URL) + pairing flow (code → device token in OS keychain)                      | ⏳      |
+| M7  | Device pairing for every client, Tauri 2 thin client (token in OS keychain), iPhone/iPad home-screen PWA, HTTPS deployment  | ✅ done |
 
 ## M0 — what exists
 
@@ -384,3 +386,122 @@ Decisions during M6:
   have time in the period.
 - Daily average divides by elapsed days, so a fresh Monday isn't diluted by the empty rest of
   the week; week-over-week deltas compare the same elapsed days of the previous week.
+
+## M7 — what exists
+
+**Device auth (every client is a paired device; no accounts/passwords)**
+
+- `src/hooks.server.ts`: resolves the device from `Authorization: Bearer <token>` or the
+  `libe_device` cookie with one lookup on the unique `token_hash` index (non-revoked), sets
+  `event.locals.device`, writes `last_seen_at` at most once a minute (in the background) and
+  re-issues the cookie at most once a day (sliding expiry). Without a device only the public
+  routes work (`isPublicPath` in `#lib/auth.ts`: `/pair`, `/pair/*`, `/setup`, `/offline`,
+  `/api/pair/**`, `/api/health`, manifest, service worker, icons, `/_app/**`); pages redirect
+  303 to `/pair?next=…` (`/setup` while nothing is paired), API/SSE routes answer
+  `401 { ok: false, code: 'unauthorized' }`. A revoked/unknown cookie is cleared.
+- Tokens: 32 random bytes base64url (43 chars); the DB stores only SHA-256 hex
+  (`server/tokens.ts`). Cookie: httpOnly, `SameSite=Lax`, `Secure` when the request URL is
+  https (adapter-node derives it from `ORIGIN` / `PROTOCOL_HEADER`), `Max-Age` 400 days.
+- `/setup` (`LIBE_SETUP_SECRET`, constant-time compare via hashed `timingSafeEqual`, per-IP
+  rate limit): bootstrap of the first device; stays usable afterwards as the owner's recovery
+  path. Unset secret → clear message, setup refused. `compose.yaml` requires the variable.
+- Pairing codes (`server/devices.ts`): 6 digits ("482 913"), 10 min, single use, stored as
+  SHA-256, `createPairingCode` invalidates the issuing device's previous code. A guess that
+  matches no live code counts as a wrong attempt against **every** live code (with hashed codes
+  we can't know which one was meant); 5 wrong attempts lock a code. In-memory per-IP limiter
+  (`#lib/rate-limit.ts`, 10 failures/min) on `/pair`, `POST /api/pair` and `/setup`.
+- `/pair`: code (prefilled from `?code=`, the QR link) + device name (default from the UA:
+  iPhone / iPad — iPadOS reports a Mac UA, so `maxTouchPoints` decides — / Mac / Windows PC /
+  Android …) + kind (`pwa` when running standalone), redirects to `next`.
+- API: `POST /api/pair` JSON `{ code, name, kind }` → `{ token, device }` (Tauri, scripts);
+  `GET /api/pair/session` (whoami), `POST /api/pair/session` (Bearer → cookie, used by
+  `/pair/session#token=…&next=…`), `DELETE /api/pair/session` (sign out = revoke);
+  `POST /api/devices/codes` (new code + `<ORIGIN>/pair?code=` URL), `GET /api/devices/codes/[id]`
+  (status for the dialog: active / used + device name / expired / locked).
+- `/settings` (route group `(app)`, avatar menu in `AppNav`: Settings · Pair new device · Sign
+  out this device): device list (kind icon, paired, last seen, "This device"), rename, revoke
+  (self = sign out), pomodoro settings summary + dialog. "Pair a new device" dialog
+  (`components/settings/PairDeviceDialog.svelte`): large code, countdown + bar, auto-renew on
+  expiry, "New code", QR code of the pairing URL, polls the code and shows "X is paired".
+- Revocation: `revokeDevice` sets `revoked_at`, expires the device's codes and closes its open
+  timer SSE streams at once (`server/device-streams.ts`); every SSE heartbeat (25 s) also
+  re-checks the device in the DB. The client store sends a 401'd device to `/pair`.
+- QR codes: `#lib/qr.ts` renders a `qrcode-generator` symbol as one SVG path (token colours,
+  dark-on-light). The dependency (small, no deps, MIT) replaces a hand-written encoder; the e2e
+  test decodes the rendered QR with jsQR and checks the URL.
+
+**PWA (iPhone / iPad home screen)**
+
+- `static/manifest.webmanifest` (id/start_url/scope `/`, standalone, `#0e0e10`, 192/512 +
+  maskable icons), `apple-touch-icon.png` (180², opaque), `favicon.ico/.svg/-32.png`, all
+  generated from the libe logo (also the Tauri icon set). `src/app.html`: manifest, Apple meta
+  (`apple-mobile-web-app-capable`, `black-translucent` status bar, title), `viewport-fit=cover`.
+- Safe areas: `--safe-*` tokens (`env(safe-area-inset-*)`) in the top bar, the phone tab bar,
+  `main`, the auth pages and the Focus screen.
+- `src/service-worker/` (own tsconfig extending `$app/tsconfig/service-worker`, checked by
+  `tsc -p src/service-worker` in `bun run check`): precaches `$app/manifest` `immutable` +
+  `assets` and the public `/offline` page (fetched without credentials); navigations are
+  network-only with the cached `/offline` page as fallback; `/api/**` (incl. the timer SSE),
+  `__data.json`, `/pair`, `/setup` are never touched; old caches are deleted on activate.
+  Registered by the root layout in production builds only (Kit's auto-registration is off).
+- Phones (≤ 720 px): the sections move into a fixed bottom tab bar (icons + labels, safe-area
+  padding); the top bar keeps brand, timer chip, search and the account menu.
+- Touch (`@media (pointer: coarse)` in `global.css`): inputs ≥ 16 px (no iOS focus zoom),
+  every button gets an invisible ≥ 44×44 hit area (`--hit-min`; `.hit-target` for icon
+  links), menu items ≥ 44 px. Review day bars pin their tooltip on tap. Plan cards' ⋯ menu got
+  a **Move to day** picker (Mon–Sun) so touch users can do everything without drag & drop.
+  `-webkit-tap-highlight-color: transparent`; body stays dark during rubber-banding.
+- iOS resume: the timer store reconnects SSE and resyncs on `visibilitychange` (if hidden > 15 s
+  or the stream isn't open), `pageshow` (bfcache) and `online`, and reloads page data after
+  > 5 min away.
+
+**Tauri 2 desktop app** — `src-tauri/` (see `docs/TAURI.md`): bundled pairing page
+(`src-tauri/ui/`), Rust `POST /api/pair`, `{server, token}` in the OS keychain (`keyring` 3),
+session bootstrap via `/pair/session#token=…`, navigation guard (intercepts `/pair`/`/setup`
+→ re-check token → restore cookie or back to pairing; other origins blocked), menu Reload /
+Change server / Unpair… / Quit, window state remembered, background `#0e0e10`.
+`bun run tauri:dev` / `tauri:build` (`@tauri-apps/cli`).
+
+**Deployment**: `compose.yaml` requires `LIBE_SETUP_SECRET` (fails fast with a message),
+`ORIGIN` from `LIBE_ORIGIN`; optional `compose.caddy.yaml` + `Caddyfile` (automatic HTTPS for
+`LIBE_DOMAIN`, `ORIGIN=https://…`, `ADDRESS_HEADER=X-Forwarded-For`, `XFF_DEPTH=1`, SSE
+flushed immediately). README: setup, HTTPS/proxy notes, iOS install.
+
+Decisions during M7:
+
+- **Everything is a device**, browsers included; the cookie _is_ the device token. A home-screen
+  app on iOS has its own cookie jar and is paired separately (kind `pwa`). Revoked devices keep
+  their row (`revoked_at`) for the history; nothing un-revokes them.
+- **Lifetimes**: cookie 400 days (browser maximum), re-issued at most daily while in use, so an
+  active device never expires; pairing codes 10 min; `last_seen_at` ≤ 1/min.
+- **Setup secret stays valid** after the first device (recovery when all devices are lost).
+- **Rate limiting** is in-memory per IP (single process, like the timer hub). Behind a proxy
+  set `ADDRESS_HEADER`/`XFF_DEPTH`, otherwise all clients share the proxy's bucket (stricter,
+  still safe).
+- **CSRF**: Kit 3 treats bodyless and form-encoded non-GET requests as forms and checks their
+  `Origin`; all pairing/session API calls use JSON bodies (and the Tauri pairing call is made
+  from Rust), so no `trustedOrigins` entry for `tauri://localhost` is needed.
+- **Tauri session bootstrap**: the server sets the cookie (via `/pair/session` + Bearer) rather
+  than Tauri 2.12's `set_cookie`, so attributes (`Secure`, expiry, renewal) are identical to
+  browsers and the flow is the same on every platform.
+- **Service worker** only provides installability + an offline page — no offline data: the
+  server stays the single source of truth and personal HTML/API responses are never cached.
+- `Menu` popovers are now rendered into `<body>` while open (`{@attach}`): `position: fixed`
+  alone did not escape the stacking context of dimmed (opacity) plan columns.
+- Home's auto-scroll to the now line only runs when the timeline starts in the first screen
+  (two-column layout); stacked under the lists on phones it dragged the page past the tasks.
+- `src/lib/assets/favicon.svg` was replaced by `static/favicon.svg` (+ generated PNG/ICO set).
+
+**Verification / what is untested here**
+
+- Web: `bun run check` / `test` / `lint` / `build` clean; `e2e-m7` (auth, pairing, rate limit,
+  revoke + SSE close, Bearer, Tauri bootstrap endpoints, PWA assets, service worker + offline
+  page) and a regression pass over M1–M6 flows on desktop and iPhone emulation; screenshots of
+  every page on iPhone 390×844, iPad 1024×1366 / 1366×1024 and desktop (Chromium emulation —
+  WebKit/Safari itself could not be run here). **Not tested**: a real iPhone/iPad install over
+  HTTPS (Add to Home Screen, standalone status bar, safe areas on notch devices, SSE resume
+  after backgrounding).
+- Tauri: built and end-to-end tested on Linux (WebKitGTK, tauri-driver under Xvfb) — see
+  `docs/TAURI.md`. The OS keychain could not be exercised headless (no Secret Service daemon):
+  the test used the debug-only `LIBE_TAURI_CREDENTIALS_FILE` file store. **Not tested**: macOS
+  and Windows builds/runtime, real keychains, code signing.

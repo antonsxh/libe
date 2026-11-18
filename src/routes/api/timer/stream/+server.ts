@@ -1,5 +1,7 @@
 import { getTimerSnapshot } from '#lib/server/timer.ts';
 import { subscribeTimer } from '#lib/server/timer-hub.ts';
+import { registerDeviceStream } from '#lib/server/device-streams.ts';
+import { isDeviceActive } from '#lib/server/devices.ts';
 import type { TimerSnapshot } from '#lib/timer.ts';
 import type { RequestHandler } from './$types';
 
@@ -10,8 +12,12 @@ const HEARTBEAT_MS = 25_000;
  * Server-sent events: `event: timer` with the full {@link TimerSnapshot} on connect and on
  * every change (in-process pub/sub, see `timer-hub.ts`). Each push carries the server `now`
  * at send time so clients can correct their clock offset.
+ *
+ * The stream belongs to the requesting device (the auth hook guarantees one): revoking the
+ * device closes it at once (in-process) and every heartbeat re-checks the device in the DB.
  */
-export const GET: RequestHandler = async ({ request }) => {
+export const GET: RequestHandler = async ({ request, locals }) => {
+	const deviceId = locals.device!.id;
 	const encoder = new TextEncoder();
 	let cleanup = () => {};
 
@@ -30,12 +36,17 @@ export const GET: RequestHandler = async ({ request }) => {
 				send(`event: timer\ndata: ${JSON.stringify({ ...snapshot, now: Date.now() })}\n\n`);
 
 			const unsubscribe = subscribeTimer(push);
-			const heartbeat = setInterval(() => send(`: ping ${Date.now()}\n\n`), HEARTBEAT_MS);
+			const unregister = registerDeviceStream(deviceId, () => cleanup());
+			const heartbeat = setInterval(async () => {
+				if (!(await isDeviceActive(deviceId).catch(() => true))) return cleanup();
+				send(`: ping ${Date.now()}\n\n`);
+			}, HEARTBEAT_MS);
 			cleanup = () => {
 				if (closed) return;
 				closed = true;
 				clearInterval(heartbeat);
 				unsubscribe();
+				unregister();
 				request.signal.removeEventListener('abort', cleanup);
 				try {
 					controller.close();

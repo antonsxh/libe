@@ -193,23 +193,59 @@ export const settings = pgTable(
 	(t) => [check('settings_single_row_chk', sql`${t.id} = 1`)]
 );
 
-// ─── Device pairing (Tauri thin client) ─────────────────────────────────────
+// ─── Devices & pairing (M7) ─────────────────────────────────────────────────
 
-export const pairingCodes = pgTable('pairing_codes', {
-	code: text('code').primaryKey(),
-	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-	used: boolean('used').notNull().default(false),
-	createdAt: createdAt()
-});
+/** How a device talks to libe: a plain browser tab, an installed PWA, or the Tauri shell. */
+export const deviceKind = pgEnum('device_kind', ['browser', 'pwa', 'tauri']);
 
-export const devices = pgTable('devices', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	/** SHA-256 of the device token; the plain token only lives in the device keychain. */
-	tokenHash: text('token_hash').notNull().unique(),
-	name: text('name').notNull(),
-	pairedAt: timestamp('paired_at', { withTimezone: true }).notNull().defaultNow(),
-	lastSeenAt: timestamp('last_seen_at', { withTimezone: true })
-});
+/**
+ * Every client (browser, iOS home-screen app, Tauri shell) is a paired device. Its secret
+ * token lives only on the device (cookie / OS keychain); the server keeps the SHA-256 hex.
+ * Revoked devices keep their row (`revoked_at`) so a stale token can never come back.
+ */
+export const devices = pgTable(
+	'devices',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		/** SHA-256 (hex) of the device token. */
+		tokenHash: text('token_hash').notNull().unique(),
+		name: text('name').notNull(),
+		kind: deviceKind('kind').notNull().default('browser'),
+		/** User agent at pairing time (shown as a hint in the device list). */
+		userAgent: text('user_agent'),
+		pairedAt: timestamp('paired_at', { withTimezone: true }).notNull().defaultNow(),
+		/** Throttled to one update per minute. */
+		lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+		/** Last time the `libe_device` cookie was re-issued (sliding expiry, ≤ once a day). */
+		cookieRenewedAt: timestamp('cookie_renewed_at', { withTimezone: true }),
+		revokedAt: timestamp('revoked_at', { withTimezone: true })
+	},
+	(t) => [index('devices_active_idx').on(t.revokedAt)]
+);
+
+/**
+ * Short-lived pairing codes (6 digits, 10 min, single use). Only a SHA-256 of the code is
+ * stored. Every wrong guess counts against all codes active at that moment; 5 wrong
+ * guesses invalidate a code.
+ */
+export const pairingCodes = pgTable(
+	'pairing_codes',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		codeHash: text('code_hash').notNull(),
+		expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+		usedAt: timestamp('used_at', { withTimezone: true }),
+		attempts: integer('attempts').notNull().default(0),
+		/** The paired device that generated the code. */
+		createdByDeviceId: uuid('created_by_device_id').references(() => devices.id, {
+			onDelete: 'cascade'
+		}),
+		/** The device that was paired with this code. */
+		deviceId: uuid('device_id').references(() => devices.id, { onDelete: 'set null' }),
+		createdAt: createdAt()
+	},
+	(t) => [index('pairing_codes_hash_idx').on(t.codeHash)]
+);
 
 // ─── Relations (for `db.query.*`) ───────────────────────────────────────────
 

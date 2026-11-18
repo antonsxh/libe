@@ -59,6 +59,7 @@
 		'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
+	--fs-tab: 0.6875rem; /* 11  bottom tab bar labels */
 	--fs-xs: 0.75rem; /* 12  pills, meta */
 	--fs-sm: 0.8125rem; /* 13  secondary */
 	--fs-md: 0.9375rem; /* 15  body, nav */
@@ -67,6 +68,8 @@
 	--fs-2xl: 2.75rem; /* 44  page titles ("Thursday, October 15") */
 	--fs-stat: 3rem; /* 48  KPI numbers */
 	--fs-timer: 11rem; /* focus timer */
+	--fs-input-touch: 16px; /* min. input size on touch screens (iOS zooms below 16px) */
+	--hit-min: 44px; /* min. touch target (Apple HIG) */
 
 	--fw-regular: 400;
 	--fw-medium: 500;
@@ -86,9 +89,17 @@
 	--space-12: 48px;
 	--space-16: 64px;
 
+	/* iOS home-screen app (viewport-fit=cover): keep clear of notch / home indicator. */
+	--safe-top: env(safe-area-inset-top, 0px);
+	--safe-right: env(safe-area-inset-right, 0px);
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+	--safe-left: env(safe-area-inset-left, 0px);
+
 	--page-gutter: 44px;
 	--page-max: 1880px;
 	--nav-h: 72px;
+	--nav-h-compact: 60px; /* top bar on phones */
+	--tabbar-h: 56px; /* bottom tab bar on phones (+ safe area) */
 
 	/* ── Radii ────────────────────────────────────────────── */
 	--radius-sm: 6px;

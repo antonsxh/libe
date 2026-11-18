@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '@fontsource-variable/inter';
 	import '#lib/styles/global.css';
-	import favicon from '#lib/assets/favicon.svg';
+	import { dev } from '$app/env';
 	import { TimerStore, setTimerStore } from '#lib/timer-store.svelte.ts';
 	import SwitchTimerDialog from '#lib/components/focus/SwitchTimerDialog.svelte';
 	import LogTimeDialog from '#lib/components/focus/LogTimeDialog.svelte';
@@ -15,16 +15,27 @@
 
 	// Fresh layout data (refreshAll after mutations) → newer snapshot.
 	$effect(() => timer.apply(data.timer));
-	// SSE subscription + local tick, once for the whole app.
-	$effect(() => timer.connect());
+	// SSE subscription + local tick, once for the whole app — only for a paired device
+	// (the pairing pages have no timer to follow). A boolean, so `refreshAll` (new `device`
+	// object) doesn't tear the stream down and reconnect.
+	const paired = $derived(data.device !== null);
+	$effect(() => (paired ? timer.connect() : undefined));
 	// `html[data-timer=live|offline]` — stream status hook (styling, e2e waits).
 	$effect(() => {
 		document.documentElement.dataset.timer = timer.connected ? 'live' : 'offline';
 	});
+
+	// PWA: offline fallback + cached app shell (production builds only; needs HTTPS or
+	// localhost). Kit bundles the worker as an ES module (it imports `/_app/env.js`).
+	$effect(() => {
+		if (dev || !('serviceWorker' in navigator)) return;
+		navigator.serviceWorker.register('/service-worker.js', { type: 'module' }).catch((err) => {
+			console.warn('[libe] service worker registration failed', err);
+		});
+	});
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
 	<title>libe</title>
 </svelte:head>
 

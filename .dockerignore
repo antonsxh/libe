@@ -7,3 +7,4 @@ build
 .git
 src-tauri/target
 docs
+src-tauri/gen

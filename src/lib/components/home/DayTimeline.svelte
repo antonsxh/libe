@@ -43,6 +43,9 @@
 		scrolled = true;
 		const target = cardEl.querySelector('.now') ?? cardEl.querySelector('.block');
 		if (!target) return;
+		// Only when the timeline starts in the first screen (two-column layout). Stacked under
+		// the lists (phones, portrait tablets) it would drag the whole page past the tasks.
+		if (cardEl.getBoundingClientRect().top > window.innerHeight * 0.6) return;
 		const r = target.getBoundingClientRect();
 		if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: 'center' });
 	});

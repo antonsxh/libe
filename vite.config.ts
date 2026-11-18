@@ -10,7 +10,9 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			adapter: adapter(),
+			// Registered by the root layout in production builds only (see src/service-worker/).
+			serviceWorker: { register: false }
 		})
 	]
 });

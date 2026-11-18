@@ -26,7 +26,11 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://libe:${POSTGRES_PASSWORD:-libe}@db:5432/libe
-      # Origin the app is reached under (needed by SvelteKit's CSRF check for form actions)
+      # Pairs the first device on /setup (and recovers access if every device is lost).
+      LIBE_SETUP_SECRET: ${LIBE_SETUP_SECRET:?LIBE_SETUP_SECRET is required - put a long random value into .env, e.g. `openssl rand -base64 24`}
+      # The URL the app is reached under, e.g. https://libe.example.com. SvelteKit uses it for
+      # the CSRF check of form posts, pairing QR links and the `Secure` flag of the device
+      # cookie. Behind a TLS proxy it MUST be the public https URL (see compose.caddy.yaml).
       ORIGIN: ${LIBE_ORIGIN:-http://localhost:3000}
       # "Today" is computed in this timezone on the server
       TZ: ${TZ:-Europe/Berlin}

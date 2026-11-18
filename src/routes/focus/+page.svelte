@@ -329,7 +329,9 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-4);
-		padding: var(--space-8) var(--space-8) 0 var(--space-10);
+		/* Full-screen, also as an iOS home-screen app: clear notch / status bar. */
+		padding: calc(var(--space-8) + var(--safe-top)) calc(var(--space-8) + var(--safe-right)) 0
+			calc(var(--space-10) + var(--safe-left));
 	}
 	.crumb {
 		display: flex;
@@ -379,7 +381,8 @@
 	.center {
 		display: grid;
 		place-items: center;
-		padding: var(--space-8) var(--space-4) var(--space-16);
+		padding: var(--space-8) calc(var(--space-4) + var(--safe-right))
+			calc(var(--space-16) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
 		min-width: 0;
 	}
 
@@ -690,7 +693,8 @@
 
 	@media (max-width: 600px) {
 		.top {
-			padding: var(--space-5) var(--space-4) 0;
+			padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-4) + var(--safe-right)) 0
+				calc(var(--space-4) + var(--safe-left));
 		}
 		.controls {
 			gap: var(--space-2);

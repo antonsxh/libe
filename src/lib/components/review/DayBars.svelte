@@ -18,6 +18,31 @@
 	const longDay = (day: string) =>
 		formatDayLabel(day, { weekday: 'short', month: 'short', day: 'numeric' });
 
+	/**
+	 * Touch screens have no hover (and iOS doesn't focus buttons on tap): a tap pins the
+	 * day's tooltip, a tap elsewhere or Escape closes it.
+	 */
+	let pinned = $state<string | null>(null);
+	function toggle(day: string) {
+		if (!matchMedia('(hover: none)').matches) return;
+		pinned = pinned === day ? null : day;
+	}
+	$effect(() => {
+		if (!pinned) return;
+		const close = (e: Event) => {
+			if (
+				e instanceof KeyboardEvent ? e.key === 'Escape' : !(e.target as Element).closest?.('.col')
+			)
+				pinned = null;
+		};
+		window.addEventListener('pointerdown', close);
+		window.addEventListener('keydown', close);
+		return () => {
+			window.removeEventListener('pointerdown', close);
+			window.removeEventListener('keydown', close);
+		};
+	});
+
 	function ariaLabel(d: ReviewDay): string {
 		const parts = d.byQuest.map(
 			(q) => `${quests[q.questId]?.name ?? 'Quest'} ${formatHMin(q.min)}`
@@ -33,10 +58,17 @@
 	<ol class="bars">
 		{#each days as d, i (d.day)}
 			{@const stub = d.state === 'future' || d.questMin <= 0}
-			<li class="col" data-state={d.state} class:first={i === 0} class:last={i === days.length - 1}>
+			<li
+				class="col"
+				data-state={d.state}
+				class:first={i === 0}
+				class:last={i === days.length - 1}
+				class:pinned={pinned === d.day}
+			>
 				<button
 					type="button"
 					class="hit"
+					onclick={() => toggle(d.day)}
 					aria-label={ariaLabel(d)}
 					aria-describedby={`tip-${d.day}`}
 					data-testid="day-bar"
@@ -196,7 +228,8 @@
 		transform: none;
 	}
 	.col:hover .tip,
-	.col:focus-within .tip {
+	.col:focus-within .tip,
+	.col.pinned .tip {
 		display: grid;
 		gap: var(--space-2);
 	}

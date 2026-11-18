@@ -16,7 +16,7 @@
 	} from '@lucide/svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
-	import { formatDuration } from '#lib/dates.ts';
+	import { formatDayLabel, formatDuration, weekDays } from '#lib/dates.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
@@ -133,7 +133,7 @@
 		<span class="tail">
 			{#if !done && !live}
 				<a
-					class="play"
+					class="play hit-target"
 					href={`/focus?task=${task.id}`}
 					aria-label="Start focus timer for this task"
 					onclick={play}
@@ -185,6 +185,35 @@
 									<ArrowRight size={14} /> Move to next day
 								</button>
 							</form>
+							{#if task.day}
+								<!-- Touch has no drag & drop: jump straight to any day of this week. -->
+								<form
+									class="days"
+									method="POST"
+									action={formAction('moveTo')}
+									use:enhance={() => close()}
+								>
+									<input type="hidden" name="taskId" value={task.id} />
+									<input type="hidden" name="beforeId" value="" />
+									<span class="days-label">Move to day</span>
+									<span class="day-grid">
+										{#each weekDays(task.day) as d (d)}
+											<button
+												type="submit"
+												name="day"
+												value={d}
+												class="day"
+												role="menuitem"
+												disabled={d === task.day}
+												aria-label={`Move to ${formatDayLabel(d, { weekday: 'long', month: 'short', day: 'numeric' })}`}
+											>
+												<span>{formatDayLabel(d, { weekday: 'narrow' })}</span>
+												<span class="tabular">{Number(d.slice(8))}</span>
+											</button>
+										{/each}
+									</span>
+								</form>
+							{/if}
 						{/if}
 						<button
 							type="button"
@@ -526,5 +555,41 @@
 	}
 	.item.danger {
 		color: var(--danger);
+	}
+	.days {
+		display: grid;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-3);
+		border-block: 1px solid var(--border);
+		margin-block: var(--space-1);
+	}
+	.days-label {
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+	}
+	.day-grid {
+		display: grid;
+		grid-template-columns: repeat(7, minmax(28px, 1fr));
+		gap: 2px;
+	}
+	.day {
+		display: grid;
+		justify-items: center;
+		padding: var(--space-1) 0;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		color: var(--text-2);
+		font-size: var(--fs-xs);
+		line-height: 1.3;
+	}
+	.day:hover:not(:disabled) {
+		background: var(--surface-hover);
+		color: var(--text);
+	}
+	.day:disabled {
+		border-color: var(--border-strong);
+		color: var(--text-faint);
+		cursor: default;
 	}
 </style>

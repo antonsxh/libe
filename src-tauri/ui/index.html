@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="dark" />
+		<title>libe</title>
+		<link rel="stylesheet" href="style.css" />
+		<script src="main.js" defer></script>
+	</head>
+	<body>
+		<main class="shell">
+			<div class="brand" aria-hidden="true">
+				<svg width="34" height="34" viewBox="0 0 32 32">
+					<path
+						d="M11 7v14.5a3.5 3.5 0 0 0 3.5 3.5H22"
+						fill="none"
+						stroke="currentColor"
+						class="stroke"
+						stroke-width="3.2"
+						stroke-linecap="round"
+					/>
+					<circle cx="21.5" cy="10.5" r="2.6" class="dot" />
+				</svg>
+				<span>libe</span>
+			</div>
+
+			<!-- Connecting / checking the stored device -->
+			<section class="card panel" id="view-busy" aria-live="polite">
+				<h1 id="busy-title">Connecting…</h1>
+				<p class="sub" id="busy-text">Checking this device with your libe server.</p>
+				<span class="spinner" aria-hidden="true"></span>
+			</section>
+
+			<!-- Server unreachable -->
+			<section class="card panel" id="view-offline" hidden>
+				<h1>Can’t reach your server</h1>
+				<p class="sub" id="offline-text"></p>
+				<div class="actions">
+					<button type="button" class="btn primary" id="retry">Retry</button>
+					<button type="button" class="btn secondary" id="change">Change server / Unpair</button>
+				</div>
+			</section>
+
+			<!-- Pairing form -->
+			<section class="card panel" id="view-pair" hidden>
+				<h1>Pair this app</h1>
+				<p class="sub">
+					On a device that is already paired open libe → avatar menu →
+					<strong>Pair new device</strong>, then enter the code here.
+				</p>
+				<p class="notice" id="notice" role="status" hidden></p>
+				<form id="pair-form" novalidate>
+					<label class="field">
+						<span class="label">Server</span>
+						<input
+							name="server"
+							id="server"
+							type="url"
+							inputmode="url"
+							placeholder="https://libe.example.com"
+							autocomplete="url"
+							spellcheck="false"
+							required
+						/>
+					</label>
+					<label class="field">
+						<span class="label">Pairing code</span>
+						<input
+							name="code"
+							id="code"
+							class="code"
+							inputmode="numeric"
+							autocomplete="one-time-code"
+							placeholder="000 000"
+							maxlength="7"
+							required
+						/>
+						<span class="hint">Codes are valid for 10 minutes.</span>
+					</label>
+					<label class="field">
+						<span class="label">Device name</span>
+						<input name="name" id="name" maxlength="60" autocomplete="off" required />
+					</label>
+					<p class="error" id="error" role="alert" hidden></p>
+					<button type="submit" class="btn primary wide" id="submit">Pair device</button>
+				</form>
+			</section>
+		</main>
+	</body>
+</html>

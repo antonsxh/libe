@@ -8,3 +8,7 @@ yarn.lock
 
 # Drizzle migrations are generated
 /drizzle/meta/
+
+# Tauri build output / generated schemas
+/src-tauri/target/
+/src-tauri/gen/

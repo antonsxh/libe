@@ -1,0 +1,8 @@
+# Reverse proxy for libe (used by compose.caddy.yaml). Automatic HTTPS for {$LIBE_DOMAIN}.
+{$LIBE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		# The timer is a server-sent event stream: pass every event through at once.
+		flush_interval -1
+	}
+}

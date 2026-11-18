@@ -1,0 +1,7 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"description": "The bundled pairing page (local origin only — the remote libe pages get no IPC).",
+	"windows": ["main"],
+	"permissions": ["core:default", "window-state:default"]
+}

@@ -15,6 +15,13 @@
       "when": 1795011959974,
       "tag": "0001_focus_timer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795018832155,
+      "tag": "0002_devices",
+      "breakpoints": true
     }
   ]
 }
