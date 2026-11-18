@@ -79,6 +79,18 @@ export function formatMinutes(min: number): string {
 	return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/** Minute of the current day (0‥1439) in the given timezone (default: the runtime's). */
+export function minuteOfDay(now: Date = new Date(), timeZone?: string): number {
+	const s = new Intl.DateTimeFormat('en-US', {
+		hourCycle: 'h23',
+		hour: '2-digit',
+		minute: '2-digit',
+		timeZone
+	}).format(now);
+	const m = /^(\d{2}):(\d{2})$/.exec(s);
+	return m ? Number(m[1]) * 60 + Number(m[2]) : 0;
+}
+
 /** Milliseconds → `H:MM:SS` or `MM:SS` (timer display). */
 export function formatDuration(ms: number): string {
 	const total = Math.max(0, Math.round(ms / 1000));

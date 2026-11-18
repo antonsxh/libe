@@ -35,6 +35,45 @@ export interface QuestStats {
 
 export const SPARKLINE_WEEKS = 8;
 
+/** Timing fields needed to total logged time (a subset of {@link SessionRow}). */
+export type LoggedRow = Pick<SessionRow, 'startedAt' | 'endedAt' | 'pausedMs' | 'durationMin'>;
+
+export interface DayWeekMinutes {
+	/** Minutes logged on `today`. */
+	todayMin: number;
+	/** Minutes logged in the Mon–Sun week containing `today`. */
+	weekMin: number;
+}
+
+/** Total logged minutes of completed sessions for today and this week. */
+export function dayWeekMinutes(
+	rows: Array<LoggedRow & { startedAt: Date }>,
+	{ today, timeZone }: { today: ISODay; timeZone?: string }
+): DayWeekMinutes {
+	const monday = startOfWeek(today);
+	let todayMin = 0;
+	let weekMin = 0;
+	for (const row of rows) {
+		const mins = sessionMinutes(row);
+		if (mins <= 0) continue;
+		const day = todayISO(timeZone, row.startedAt);
+		if (day === today) todayMin += mins;
+		if (startOfWeek(day) === monday) weekMin += mins;
+	}
+	return { todayMin, weekMin };
+}
+
+/** Total logged milliseconds per task id (all completed sessions, any day). */
+export function loggedMsByTask(rows: Array<LoggedRow & { taskId: string }>): Map<string, number> {
+	const map = new Map<string, number>();
+	for (const row of rows) {
+		const mins = sessionMinutes(row);
+		if (mins <= 0) continue;
+		map.set(row.taskId, (map.get(row.taskId) ?? 0) + mins * 60_000);
+	}
+	return map;
+}
+
 /** Logged minutes of a completed session: wall time minus pauses, falling back to `durationMin`. */
 export function sessionMinutes(
 	s: Pick<SessionRow, 'startedAt' | 'endedAt' | 'pausedMs' | 'durationMin'>

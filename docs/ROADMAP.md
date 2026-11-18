@@ -38,7 +38,7 @@ Notes / decisions taken in M0:
 | --- | --------------------------------------------------------------------------------------------------------------------------- | ------- |
 | M0  | Scaffold: SvelteKit 3 + Bun + Drizzle schema + Docker Compose (app + Postgres) + design tokens + nav shell                  | ✅ done |
 | M1  | Quests: data + CRUD incl. emoji / colour / weekly budget / close; quest backlog; quest cards (→ basis for pills)            | ✅ done |
-| M2  | Home/Today: Quest work + Other lists, backlog input without day, day timeline (blocks + now line), ordering via ↑/↓ buttons | ⏳      |
+| M2  | Home/Today: Quest work + Other lists, backlog input without day, day timeline (blocks + now line), ordering via ↑/↓ buttons | ✅ done |
 | M3  | Plan: week kanban (Mon–Sun columns), add per day, collapsible "Other" zones, done/past styling                              | ⏳      |
 | M4  | Focus: server-side timer + SSE, pomodoro mode (configurable intervals), "log time afterwards" dialog (manual sessions)      | ⏳      |
 | M5  | Calendar: weekly log of sessions with overlap columns, day totals, now line, today column tint                              | ⏳      |
@@ -79,3 +79,37 @@ Decisions / fixes during M1 review:
   form from the DOM before the browser submitted it).
 - Sparkline buckets were computed in days instead of weeks — fixed and covered by tests.
 - Sessions are attributed to the day of `started_at` (server `TZ`); only `completed` sessions count.
+
+## M2 — what exists
+
+- `/` (Home/Today): header with big date, `X.Xh today` + amber week-progress bar (week hours vs.
+  sum of open-quest weekly budgets, capped 100%) + `Xh this week` (`homeTime()` in `server/stats.ts`).
+- **Quest work** list: quest-filter popover (funnel icon, URL `?q=<id>,<id>`; all/none = unfiltered),
+  dashed add row (quest picker, title, optional minutes, Top/Bottom), task cards (quest-colour bar,
+  checkbox in quest colour, `QuestPill`, duration, ▶ → `/focus?task=…` hidden when done, ↑/↓,
+  ⋯ menu: Time-block… / Move to backlog / Move to tomorrow / Delete). Done tasks dimmed, struck,
+  sorted after open ones.
+- **Backlog** card: "Add to backlog…" (creates `day = NULL` quest tasks), collapsible "N open
+  tasks" with per-row "→ Today" and delete.
+- **Other** card: eye toggle hides done tasks via `?hideDone=1`, add row with Top/Bottom, no pill.
+- **Day timeline** (`components/home/DayTimeline.svelte`): 6:00–23:00, tinted card, hour gutter,
+  hatched quest-colour blocks (overlapping blocks share columns), amber now line refreshing every
+  30 s, auto-scroll to now once. Click empty area or block → `BlockDialog` (task picker, start/end,
+  delete) — validated server-side (`0 ≤ start < end ≤ 1440`, existing range checks).
+- Data layer: `server/tasks.ts` (`createTask`/`moveTask`/`moveTaskToDay`/toggle/delete, Top =
+  `min-1` / Bottom = `max+1` via pure `src/lib/ordering.ts`), `server/blocks.ts` (CRUD + day query).
+  All writes are form actions (`?/name` suffix) with `use:enhance`.
+- New shared bits: `Menu` optional `trigger` snippet (used by quest picker), `Dialog` `aria-label`,
+  `minuteOfDay()` in `dates.ts`, `layoutBlocks()` in `timeline.ts` (overlap columns) — all tested.
+
+Decisions / fixes during M2:
+
+- Add rows put **Bottom first in the DOM** so implicit Enter-submit adds to the bottom; CSS
+  `order` keeps the visual Top → Bottom order.
+- `moveTask` swaps adjacent siblings and then renumbers the whole bucket 0..n−1 — a bare
+  order-value swap is a no-op when stored values aren't normalised (e.g. −1, 0, 1 from Top adds).
+- Client `$page.form` is `null` (not `undefined`) — dialog "failed" derivations must use `form != null`.
+- `BlockDialog` close via `enhance: { deserialize }` callbacks `await update()` **before**
+  `onclose()`, otherwise the component unmounts mid-enhance and the timeline never re-renders.
+- 390px overflow fixes: grid columns need `minmax(0, 1fr)` (implicit `auto` tracks size to
+  min-content); add-row and card-meta rows wrap.

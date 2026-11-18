@@ -1,0 +1,169 @@
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import Dialog from '#lib/components/Dialog.svelte';
+	import Button from '#lib/components/Button.svelte';
+	import { formatMinutes } from '#lib/dates.ts';
+	import { parseClock, type BlockEditor, type BlockFormResult } from '#lib/timeline.ts';
+
+	type Props = {
+		editor: BlockEditor;
+		/** `data.form` — re-shows a validation error while the dialog stays open. */
+		form: BlockFormResult | null | undefined;
+		onclose: () => void;
+	};
+
+	let { editor, form, onclose }: Props = $props();
+
+	let open = $state(true);
+	// svelte-ignore state_referenced_locally — initial values; the dialog remounts per editor.
+	let start = $state(editor.start);
+	// svelte-ignore state_referenced_locally
+	let duration = $state(editor.duration);
+
+	const isEdit = $derived(editor.blockId !== undefined);
+	const failed = $derived(
+		form != null &&
+			form.ok === false &&
+			form.intent === (isEdit ? 'blockUpdate' : 'block') &&
+			(isEdit ? form.blockId === editor.blockId : form.taskId === editor.taskId)
+	);
+	const errorMessage = $derived(failed ? (form?.errors?.time ?? 'That time does not work.') : '');
+
+	/** Live “7:45 PM → 8:15 PM” preview mirroring the server-side span check. */
+	const preview = $derived.by(() => {
+		const startMin = parseClock(start);
+		const dur = Math.round(Number(duration));
+		if (startMin === null || !Number.isFinite(dur) || dur <= 0 || startMin + dur > 1440)
+			return null;
+		return `${formatMinutes(startMin)} – ${formatMinutes(startMin + dur)}`;
+	});
+
+	function close() {
+		open = false;
+	}
+</script>
+
+<Dialog bind:open title={isEdit ? 'Edit time block' : 'Time-block'}>
+	<!-- The delete form must stay outside the edit form (no nested <form>); buttons attach via `form=`. -->
+	<form
+		id="block-form"
+		method="POST"
+		action={isEdit ? '?/blockUpdate' : '?/block'}
+		use:enhance={() => {
+			return async ({ result, update }) => {
+				// Re-render with fresh data (and re-show errors on failure), then close on success.
+				await update();
+				if (result.type === 'success') onclose();
+			};
+		}}
+	>
+		<p class="muted task-name">{editor.taskTitle}</p>
+
+		{#if failed}
+			<p class="form-error" role="alert">{errorMessage}</p>
+		{/if}
+
+		<div class="fields">
+			<label class="field">
+				<span class="label">Start</span>
+				<input name="time" type="time" required bind:value={start} />
+			</label>
+			<label class="field">
+				<span class="label">Duration (minutes)</span>
+				<input
+					name="duration"
+					type="number"
+					min="5"
+					max="1440"
+					step="5"
+					required
+					bind:value={duration}
+				/>
+			</label>
+		</div>
+		<p class="preview" class:bad={preview === null}>
+			{preview ?? 'Must be a positive span ending by 24:00'}
+		</p>
+
+		{#if isEdit}
+			<input type="hidden" name="blockId" value={editor.blockId ?? ''} />
+		{:else}
+			<input type="hidden" name="taskId" value={editor.taskId} />
+		{/if}
+	</form>
+
+	{#if isEdit}
+		<form
+			id="block-delete-form"
+			method="POST"
+			action="?/blockDelete"
+			use:enhance={() => {
+				return async ({ result, update }) => {
+					await update();
+					if (result.type === 'success') onclose();
+				};
+			}}
+		>
+			<input type="hidden" name="blockId" value={editor.blockId ?? ''} />
+		</form>
+	{/if}
+
+	<div class="actions">
+		{#if isEdit}
+			<Button variant="ghost" type="submit" form="block-delete-form">Delete</Button>
+		{/if}
+		<span class="spacer"></span>
+		<Button variant="secondary" type="button" onclick={close}>Cancel</Button>
+		<Button type="submit" form="block-form">{isEdit ? 'Save' : 'Add block'}</Button>
+	</div>
+</Dialog>
+
+<style>
+	.task-name {
+		margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+		font-size: var(--fs-sm);
+	}
+	.fields {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-3);
+	}
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+	.field input {
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		color: var(--text);
+		font-size: var(--fs-md);
+		padding: var(--space-2) var(--space-3);
+	}
+	.field input:hover {
+		border-color: var(--border-strong);
+	}
+	.preview {
+		color: var(--text-faint);
+		font-size: var(--fs-sm);
+		margin: var(--space-2) 0 0;
+	}
+	.preview.bad {
+		color: var(--danger);
+	}
+	.form-error {
+		color: var(--danger);
+		font-size: var(--fs-sm);
+		margin: 0 0 var(--space-3);
+	}
+	.actions {
+		align-items: center;
+		display: flex;
+		gap: var(--space-2);
+		margin-top: var(--space-5);
+	}
+	.spacer {
+		flex: 1;
+	}
+</style>

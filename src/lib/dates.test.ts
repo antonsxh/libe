@@ -5,6 +5,7 @@ import {
 	formatHours,
 	formatMinutes,
 	isISODay,
+	minuteOfDay,
 	startOfQuarter,
 	startOfWeek,
 	todayISO,
@@ -57,5 +58,12 @@ describe('dates', () => {
 		expect(formatDuration(3_600_000)).toBe('1:00:00');
 		expect(formatHours(10.46)).toBe('10.5h');
 		expect(formatHours(3)).toBe('3h');
+	});
+
+	test('minuteOfDay is timezone-aware and never exceeds 1439', () => {
+		const instant = new Date('2026-11-18T13:45:00Z');
+		expect(minuteOfDay(instant, 'UTC')).toBe(13 * 60 + 45);
+		expect(minuteOfDay(instant, 'America/New_York')).toBe(8 * 60 + 45); // UTC−5
+		expect(minuteOfDay(new Date('2026-11-19T04:59:00Z'), 'UTC')).toBe(4 * 60 + 59);
 	});
 });

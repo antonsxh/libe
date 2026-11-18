@@ -5,10 +5,13 @@
 
 	let {
 		label = 'Open menu',
+		trigger,
 		children,
 		onclose
 	}: {
 		label?: string;
+		/** Custom trigger content (rendered inside the trigger button). Defaults to the ⋯ icon. */
+		trigger?: Snippet;
 		/** Menu content; receives a `close` callback to dismiss after acting. */
 		children: Snippet<[close: () => void]>;
 		/** Called whenever the menu closes (also on Escape / outside click). */
@@ -16,14 +19,14 @@
 	} = $props();
 
 	let open = $state(false);
-	let trigger: HTMLButtonElement | undefined = $state();
+	let triggerEl: HTMLButtonElement | undefined = $state();
 	let pop: HTMLDivElement | undefined = $state();
 
 	function close() {
 		if (!open) return;
 		open = false;
 		onclose?.();
-		trigger?.focus();
+		triggerEl?.focus();
 	}
 
 	function toggle() {
@@ -47,7 +50,7 @@
 		}
 		function onClick(e: MouseEvent) {
 			const target = e.target as Node;
-			if (!pop?.contains(target) && !trigger?.contains(target)) close();
+			if (!pop?.contains(target) && !triggerEl?.contains(target)) close();
 		}
 		// Capture phase so an outside click closes before the clicked element's own handler runs.
 		document.addEventListener('keydown', onKey);
@@ -62,14 +65,14 @@
 <span class="menu">
 	<button
 		type="button"
-		class="trigger"
-		bind:this={trigger}
+		class={trigger ? 'trigger-custom' : 'trigger'}
+		bind:this={triggerEl}
 		aria-label={label}
 		aria-haspopup="menu"
 		aria-expanded={open}
 		onclick={toggle}
 	>
-		<MoreHorizontal size={16} />
+		{#if trigger}{@render trigger()}{:else}{@render TriggerIcon()}{/if}
 	</button>
 	{#if open}
 		<div class="pop" role="menu" bind:this={pop}>
@@ -77,6 +80,8 @@
 		</div>
 	{/if}
 </span>
+
+{#snippet TriggerIcon()}<MoreHorizontal size={16} />{/snippet}
 
 <style>
 	.menu {
@@ -105,6 +110,16 @@
 	.trigger[aria-expanded='true'] {
 		color: var(--text);
 		background: var(--surface-2);
+	}
+
+	/* Custom (non-icon) triggers bring their own look; only reset the button chrome. */
+	.trigger-custom {
+		display: inline-flex;
+		align-items: center;
+		padding: 0;
+		border: none;
+		background: transparent;
+		color: inherit;
 	}
 
 	.pop {
