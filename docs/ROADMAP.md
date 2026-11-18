@@ -46,7 +46,7 @@ Notes / decisions taken in M0:
 | M3  | Plan: week kanban (Mon–Sun columns), add per day, collapsible "Other" zones, done/past styling                              | ✅ done |
 | M4  | Focus: server-side timer + SSE, pomodoro mode (configurable intervals), "log time afterwards" dialog (manual sessions)      | ✅ done |
 | M5  | Calendar: weekly log of sessions with overlap columns, day totals, now line, today column tint                              | ✅ done |
-| M6  | Review: KPIs (quest hours vs budget, daily avg, quest vs other), per-day bars, hours by quest, sparklines, quarter sums     | ⏳      |
+| M6  | Review: KPIs (quest hours vs budget, daily avg, quest vs other), per-day bars, hours by quest, sparklines, quarter sums     | ✅ done |
 | M7  | Tauri 2 shell (thin client loading the server URL) + pairing flow (code → device token in OS keychain)                      | ⏳      |
 
 ## M0 — what exists
@@ -331,3 +331,56 @@ Decisions during M5:
   only).
 - `PageHeader`'s title row now wraps (the calendar's week navigation drops under the title on
   phones).
+
+## M6 — what exists
+
+- `/review` (Weekly review): header "Weekly review" + subtitle; right: ‹ `Nov 9 – 15` › and
+  "This week" — the shared `components/WeekNav.svelte` (extracted from the Calendar, which now
+  uses it too; `?week=` = any day → its Monday, invalid → current week, other params kept).
+- **KPI row** (3 cards, one column below 720px): QUEST HOURS (amber, `/ 19h` = sum of open quests'
+  weekly budgets, omitted when 0; `87% of target` or "No weekly budget set"), DAILY AVERAGE
+  (logged quest + other ÷ elapsed days: 7 for past weeks, Mon…today for the current week, 0 → `0h`
+  for future weeks; sub-line `15.5h logged over 3 days`), QUEST WORK VS OTHER (quest share in %,
+  `—` without data). Each card has a subtle top-right delta vs the previous week (`+2.1h vs last
+week`, share in `pts`); for the current week it compares the same elapsed days
+  (`vs last Mon–Wed`), future weeks show none.
+- **Charts row** (stacks below 1100px): `components/review/DayBars.svelte` — 7 div bars Mon–Sun
+  scaled to the week's busiest day (min. scale 1h), value above (`0h` faint) and weekday below;
+  past = `--bar-muted`, today amber (bar + labels), future and empty days a 2px stub. Each column
+  is a `<button>` with an aria-label (`Mon, Nov 16: 8:45 quest work (Launch my idea 4:40, …)`);
+  hover/focus shows a CSS tooltip with the exact `h:mm`, per-quest breakdown and other time.
+  `QuestHours.svelte` — one row per open quest or quest with time this week (closed ones dimmed),
+  sorted by hours desc: dot, ellipsised name (links to the quest), bar on `--track` in the quest
+  colour, a budget tick and `10.5h / 10h`; the track's full scale is the largest of any hours or
+  budget. `QuestVsOther.svelte` — amber stacked bar on `--track` + legend.
+- **This quarter** (`QuarterSummary.svelte`): `Q4 2026 · Oct 1 – Dec 31`, quarter totals for all
+  quests (with target) and for other work, and one card per open quest / closed quest with
+  quarter time: icon, name, quarter hours `/ target`, sparkline of weekly hours (shown week
+  marked with a dashed guide + ring; `Sparkline` got a `highlight` prop), progress bar and
+  `% of target` (closed / no budget → no target).
+- Data: `server/review.ts` `weeklyReview(monday)` = 2 queries (completed sessions with
+  `started_at` in `reviewRange()` = previous week ∪ shown week ∪ its quarter, joined to tasks;
+  all quests). Pure, tested `src/lib/review.ts`: `buildReview`, `quarterOf`, `quarterWeeks`,
+  `daysElapsedInWeek`, `reviewRange`, `formatHMin`, `formatSignedHours`, `percent`,
+  `comparisonLabel`; `endOfQuarter` / `daysBetween` added to `dates.ts`. Chart sizes are tokens
+  (`--chart-*` in `tokens.css`).
+
+Decisions during M6:
+
+- **Attribution = stats rule**: the review counts a whole completed session on the day of its
+  `started_at` (server `TZ`), like Home/Quests. The Calendar splits real spans at midnight, so a
+  day total there can differ slightly (e.g. a 21:45–00:30 session: review puts it all on Monday,
+  the calendar gives Tuesday its 30 min); week totals only differ when the split crosses Sunday
+  midnight. The active session is not counted (live-only, as in Home); the page refreshes via
+  `refreshAll()` when a timer session completes.
+- **Quarter of a week = quarter of its Monday.** A week spanning two quarters (Mon Dec 28 – Sun
+  Jan 3) shows Q4; quarter totals only count days inside the quarter (Jan 1–3 are in the week's
+  KPIs but not in Q4's sums). The sparkline covers the quarter's weeks from the week containing
+  its first day up to the later of the current and the shown week (never past the quarter end);
+  each week bucket is clipped to the quarter's days, so the buckets sum to the quarter total.
+- **Quarter target** = weekly budget × elapsed quarter days ÷ 7 (fractional weeks, today
+  included; a past quarter counts all its days, a future one 0). Only open quests have budgets —
+  closed quests are excluded from week and quarter targets but still listed (dimmed) when they
+  have time in the period.
+- Daily average divides by elapsed days, so a fresh Monday isn't diluted by the empty rest of
+  the week; week-over-week deltas compare the same elapsed days of the previous week.

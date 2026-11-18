@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	addDays,
+	daysBetween,
+	endOfQuarter,
 	formatDuration,
 	formatHours,
 	formatMinutes,
@@ -40,6 +42,19 @@ describe('dates', () => {
 	test('startOfQuarter', () => {
 		expect(startOfQuarter('2026-11-18')).toBe('2026-10-01');
 		expect(startOfQuarter('2026-03-31')).toBe('2026-01-01');
+	});
+
+	test('endOfQuarter', () => {
+		expect(endOfQuarter('2026-11-18')).toBe('2026-12-31');
+		expect(endOfQuarter('2026-01-01')).toBe('2026-03-31');
+		expect(endOfQuarter('2028-05-02')).toBe('2028-06-30');
+		expect(endOfQuarter('2026-09-30')).toBe('2026-09-30');
+	});
+
+	test('daysBetween counts calendar days (DST-safe)', () => {
+		expect(daysBetween('2026-10-01', '2026-11-18')).toBe(48);
+		expect(daysBetween('2026-10-24', '2026-10-26')).toBe(2);
+		expect(daysBetween('2026-11-18', '2026-11-16')).toBe(-2);
 	});
 
 	test('todayISO respects the timezone', () => {

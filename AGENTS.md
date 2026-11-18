@@ -84,6 +84,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   Task-list pieces used by Home and Plan live in `components/tasks/` (`DayTaskCard`,
   `TaskAddForm`, `QuestPicker`, `QuestFilter`); their shared form actions (toggle, ↑/↓,
   backlog, delete, `addTaskAction` factory) in `src/lib/server/task-actions.ts`.
+- Week navigation (‹ range › + "This week", `?week=`) is the shared `WeekNav.svelte`
+  (Calendar, Review); extra controls go in its children snippet.
 - `Menu` popovers are `position: fixed` (placed from the trigger rect) so they escape
   scrolling/clipping containers such as the plan board.
 - **Routes/layouts**: pages with the top nav live in the route group `src/routes/(app)/`
@@ -97,8 +99,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `timer.view`, `timer.command('pause')`, `timer.start({...})`, `timer.logTarget = task`
   (opens "Log time…"). Code that deletes tasks/sessions behind the timer's back must call
   `broadcastTimer()`.
-- **Logged time by day**: stats (`stats-core.ts`) attribute a whole session to the day of
-  `started_at`; the Calendar (`#lib/calendar.ts`) draws/totals actual spans, split at midnight.
+- **Logged time by day**: stats (`stats-core.ts`) and the Review (`#lib/review.ts`) attribute a
+  whole session to the day of `started_at`; the Calendar (`#lib/calendar.ts`) draws/totals actual spans, split at midnight.
   Calendar edits/logs go through `/api/sessions` (`POST`, `PATCH /[id]`, `DELETE /[id]`), validated
   by `validateSessionSpan` / `validateManualLog` in `#lib/manual-log.ts` — reuse them, don't
   re-implement the rules.
@@ -112,6 +114,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   Add a token to `tokens.css` instead of hard-coding a value that repeats.
 - Global utilities (`src/lib/styles/global.css`): `.label` (uppercase section label), `.card`,
   `.muted`, `.tabular`, `.hatch` (diagonal hatching tinted by `--q`), `.sr-only`.
+- Charts are plain divs/SVG (no chart library); sizes come from the `--chart-*` tokens and every
+  chart needs a text alternative (aria-label or `.sr-only` text).
 - Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`.
   Look at `/styleguide` in the running app before building new UI.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.

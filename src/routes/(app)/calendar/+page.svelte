@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { page } from '$app/state';
-	import { Calendar, ChevronLeft, ChevronRight, LayoutList } from '@lucide/svelte';
+	import { LayoutList } from '@lucide/svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
+	import WeekNav from '#lib/components/WeekNav.svelte';
 	import WeekGrid from '#lib/components/calendar/WeekGrid.svelte';
 	import SessionDialog, { type SessionEditor } from '#lib/components/calendar/SessionDialog.svelte';
 	import {
@@ -75,8 +76,6 @@
 		const qs = p.toString();
 		return qs ? `?${qs}` : '?';
 	}
-	const weekHref = (monday: string | null) =>
-		href((p) => (monday ? p.set('week', monday) : p.delete('week')));
 	const planHref = $derived(href((p) => (data.showPlan ? p.delete('plan') : p.set('plan', '1'))));
 
 	/* ── Dialog ────────────────────────────────────────────────────────────── */
@@ -124,45 +123,21 @@
 
 <PageHeader title="Calendar">
 	{#snippet titleActions()}
-		<nav class="week-nav" aria-label="Week">
-			<a
-				class="icon-btn"
-				href={weekHref(addDays(data.weekMonday, -7))}
-				aria-label="Previous week"
-				data-sveltekit-reset="false"
-			>
-				<ChevronLeft size={16} />
-			</a>
-			<span class="range tabular" aria-live="polite">{data.rangeLabel}</span>
-			<a
-				class="icon-btn"
-				href={weekHref(addDays(data.weekMonday, 7))}
-				aria-label="Next week"
-				data-sveltekit-reset="false"
-			>
-				<ChevronRight size={16} />
-			</a>
-			{#if isCurrentWeek}
-				<span class="pill-btn disabled" aria-disabled="true" aria-current="date">
-					<Calendar size={15} /> This week
-				</span>
-			{:else}
-				<a class="pill-btn" href={weekHref(null)} data-sveltekit-reset="false">
-					<Calendar size={15} /> This week
+		<div class="nav-wrap">
+			<WeekNav monday={data.weekMonday} rangeLabel={data.rangeLabel} {isCurrentWeek}>
+				<a
+					class="pill-btn plan-toggle"
+					class:on={data.showPlan}
+					href={planHref}
+					aria-label={data.showPlan ? 'Hide plan' : 'Show plan'}
+					data-sveltekit-reset="false"
+				>
+					<LayoutList size={15} />
+					<span class="box" aria-hidden="true"></span>
+					Show plan
 				</a>
-			{/if}
-			<a
-				class="pill-btn plan-toggle"
-				class:on={data.showPlan}
-				href={planHref}
-				aria-label={data.showPlan ? 'Hide plan' : 'Show plan'}
-				data-sveltekit-reset="false"
-			>
-				<LayoutList size={15} />
-				<span class="box" aria-hidden="true"></span>
-				Show plan
-			</a>
-		</nav>
+			</WeekNav>
+		</div>
 	{/snippet}
 	{#snippet actions()}
 		<div class="week-stats">
@@ -206,54 +181,29 @@
 {/if}
 
 <style>
-	.week-nav {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-2);
+	.nav-wrap {
 		margin-left: var(--space-4);
 	}
-	.range {
-		min-width: 8.5rem;
-		text-align: center;
-		color: var(--text-2);
-		font-size: var(--fs-md);
-		white-space: nowrap;
-	}
-	.icon-btn,
 	.pill-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		gap: var(--space-2);
 		height: 34px;
-		border: 1px solid transparent;
+		padding: 0 var(--space-3);
+		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		color: var(--text-muted);
+		background: var(--surface);
+		color: var(--text-2);
 		font-size: var(--fs-sm);
 		white-space: nowrap;
 		transition:
 			background var(--dur) var(--ease),
 			color var(--dur) var(--ease);
 	}
-	.icon-btn {
-		width: 30px;
-	}
-	.pill-btn {
-		padding: 0 var(--space-3);
-		border-color: var(--border);
-		background: var(--surface);
-		color: var(--text-2);
-	}
-	.icon-btn:hover,
-	a.pill-btn:hover {
+	.pill-btn:hover {
 		background: var(--surface-hover);
 		color: var(--text);
-	}
-	.pill-btn.disabled {
-		color: var(--text-faint);
-		background: transparent;
-		cursor: default;
 	}
 	.box {
 		width: 12px;
@@ -303,7 +253,7 @@
 	}
 
 	@media (max-width: 900px) {
-		.week-nav {
+		.nav-wrap {
 			margin-left: 0;
 		}
 	}

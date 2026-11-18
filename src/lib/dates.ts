@@ -100,6 +100,18 @@ export function startOfQuarter(day: ISODay): ISODay {
 	return formatDay(new Date(Date.UTC(d.getUTCFullYear(), month, 1)));
 }
 
+/** Last day of the calendar quarter containing `day`. */
+export function endOfQuarter(day: ISODay): ISODay {
+	const d = parseDay(day);
+	const month = Math.floor(d.getUTCMonth() / 3) * 3 + 3;
+	return formatDay(new Date(Date.UTC(d.getUTCFullYear(), month, 0)));
+}
+
+/** Whole days from `a` to `b` (`b - a`; negative when `b` is earlier). */
+export function daysBetween(a: ISODay, b: ISODay): number {
+	return Math.round((parseDay(b).getTime() - parseDay(a).getTime()) / DAY_MS);
+}
+
 /** Format a day for display, e.g. `formatDayLabel('2026-10-15', { weekday: 'long', month: 'long', day: 'numeric' })`. */
 export function formatDayLabel(
 	day: ISODay,

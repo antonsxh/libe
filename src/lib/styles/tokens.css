@@ -109,6 +109,13 @@
 	--cal-col-min: 120px; /* calendar: narrowest day column (mobile scrolls horizontally) */
 	--cal-gutter: 52px; /* calendar: hour label column */
 
+	/* ── Charts (review) ───────────────────────────────────── */
+	--chart-h: 220px; /* plot height of the per-day bars */
+	--chart-bar-w: 30px; /* per-day bar width */
+	--chart-radius: 3px; /* bars, tracks */
+	--chart-track-h: 6px; /* horizontal hour bars */
+	--chart-stack-h: 36px; /* quest vs other stacked bar */
+
 	/* ── Hatching (planned blocks, calendar entries) ──────── */
 	--hatch-angle: 135deg;
 	--hatch-line: 2px;
