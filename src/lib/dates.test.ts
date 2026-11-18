@@ -11,6 +11,7 @@ import {
 	todayISO,
 	weekDays,
 	weekMonthLabel,
+	weekRangeLabel,
 	weekdayIndex
 } from './dates.ts';
 
@@ -66,6 +67,12 @@ describe('dates', () => {
 		expect(minuteOfDay(instant, 'UTC')).toBe(13 * 60 + 45);
 		expect(minuteOfDay(instant, 'America/New_York')).toBe(8 * 60 + 45); // UTC−5
 		expect(minuteOfDay(new Date('2026-11-19T04:59:00Z'), 'UTC')).toBe(4 * 60 + 59);
+	});
+
+	test('weekRangeLabel: same month, spanning months and a year end', () => {
+		expect(weekRangeLabel('2026-11-09')).toBe('Nov 9 – 15');
+		expect(weekRangeLabel('2026-10-26')).toBe('Oct 26 – Nov 1');
+		expect(weekRangeLabel('2026-12-28')).toBe('Dec 28 – Jan 3');
 	});
 
 	test('weekMonthLabel names the month, or both months when a week spans two', () => {

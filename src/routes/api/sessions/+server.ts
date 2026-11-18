@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { isISODay, todayISO } from '#lib/dates.ts';
 import { isUuid } from '#lib/ids.ts';
-import { validateManualLog } from '#lib/manual-log.ts';
+import { validateManualLog, validateSessionSpan } from '#lib/manual-log.ts';
 import { createManualSession, listTaskSessionsOnDay } from '#lib/server/sessions.ts';
 import { getTask, setTaskDone } from '#lib/server/tasks.ts';
 import { activeSessionSpan } from '#lib/server/timer.ts';
@@ -16,8 +16,10 @@ export const GET: RequestHandler = async ({ url }) => {
 };
 
 /**
- * Log time afterwards: `{ taskId, day, start: 'HH:MM', durationMin, markDone? }` → a completed
- * `manual` session. 400 `{ ok: false, errors }` on invalid input (see `validateManualLog`).
+ * Log time afterwards → a completed `manual` session. Two body shapes:
+ * - `{ taskId, day, start: 'HH:MM', durationMin, markDone? }` (Log-time dialog, `validateManualLog`)
+ * - `{ taskId, day, start, endDay, end: 'HH:MM' }` (calendar, explicit end, `validateSessionSpan`)
+ * 400 `{ ok: false, errors }` on invalid input.
  */
 export const POST: RequestHandler = async ({ request }) => {
 	let body: Record<string, unknown>;
@@ -30,10 +32,14 @@ export const POST: RequestHandler = async ({ request }) => {
 	const task = isUuid(taskId) ? await getTask(taskId) : undefined;
 	if (!task) return json({ ok: false, errors: { task: 'Task not found.' } }, { status: 400 });
 
-	const result = validateManualLog(
-		{ day: body.day, start: body.start, durationMin: body.durationMin },
-		{ now: new Date(), active: await activeSessionSpan() }
-	);
+	const ctx = { now: new Date(), active: await activeSessionSpan() };
+	const result =
+		body.end !== undefined
+			? validateSessionSpan(
+					{ day: body.day, start: body.start, endDay: body.endDay, end: body.end },
+					ctx
+				)
+			: validateManualLog({ day: body.day, start: body.start, durationMin: body.durationMin }, ctx);
 	if (!result.ok) return json({ ok: false, errors: result.errors }, { status: 400 });
 
 	const id = await createManualSession({ taskId: task.id, ...result });

@@ -79,6 +79,20 @@ export function weekMonthLabel(monday: ISODay): string {
 	return `${left} – ${fmt(last, { month: 'short', year: 'numeric' })}`;
 }
 
+/**
+ * Compact range label for the week whose Monday is `monday`: `"Nov 9 – 15"`, or
+ * `"Oct 26 – Nov 1"` when the Mon–Sun range spans two months (also across a year end).
+ */
+export function weekRangeLabel(monday: ISODay): string {
+	const sunday = addDays(monday, 6);
+	const left = formatDayLabel(monday, { month: 'short', day: 'numeric' });
+	const sameMonth = monday.slice(0, 7) === sunday.slice(0, 7);
+	const right = sameMonth
+		? String(Number(sunday.slice(8, 10)))
+		: formatDayLabel(sunday, { month: 'short', day: 'numeric' });
+	return `${left} – ${right}`;
+}
+
 /** First day of the calendar quarter containing `day`. */
 export function startOfQuarter(day: ISODay): ISODay {
 	const d = parseDay(day);

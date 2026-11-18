@@ -45,7 +45,7 @@ Notes / decisions taken in M0:
 | M2  | Home/Today: Quest work + Other lists, backlog input without day, day timeline (blocks + now line), ordering via ↑/↓ buttons | ✅ done |
 | M3  | Plan: week kanban (Mon–Sun columns), add per day, collapsible "Other" zones, done/past styling                              | ✅ done |
 | M4  | Focus: server-side timer + SSE, pomodoro mode (configurable intervals), "log time afterwards" dialog (manual sessions)      | ✅ done |
-| M5  | Calendar: weekly log of sessions with overlap columns, day totals, now line, today column tint                              | ⏳      |
+| M5  | Calendar: weekly log of sessions with overlap columns, day totals, now line, today column tint                              | ✅ done |
 | M6  | Review: KPIs (quest hours vs budget, daily avg, quest vs other), per-day bars, hours by quest, sparklines, quarter sums     | ⏳      |
 | M7  | Tauri 2 shell (thin client loading the server URL) + pairing flow (code → device token in OS keychain)                      | ⏳      |
 
@@ -264,3 +264,70 @@ Decisions / fixes during M4:
   otherwise abort it and Kit logs "Failed to fetch").
 - Browser tests can't use `networkidle` any more (open SSE stream) — they wait for
   `html[data-timer=live]`.
+
+## M5 — what exists
+
+- `/calendar` (weekly log): header "Calendar", ‹ `Nov 9 – 15` › (`weekRangeLabel`: "Oct 26 – Nov 1"
+  across months/years), "This week" (muted + `aria-disabled` on the current week), "Show plan"
+  toggle (`?plan=1`). Right: week total `52h 37m`, muted `/ 20h quest` and a thin amber bar =
+  quest time vs. the sum of open quests' weekly budgets (capped 100%). Week in `?week=` (any day →
+  its Monday; invalid → current week), links keep `?plan=`.
+- **Week grid** (`components/calendar/WeekGrid.svelte`): one scrolling card (both axes), sticky
+  header row (`Mon 9` + day total, `0m` when empty) and sticky hour gutter, 7 columns
+  (`minmax(var(--cal-col-min), 1fr)` → on phones the card scrolls horizontally, never the page).
+  Range 6:00–24:00, extended earlier to the earliest entry/planned block of the week; 50px/h
+  (`--cal-hour`). Today's header + column tinted (`--today-tint`), amber day number. On load /
+  week change it scrolls to ~1 h before now (current week) or 30 min before the first entry.
+- **Entries** = sessions at their real wall-clock span in the server `TZ`: hatched in the quest
+  colour (slate for "other"), title + `10:58 – 13:20` when ≥ 42 min tall, else one ellipsised line;
+  a small check when the task is done; midnight-crossing sessions split into one segment per day
+  (label `Thu 22:56 – Fri 00:08`). Overlapping entries share columns (`layoutDay` →
+  `layoutBlocks`), laid out with their drawn height (min 20 min) so short entries never cover
+  each other.
+- **Active session** (from the timer store, not the DB query): amber outline, pulsing dot,
+  `15:09 – now` (`– paused`), links to `/focus`; grows every 5 s and updates on every SSE
+  snapshot; its live elapsed time is included in the day/week totals.
+- **Now line**: amber line + dot across all 7 columns, only in the week containing today,
+  refreshed every 30 s (5 s while a timer runs).
+- **Plan overlay**: the week's `blocks` as dashed outlines (no fill, faint title) behind the
+  entries, own overlap columns, click-through.
+- **Edit / log**: click an entry → "Edit session" (`components/calendar/SessionDialog.svelte`:
+  searchable grouped `TaskPicker` — that day's tasks, this week, backlog, open tasks of other
+  days; start date+time, end date+time, live duration, Delete). Click an empty slot (each column
+  is a `<button>`; keyboard activation → 30 min before now today, else 9:00) → "Log time"
+  prefilled with that day, the clicked time rounded down to 15 min and 30 minutes (moving the
+  start keeps the duration). After each change `refreshAll()` reloads the week before closing.
+- Server: `server/calendar.ts` — `listWeekSessions(monday)` (completed sessions overlapping the
+  week, task title/done + quest name/colour joined), `listPickTasks(monday)`, `serverTimeZone()`;
+  `listWeekBlocks(monday)` in `server/blocks.ts`; `getLoggedSession` / `updateLoggedSession` in
+  `server/sessions.ts`.
+- API: `POST /api/sessions` also accepts `{ taskId, day, start, endDay, end }`;
+  `PATCH /api/sessions/[id]` edits a completed session (task + span; 404 for active/unknown).
+  Both use `validateSessionSpan` (`manual-log.ts`), which shares the "not in the future / ≤ 365
+  days / no overlap with the active session" rules with `validateManualLog` (`checkSpan`), plus
+  end > start and ≤ 24 h; unchanged `HH:MM` fields keep the original seconds (`keepSameMinute`).
+- Pure, tested `src/lib/calendar.ts`: `splitSession`, `calendarWeek` (segments + per-day, week,
+  quest/other totals), `layoutDay`, `gridStartHour`, `slotMinute`, `formatHM`, `wallMinutes`,
+  `sessionSpanLabel` — incl. midnight splits, chains of overlaps and the DST week of 2026-10-25.
+
+Decisions during M5:
+
+- **Calendar shows actual spans, stats attribute by start day.** Home/Quests/sparklines still
+  count a whole session on the day of `started_at`; the calendar splits it at midnight and gives
+  each day its part. A session crossing midnight therefore counts fully on day 1 in Home's
+  "today" but split in the calendar's day totals (the week sums agree unless the split crosses
+  a week boundary).
+- **Paused time is ignored for placement**: a block spans `started_at → ended_at` (pauses are not
+  cut out of it); logged minutes = span − `paused_ms`, and for split sessions the pause is spread
+  proportionally over the parts.
+- Positions are wall-clock minutes in the server `TZ` (sent to the client as `timeZone`, so a
+  browser in another zone still sees server days). On a 25-hour DST day the repeated hour is
+  drawn over itself; if that makes a segment's end precede its start it keeps its real length.
+- **Edits**: changing a session's span resets its `paused_ms` to 0 (the edited span is taken as
+  the time worked); changing only the task keeps pauses. `duration_min` follows the span for
+  manual logs and stays the countdown target for focus/pomodoro sessions. The active session is
+  not editable here (it belongs to the timer) — clicking it opens `/focus`.
+- Week totals include the running session's live time (Home's header counts completed sessions
+  only).
+- `PageHeader`'s title row now wraps (the calendar's week navigation drops under the title on
+  phones).

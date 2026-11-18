@@ -103,6 +103,12 @@
 	--ease: cubic-bezier(0.2, 0, 0, 1);
 	--dur: 140ms;
 
+	/* ── Time grids (day timeline, calendar) ──────────────── */
+	--grid-line: color-mix(in srgb, var(--border-strong) 30%, transparent); /* hour lines */
+	--cal-hour: 50px; /* calendar: height of one hour */
+	--cal-col-min: 120px; /* calendar: narrowest day column (mobile scrolls horizontally) */
+	--cal-gutter: 52px; /* calendar: hour label column */
+
 	/* ── Hatching (planned blocks, calendar entries) ──────── */
 	--hatch-angle: 135deg;
 	--hatch-line: 2px;

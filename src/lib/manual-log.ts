@@ -75,19 +75,40 @@ export type ManualLogResult =
 	| { ok: true; startedAt: Date; endedAt: Date; durationMin: number }
 	| { ok: false; errors: ManualLogErrors };
 
+interface SpanContext {
+	now: Date;
+	timeZone?: string;
+	/** Span of the currently running/paused session (`[startedAt, now)`) → no overlap allowed. */
+	active?: { start: Date; end: Date } | null;
+}
+
+/** Rules shared by every logged span: not in the future, not too old, clear of the timer. */
+function checkSpan(
+	startedAt: Date,
+	endedAt: Date,
+	{ now, active }: SpanContext
+): { kind: 'future' | 'age' | 'active'; message: string } | null {
+	if (endedAt.getTime() > now.getTime() + FUTURE_SLACK_MS)
+		return { kind: 'future', message: 'That time is in the future.' };
+	if (startedAt.getTime() < now.getTime() - MANUAL_LOG_MAX_AGE_DAYS * DAY_MS)
+		return { kind: 'age', message: 'Logs can reach back at most 365 days.' };
+	if (
+		active &&
+		overlaps(startedAt.getTime(), endedAt.getTime(), active.start.getTime(), active.end.getTime())
+	)
+		return {
+			kind: 'active',
+			message: 'This overlaps the running timer — stop it first or pick another time.'
+		};
+	return null;
+}
+
 /**
  * Validate a manual log: valid day + `HH:MM`, 1‥1440 whole minutes, starting within the last
  * {@link MANUAL_LOG_MAX_AGE_DAYS} days and ending no later than `now`.
  * `active` = span of the currently running/paused session (`[startedAt, now)`) → no overlap.
  */
-export function validateManualLog(
-	input: ManualLogInput,
-	{
-		now,
-		timeZone,
-		active
-	}: { now: Date; timeZone?: string; active?: { start: Date; end: Date } | null }
-): ManualLogResult {
+export function validateManualLog(input: ManualLogInput, ctx: SpanContext): ManualLogResult {
 	const errors: ManualLogErrors = {};
 	if (!isISODay(input.day)) errors.day = 'Pick a date.';
 	const startMin = parseClock(input.start);
@@ -98,21 +119,78 @@ export function validateManualLog(
 		errors.duration = `Duration must be a whole number from 1 to ${MAX_TIMER_MIN} minutes.`;
 	if (Object.keys(errors).length > 0 || startMin === null) return { ok: false, errors };
 
-	const startedAt = wallTimeToDate(input.day as string, startMin, timeZone);
+	const startedAt = wallTimeToDate(input.day as string, startMin, ctx.timeZone);
 	const endedAt = new Date(startedAt.getTime() + dur * 60_000);
-	if (endedAt.getTime() > now.getTime() + FUTURE_SLACK_MS)
-		return { ok: false, errors: { start: 'That time is in the future.' } };
-	if (startedAt.getTime() < now.getTime() - MANUAL_LOG_MAX_AGE_DAYS * DAY_MS)
-		return { ok: false, errors: { day: 'Logs can reach back at most 365 days.' } };
-	if (
-		active &&
-		overlaps(startedAt.getTime(), endedAt.getTime(), active.start.getTime(), active.end.getTime())
-	)
+	const problem = checkSpan(startedAt, endedAt, ctx);
+	if (problem)
 		return {
 			ok: false,
-			errors: { start: 'This overlaps the running timer — stop it first or pick another time.' }
+			errors: problem.kind === 'age' ? { day: problem.message } : { start: problem.message }
 		};
 	return { ok: true, startedAt, endedAt, durationMin: dur };
+}
+
+/** Start and end as explicit wall times (calendar edit / log dialog). */
+export interface SessionSpanInput {
+	day: unknown;
+	start: unknown;
+	endDay: unknown;
+	end: unknown;
+}
+
+export type SessionSpanErrors = { day?: string; start?: string; end?: string };
+
+export type SessionSpanResult =
+	| { ok: true; startedAt: Date; endedAt: Date; durationMin: number }
+	| { ok: false; errors: SessionSpanErrors };
+
+/**
+ * Keep an existing instant when the edited wall time names the same minute — `HH:MM` inputs
+ * cannot express seconds, so an untouched field must not shift `10:58:23` to `10:58:00`.
+ */
+export function keepSameMinute(parsed: Date, original: Date | null | undefined): Date {
+	if (!original) return parsed;
+	const floor = Math.floor(original.getTime() / 60_000) * 60_000;
+	return floor === parsed.getTime() ? original : parsed;
+}
+
+/**
+ * Validate a span given as start day + `HH:MM` and end day + `HH:MM` (server `TZ`):
+ * end after start, at most {@link MAX_TIMER_MIN} minutes, plus the shared rules (not in the
+ * future, ≤ 365 days back, no overlap with the active session). `original` = the session
+ * being edited (unchanged minutes keep their seconds).
+ */
+export function validateSessionSpan(
+	input: SessionSpanInput,
+	ctx: SpanContext & { original?: { startedAt: Date; endedAt: Date | null } }
+): SessionSpanResult {
+	const errors: SessionSpanErrors = {};
+	const startMin = parseClock(input.start);
+	const endMin = parseClock(input.end);
+	if (!isISODay(input.day)) errors.day = 'Pick a start date.';
+	else if (startMin === null) errors.start = 'Pick a start time.';
+	if (!isISODay(input.endDay) || endMin === null) errors.end = 'Pick an end date and time.';
+	if (Object.keys(errors).length > 0 || startMin === null || endMin === null)
+		return { ok: false, errors };
+
+	const startedAt = keepSameMinute(
+		wallTimeToDate(input.day as string, startMin, ctx.timeZone),
+		ctx.original?.startedAt
+	);
+	const endedAt = keepSameMinute(
+		wallTimeToDate(input.endDay as string, endMin, ctx.timeZone),
+		ctx.original?.endedAt
+	);
+	const spanMs = endedAt.getTime() - startedAt.getTime();
+	if (spanMs <= 0) return { ok: false, errors: { end: 'End must be after the start.' } };
+	if (spanMs > MAX_TIMER_MIN * 60_000)
+		return { ok: false, errors: { end: 'A session can be at most 24 hours long.' } };
+	const problem = checkSpan(startedAt, endedAt, ctx);
+	if (problem) {
+		const field = problem.kind === 'future' ? 'end' : problem.kind === 'age' ? 'day' : 'start';
+		return { ok: false, errors: { [field]: problem.message } };
+	}
+	return { ok: true, startedAt, endedAt, durationMin: Math.max(1, Math.round(spanMs / 60_000)) };
 }
 
 /** End time `HH:MM` for a start and a duration (wraps past midnight). */

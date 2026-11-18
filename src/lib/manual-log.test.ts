@@ -3,8 +3,10 @@ import {
 	dayBounds,
 	durationBetween,
 	endClock,
+	keepSameMinute,
 	overlaps,
 	validateManualLog,
+	validateSessionSpan,
 	wallTimeToDate
 } from './manual-log.ts';
 
@@ -104,5 +106,93 @@ describe('helpers', () => {
 		expect(durationBetween(570, 660)).toBe(90);
 		expect(durationBetween(1410, 30)).toBe(60);
 		expect(durationBetween(600, 600)).toBe(1440);
+	});
+});
+
+describe('validateSessionSpan', () => {
+	const ctx = { now, timeZone: 'UTC' };
+	const span = (day: string, start: string, endDay: string, end: string) => ({
+		day,
+		start,
+		endDay,
+		end
+	});
+
+	test('valid span, also across midnight', () => {
+		const r = validateSessionSpan(span('2026-11-17', '09:00', '2026-11-17', '10:30'), ctx);
+		expect(r.ok && [r.startedAt.toISOString(), r.endedAt.toISOString(), r.durationMin]).toEqual([
+			'2026-11-17T09:00:00.000Z',
+			'2026-11-17T10:30:00.000Z',
+			90
+		]);
+		const night = validateSessionSpan(span('2026-11-16', '22:56', '2026-11-17', '00:08'), ctx);
+		expect(night.ok && night.durationMin).toBe(72);
+	});
+
+	test('end must be after start, at most 24 hours', () => {
+		const same = validateSessionSpan(span('2026-11-17', '09:00', '2026-11-17', '09:00'), ctx);
+		expect(!same.ok && same.errors.end).toBe('End must be after the start.');
+		const before = validateSessionSpan(span('2026-11-17', '09:00', '2026-11-17', '08:00'), ctx);
+		expect(!before.ok && before.errors.end).toBe('End must be after the start.');
+		const long = validateSessionSpan(span('2026-11-16', '09:00', '2026-11-17', '09:01'), ctx);
+		expect(!long.ok && long.errors.end).toContain('24 hours');
+		expect(validateSessionSpan(span('2026-11-16', '09:00', '2026-11-17', '09:00'), ctx).ok).toBe(
+			true
+		);
+	});
+
+	test('field errors', () => {
+		const r = validateSessionSpan(span('nope', '09:00', '2026-11-17', '7pm'), ctx);
+		expect(!r.ok && Object.keys(r.errors).sort()).toEqual(['day', 'end']);
+		const t = validateSessionSpan(span('2026-11-17', '', '2026-11-17', '10:00'), ctx);
+		expect(!t.ok && Object.keys(t.errors)).toEqual(['start']);
+	});
+
+	test('future, too old, overlapping the active session', () => {
+		const future = validateSessionSpan(span('2026-11-18', '14:30', '2026-11-18', '15:30'), ctx);
+		expect(!future.ok && future.errors.end).toBe('That time is in the future.');
+		const old = validateSessionSpan(span('2025-11-01', '09:00', '2025-11-01', '10:00'), ctx);
+		expect(!old.ok && old.errors.day).toContain('365');
+		const active = { start: new Date('2026-11-18T14:00:00Z'), end: now };
+		const clash = validateSessionSpan(span('2026-11-18', '13:30', '2026-11-18', '14:15'), {
+			...ctx,
+			active
+		});
+		expect(!clash.ok && clash.errors.start).toContain('running timer');
+		expect(
+			validateSessionSpan(span('2026-11-18', '13:00', '2026-11-18', '14:00'), { ...ctx, active }).ok
+		).toBe(true);
+	});
+
+	test('timezone and DST (Europe/Berlin, 2026-10-25 has 25 hours)', () => {
+		const r = validateSessionSpan(span('2026-10-25', '01:30', '2026-10-25', '04:00'), {
+			now,
+			timeZone: 'Europe/Berlin'
+		});
+		expect(r.ok && [r.startedAt.toISOString(), r.durationMin]).toEqual([
+			'2026-10-24T23:30:00.000Z',
+			210
+		]);
+	});
+
+	test('unchanged minutes keep the original seconds', () => {
+		const original = {
+			startedAt: new Date('2026-11-17T09:58:23Z'),
+			endedAt: new Date('2026-11-17T12:20:41Z')
+		};
+		const r = validateSessionSpan(span('2026-11-17', '09:58', '2026-11-17', '12:30'), {
+			...ctx,
+			original
+		});
+		expect(r.ok && [r.startedAt.toISOString(), r.endedAt.toISOString()]).toEqual([
+			'2026-11-17T09:58:23.000Z',
+			'2026-11-17T12:30:00.000Z'
+		]);
+		expect(keepSameMinute(new Date('2026-11-17T09:59:00Z'), original.startedAt).toISOString()).toBe(
+			'2026-11-17T09:59:00.000Z'
+		);
+		expect(keepSameMinute(new Date('2026-11-17T09:59:00Z'), null).toISOString()).toBe(
+			'2026-11-17T09:59:00.000Z'
+		);
 	});
 });

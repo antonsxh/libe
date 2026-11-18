@@ -58,6 +58,43 @@ export async function createManualSession(input: {
 	return row.id;
 }
 
+/** A completed session by id (active ones are owned by the timer). */
+export async function getLoggedSession(id: string) {
+	const [row] = await db
+		.select()
+		.from(sessions)
+		.where(and(eq(sessions.id, id), eq(sessions.state, 'completed')));
+	return row;
+}
+
+/**
+ * Manual adjustment of a completed session (calendar edit): new task and span. Pauses are
+ * kept only when the span is unchanged — an edited span is taken as the time worked.
+ * `duration_min` of manual logs follows the span (it is their logged length).
+ */
+export async function updateLoggedSession(
+	id: string,
+	input: { taskId: string; startedAt: Date; endedAt: Date; durationMin: number }
+): Promise<boolean> {
+	const current = await getLoggedSession(id);
+	if (!current) return false;
+	const sameSpan =
+		current.startedAt.getTime() === input.startedAt.getTime() &&
+		current.endedAt?.getTime() === input.endedAt.getTime();
+	const rows = await db
+		.update(sessions)
+		.set({
+			taskId: input.taskId,
+			startedAt: input.startedAt,
+			endedAt: input.endedAt,
+			pausedMs: sameSpan ? current.pausedMs : 0,
+			durationMin: current.source === 'manual' ? input.durationMin : current.durationMin
+		})
+		.where(and(eq(sessions.id, id), eq(sessions.state, 'completed')))
+		.returning({ id: sessions.id });
+	return rows.length > 0;
+}
+
 /** Delete a *completed* session (an active one is ended via the timer). Returns success. */
 export async function deleteLoggedSession(id: string): Promise<boolean> {
 	const rows = await db

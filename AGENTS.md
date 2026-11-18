@@ -97,6 +97,11 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `timer.view`, `timer.command('pause')`, `timer.start({...})`, `timer.logTarget = task`
   (opens "Log time…"). Code that deletes tasks/sessions behind the timer's back must call
   `broadcastTimer()`.
+- **Logged time by day**: stats (`stats-core.ts`) attribute a whole session to the day of
+  `started_at`; the Calendar (`#lib/calendar.ts`) draws/totals actual spans, split at midnight.
+  Calendar edits/logs go through `/api/sessions` (`POST`, `PATCH /[id]`, `DELETE /[id]`), validated
+  by `validateSessionSpan` / `validateManualLog` in `#lib/manual-log.ts` — reuse them, don't
+  re-implement the rules.
 - Pages hold an open SSE connection, so `networkidle` never fires in browser tests — wait for
   `html[data-timer=live]` (set by the root layout once the stream is connected) instead.
 - UI copy is English (matches the references). Code and comments in English.
