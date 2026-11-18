@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formAction } from '#lib/form-action.ts';
 	import { enhance } from '$app/forms';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Button from '#lib/components/Button.svelte';
@@ -48,7 +49,7 @@
 	<form
 		id="block-form"
 		method="POST"
-		action={isEdit ? '?/blockUpdate' : '?/block'}
+		action={formAction(isEdit ? 'blockUpdate' : 'block')}
 		use:enhance={() => {
 			return async ({ result, update }) => {
 				// Re-render with fresh data (and re-show errors on failure), then close on success.
@@ -96,7 +97,7 @@
 		<form
 			id="block-delete-form"
 			method="POST"
-			action="?/blockDelete"
+			action={formAction('blockDelete')}
 			use:enhance={() => {
 				return async ({ result, update }) => {
 					await update();

@@ -60,6 +60,11 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   **`$app/env/private`** / `$app/env/public`. Add new vars there.
 - `browser`, `dev`, `building` come from **`$app/env`**. Page state from **`$app/state`** (`page.url`, …).
 - Generated types: `import type { PageProps, PageServerLoad, Actions } from './$types'`.
+- **Form submissions land on the action URL minus `/name`** (enhanced _and_ native). A bare
+  `action="?/add"` drops the page's query (`?week=`, `?q=`, `?hideDone=`) and navigates away.
+  On pages with query state use `action={formAction('add')}` (`#lib/form-action.ts`).
+- `goto` options: `{ reset: false }` keeps scroll/focus (no `noScroll`/`keepFocus`), `replace`
+  instead of `replaceState`; links use `data-sveltekit-reset="false"`.
 
 ## Code conventions
 
@@ -76,6 +81,11 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `questColorVar(key)` → `var(--quest-<key>)`. Tasks of kind `other` use `slate`.
 - Keep components small; shared ones in `src/lib/components/`, feature-specific ones in
   `src/lib/components/<feature>/`. Use `type Props = {...}; let {...}: Props = $props()`.
+  Task-list pieces used by Home and Plan live in `components/tasks/` (`DayTaskCard`,
+  `TaskAddForm`, `QuestPicker`, `QuestFilter`); their shared form actions (toggle, ↑/↓,
+  backlog, delete, `addTaskAction` factory) in `src/lib/server/task-actions.ts`.
+- `Menu` popovers are `position: fixed` (placed from the trigger rect) so they escape
+  scrolling/clipping containers such as the plan board.
 - UI copy is English (matches the references). Code and comments in English.
 
 ## Styling rules

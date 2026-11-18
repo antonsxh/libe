@@ -5,26 +5,18 @@
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { formatHours, formatMinutes } from '#lib/dates.ts';
 	import { nextHalfHourMinutes, type BlockEditor, type BlockFormResult } from '#lib/timeline.ts';
-	import QuestFilter from '#lib/components/home/QuestFilter.svelte';
-	import TaskAddForm from '#lib/components/home/TaskAddForm.svelte';
-	import DayTaskCard from '#lib/components/home/DayTaskCard.svelte';
+	import QuestFilter from '#lib/components/tasks/QuestFilter.svelte';
+	import TaskAddForm from '#lib/components/tasks/TaskAddForm.svelte';
+	import DayTaskCard from '#lib/components/tasks/DayTaskCard.svelte';
 	import BacklogList from '#lib/components/home/BacklogList.svelte';
 	import DayTimeline from '#lib/components/home/DayTimeline.svelte';
 	import BlockDialog from '#lib/components/home/BlockDialog.svelte';
+	import { groupEdges } from '#lib/ordering.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { BlockWithTask } from '#lib/server/blocks.ts';
 
 	let { data, form } = $props();
-
-	/** Open and done tasks are separate groups: ↑/↓ never crosses between them (see `moveTask`). */
-	const isDone = (t: { doneAt: Date | string | null }) => t.doneAt !== null;
-	function groupEdges(list: TaskWithQuest[], i: number) {
-		return {
-			first: i === 0 || isDone(list[i - 1]) !== isDone(list[i]),
-			last: i === list.length - 1 || isDone(list[i + 1]) !== isDone(list[i])
-		};
-	}
 
 	/** The open "Time-block" dialog target (null = closed). */
 	let blockEditor = $state<BlockEditor | null>(null);

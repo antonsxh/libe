@@ -39,7 +39,7 @@ Notes / decisions taken in M0:
 | M0  | Scaffold: SvelteKit 3 + Bun + Drizzle schema + Docker Compose (app + Postgres) + design tokens + nav shell                  | ✅ done |
 | M1  | Quests: data + CRUD incl. emoji / colour / weekly budget / close; quest backlog; quest cards (→ basis for pills)            | ✅ done |
 | M2  | Home/Today: Quest work + Other lists, backlog input without day, day timeline (blocks + now line), ordering via ↑/↓ buttons | ✅ done |
-| M3  | Plan: week kanban (Mon–Sun columns), add per day, collapsible "Other" zones, done/past styling                              | ⏳      |
+| M3  | Plan: week kanban (Mon–Sun columns), add per day, collapsible "Other" zones, done/past styling                              | ✅ done |
 | M4  | Focus: server-side timer + SSE, pomodoro mode (configurable intervals), "log time afterwards" dialog (manual sessions)      | ⏳      |
 | M5  | Calendar: weekly log of sessions with overlap columns, day totals, now line, today column tint                              | ⏳      |
 | M6  | Review: KPIs (quest hours vs budget, daily avg, quest vs other), per-day bars, hours by quest, sparklines, quarter sums     | ⏳      |
@@ -122,3 +122,63 @@ Fixes during M2 review:
   tied at `-1` and ↑ swapped with an invisible task.
 - ↑/↓ never cross between open and done tasks (`moveWithinGroup` in `ordering.ts`; the UI disables
   the buttons at group edges). With a quest filter active, ↑/↓ may swap with a hidden task.
+
+## M3 — what exists
+
+- `/plan` (Plan the week): header with funnel quest filter (`?q=`, same semantics as Home), month
+  label of the shown week (`weekMonthLabel`: "November 2026", "Nov – Dec 2026", "Dec 2026 – Jan
+  2027"), ‹ / › week links, "Today", eye toggle (`?hideDone=1`). Week in `?week=` (any day →
+  its Monday; invalid → current week).
+- **Board** (`.board` scrolls horizontally, never the page; today's column is scrolled into view
+  on load / week change, other weeks start at the left): collapsible **Backlog** rail +
+  7 day columns (`components/plan/PlanColumn.svelte`, 252px). Header "Wed 18"; today = amber
+  number + 2px amber underline; past days dimmed (opacity, still interactive).
+- Per column: compact add row (dot-only quest picker incl. "Other" → kind `other`, ⤒/⤓) on top,
+  compact `DayTaskCard`s (colour bar, wrapping title, check, pill, planned/logged time, ▶ focus
+  link, ↑/↓ within open/done group, ⋯ Move to previous day / next day / backlog, Delete), done
+  tasks dimmed + struck after open ones, and a collapsible "› Other N" zone (own add row) when the
+  day has other tasks.
+- **Backlog rail** (`components/plan/BacklogColumn.svelte`): "Add to backlog…" (quest picker),
+  open-quest backlog grouped per quest plus an **Other** group (other tasks without a day — they
+  were invisible everywhere before), rows with check, duration and ⋯ Move to today / Delete.
+  Collapses to a vertical strip (client-only state).
+- **Drag & drop** (HTML5): day ↔ day, within a day (before/after the card under the pointer),
+  backlog → day, day → backlog. 2px amber indicator before a card or at the end of the list.
+  Submits `?/moveTo` (taskId, day | '' = backlog, beforeId | '' = end). Keyboard users keep ↑/↓,
+  the ⋯ menus and the backlog "Move to today".
+- Server: `listWeekTasks(monday)`, `listOtherBacklog()`, `moveTaskTo(id, day|null, beforeId|null)`
+  (renumbers the target list 0..n−1 via pure `dropIntoList` in `ordering.ts`; tested: same-list
+  reorder, cross-list, before = null / unknown → end, before = itself → no-op). Plan actions:
+  shared ones from `server/task-actions.ts` + `add`, `addOther`, `addBacklog`, `moveTo`,
+  `prevDay`, `nextDay` — all ids `isUuid`, days `isISODay`, titles/durations via `task-form.ts`.
+
+Decisions / fixes during M3:
+
+- **Kit 3 form landing**: an enhanced (or native) submission navigates to the action URL minus
+  `/name`; `action="?/x"` resolves _without_ the page's query, so every mutation dropped
+  `?week=` (jumped back to the current week), `?q=`, `?hideDone=` — also on Home since M2.
+  `formAction(name)` (`#lib/form-action.ts`, pure part `actionWithQuery` in `action-url.ts`,
+  tested) builds `?<current params>&/name`; used by all Home/Plan task, block and backlog forms.
+- **Other-zone expanded state** lives in the URL (`?other=<day>,<day>`, `goto` with
+  `replace` + `reset: false`): survives reload and works without JS; week links drop it.
+  The backlog rail's collapsed state is client-only `$state` (pure view preference).
+- **Drag state** is a tiny shared rune module (`components/plan/drag.svelte.ts`) because
+  `dataTransfer` data is unreadable during `dragover`. A task never changes kind by moving, so the
+  indicator is always drawn in the list the server will use: a quest task hovering the Other
+  zone targets the quest list; an other task targets the Other list (or highlights the collapsed
+  toggle); in the backlog the pointer is projected onto the task's own quest group.
+- Drops position by pointer y against the task's own list, anywhere in the column (header, add
+  row, empty space below = end). A drop before its own card / right after it is a no-op.
+- `Menu` popovers switched to `position: fixed` placed from the trigger rect (flip above when no
+  room below, clamped to the viewport, follow scrolling) — they were clipped by the scrolling
+  board/columns.
+- Previous-agent work fixed in review: title said "Today"; ▶ hidden on plan cards; header
+  underline 1px + amber weekday instead of number; add row at the column bottom and wrapping
+  to three lines (now compact single row at the top, `TaskAddForm compact` + dot-only
+  `QuestPicker compact`); the Other zone's add form shared the `add` intent with the main row
+  (errors echoed twice → own `addOther` action); `goto` used Kit 2 options (`noScroll`,
+  `replaceState`); the scroll-to-today effect re-ran on every mutation (now keyed on a derived
+  week string, minimal scroll); `TaskAddForm` echo lost its `form.errors` guard; `moveTo` passed
+  an unvalidated `beforeId`; DOM-class juggling for the dragged card replaced by state.
+- Known gap: an "other" task moved to the backlog from Home still disappears from Home (it only
+  shows in the Plan backlog's Other group).

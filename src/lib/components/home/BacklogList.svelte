@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { formAction } from '#lib/form-action.ts';
 	import { enhance } from '$app/forms';
 	import { ArrowRight, ChevronDown, Trash2 } from '@lucide/svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
-	import TaskAddForm from '#lib/components/home/TaskAddForm.svelte';
+	import TaskAddForm from '#lib/components/tasks/TaskAddForm.svelte';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
@@ -51,13 +52,13 @@
 						{#if task.durationMin !== null}
 							<span class="dur muted tabular">{task.durationMin} min</span>
 						{/if}
-						<form class="inline" method="POST" action="?/today" use:enhance>
+						<form class="inline" method="POST" action={formAction('today')} use:enhance>
 							<input type="hidden" name="taskId" value={task.id} />
 							<button type="submit" class="op primary-op" aria-label="Schedule for today">
 								<ArrowRight size={14} /> Today
 							</button>
 						</form>
-						<form class="inline" method="POST" action="?/deleteTask" use:enhance>
+						<form class="inline" method="POST" action={formAction('deleteTask')} use:enhance>
 							<input type="hidden" name="taskId" value={task.id} />
 							<button type="submit" class="op danger" aria-label="Delete task">
 								<Trash2 size={14} />

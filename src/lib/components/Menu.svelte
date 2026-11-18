@@ -22,9 +22,31 @@
 	let triggerEl: HTMLButtonElement | undefined = $state();
 	let pop: HTMLDivElement | undefined = $state();
 
+	/**
+	 * Viewport position of the popover. It is `position: fixed` so it escapes scrolling /
+	 * clipping ancestors (plan board columns, the horizontally scrolling board): right-aligned
+	 * under the trigger, shifted inside the viewport, flipped above when there's no room below.
+	 */
+	let pos = $state<{ top: number; left: number } | null>(null);
+	const EDGE = 8;
+	const GAP = 4;
+	function place() {
+		if (!triggerEl || !pop) return;
+		const t = triggerEl.getBoundingClientRect();
+		const w = pop.offsetWidth;
+		const h = pop.offsetHeight;
+		let left = t.right - w;
+		if (left < EDGE) left = t.left;
+		left = Math.max(EDGE, Math.min(left, window.innerWidth - w - EDGE));
+		let top = t.bottom + GAP;
+		if (top + h > window.innerHeight - EDGE && t.top - GAP - h >= EDGE) top = t.top - GAP - h;
+		pos = { top, left };
+	}
+
 	function close() {
 		if (!open) return;
 		open = false;
+		pos = null;
 		onclose?.();
 		triggerEl?.focus();
 	}
@@ -35,6 +57,7 @@
 		} else {
 			open = true;
 			tick().then(() => {
+				place();
 				pop?.querySelector<HTMLElement>('button:not([disabled]), a, input')?.focus();
 			});
 		}
@@ -55,9 +78,14 @@
 		// Capture phase so an outside click closes before the clicked element's own handler runs.
 		document.addEventListener('keydown', onKey);
 		document.addEventListener('click', onClick, true);
+		// Any scrolling ancestor moves the trigger: follow it.
+		document.addEventListener('scroll', place, { capture: true, passive: true });
+		window.addEventListener('resize', place);
 		return () => {
 			document.removeEventListener('keydown', onKey);
 			document.removeEventListener('click', onClick, true);
+			document.removeEventListener('scroll', place, { capture: true });
+			window.removeEventListener('resize', place);
 		};
 	});
 </script>
@@ -75,7 +103,14 @@
 		{#if trigger}{@render trigger()}{:else}{@render TriggerIcon()}{/if}
 	</button>
 	{#if open}
-		<div class="pop" role="menu" bind:this={pop}>
+		<div
+			class="pop"
+			role="menu"
+			bind:this={pop}
+			style:top={pos ? `${pos.top}px` : undefined}
+			style:left={pos ? `${pos.left}px` : undefined}
+			style:visibility={pos ? undefined : 'hidden'}
+		>
 			{@render children(close)}
 		</div>
 	{/if}
@@ -123,9 +158,9 @@
 	}
 
 	.pop {
-		position: absolute;
-		top: calc(100% + var(--space-1));
-		right: 0;
+		position: fixed;
+		top: 0;
+		left: 0;
 		z-index: 40;
 		min-width: 190px;
 		padding: var(--space-1);

@@ -6,10 +6,11 @@
  *   - backlog (day null): the tasks of one quest (or all "other" tasks) without a day.
  * Top/bottom inserts and move up/down operate within that list only.
  */
-import { and, asc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { quests, tasks, type Task } from '#lib/server/db/schema.ts';
-import { moveWithinGroup, orderAtBottom, orderAtTop } from '#lib/ordering.ts';
+import { dropIntoList, moveWithinGroup, orderAtBottom, orderAtTop } from '#lib/ordering.ts';
+import { addDays } from '#lib/dates.ts';
 
 export type MoveDirection = 'up' | 'down';
 export type ListPosition = 'top' | 'bottom';
@@ -62,6 +63,28 @@ export async function listOpenBacklog(): Promise<TaskWithQuest[]> {
 		.innerJoin(quests, eq(quests.id, tasks.questId))
 		.where(and(isNull(tasks.day), isNull(quests.closedAt)))
 		.orderBy(asc(quests.order), asc(quests.createdAt), asc(tasks.order), asc(tasks.createdAt));
+	return rows.map(flattenTask);
+}
+
+/** Backlog tasks of kind `other` (no quest, no day), in list order. */
+export async function listOtherBacklog(): Promise<TaskWithQuest[]> {
+	const rows = await db
+		.select(taskWithQuestSelect)
+		.from(tasks)
+		.leftJoin(quests, eq(quests.id, tasks.questId))
+		.where(and(isNull(tasks.day), eq(tasks.kind, 'other')))
+		.orderBy(asc(tasks.order), asc(tasks.createdAt));
+	return rows.map(flattenTask);
+}
+
+/** Every task scheduled Mon–Sun of the week starting `monday`, quest joined, by day then list order. */
+export async function listWeekTasks(monday: string): Promise<TaskWithQuest[]> {
+	const rows = await db
+		.select(taskWithQuestSelect)
+		.from(tasks)
+		.leftJoin(quests, eq(quests.id, tasks.questId))
+		.where(and(gte(tasks.day, monday), lte(tasks.day, addDays(monday, 6))))
+		.orderBy(asc(tasks.day), asc(tasks.order), asc(tasks.createdAt));
 	return rows.map(flattenTask);
 }
 
@@ -141,6 +164,33 @@ export async function moveTaskToDay(id: string, day: string | null): Promise<voi
 		.update(tasks)
 		.set({ day, order: orderAtBottom(max?.max) })
 		.where(eq(tasks.id, id));
+}
+
+/**
+ * Drag & drop move: put the task into the list for `day` (null = backlog) directly before
+ * `beforeId` (null or unknown id = append at the end) and renumber that list 0..n−1. The
+ * target list follows the task's own kind/quest (a task's kind never changes by moving);
+ * the source list is left gap-tolerant (only the moved row leaves it). See `dropIntoList`.
+ */
+export async function moveTaskTo(
+	id: string,
+	day: string | null,
+	beforeId: string | null
+): Promise<void> {
+	const task = await getTask(id);
+	if (!task) return;
+	const siblings = await db
+		.select()
+		.from(tasks)
+		.where(inListCondition({ ...task, day }))
+		.orderBy(asc(tasks.order), asc(tasks.createdAt));
+	const next = dropIntoList(siblings, task, beforeId);
+	await db.transaction(async (tx) => {
+		await tx.update(tasks).set({ day }).where(eq(tasks.id, id));
+		for (const [k, sibling] of next.entries()) {
+			await tx.update(tasks).set({ order: k }).where(eq(tasks.id, sibling.id));
+		}
+	});
 }
 
 export async function setTaskDone(id: string, done: boolean): Promise<void> {

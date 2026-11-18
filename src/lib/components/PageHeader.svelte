@@ -1,13 +1,27 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	let { title, subtitle, actions }: { title: string; subtitle?: string; actions?: Snippet } =
-		$props();
+	let {
+		title,
+		subtitle,
+		titleActions,
+		actions
+	}: {
+		title: string;
+		subtitle?: string;
+		/** Rendered beside the title (e.g. a funnel filter button). */
+		titleActions?: Snippet;
+		/** Rendered at the right edge (e.g. stat blocks). */
+		actions?: Snippet;
+	} = $props();
 </script>
 
 <header class="page-header">
 	<div class="titles">
-		<h1>{title}</h1>
+		<div class="title-row">
+			<h1>{title}</h1>
+			{#if titleActions}<div class="title-actions">{@render titleActions()}</div>{/if}
+		</div>
 		{#if subtitle}<p class="muted">{subtitle}</p>{/if}
 	</div>
 	{#if actions}<div class="actions">{@render actions()}</div>{/if}
@@ -25,6 +39,17 @@
 	.titles {
 		display: grid;
 		gap: var(--space-3);
+		min-width: 0;
+	}
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+	.title-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 	}
 	.actions {
 		display: flex;

@@ -35,3 +35,59 @@ export function moveWithinGroup<T extends { id: string }>(
 	[next[i], next[j]] = [next[j], next[i]];
 	return next;
 }
+
+/**
+ * Rebuild `items` so `moved` sits directly before `beforeId`; the array indexes are the
+ * new `order` values (0..n−1) the caller writes back. `items` may or may not already
+ * contain `moved` (same-list reorder vs. cross-list move). `beforeId` `null` or an id
+ * not in the list means "append at the end"; dropping the card directly before itself
+ * keeps its position.
+ */
+export function dropIntoList<T extends { id: string }>(
+	items: readonly T[],
+	moved: T,
+	beforeId: string | null
+): T[] {
+	const current = items.findIndex((t) => t.id === moved.id);
+	const rest = items.filter((t) => t.id !== moved.id);
+	if (beforeId !== null && beforeId !== moved.id) {
+		const idx = rest.findIndex((t) => t.id === beforeId);
+		if (idx >= 0) {
+			const next = rest.slice();
+			next.splice(idx, 0, moved);
+			return next;
+		}
+	} else if (beforeId === moved.id && current >= 0) {
+		const next = rest.slice();
+		next.splice(Math.min(current, next.length), 0, moved);
+		return next;
+	}
+	rest.push(moved);
+	return rest;
+}
+
+/** Split a task list so finished tasks sink below the open ones (order preserved). */
+export function doneLast<T extends { doneAt: Date | string | null }>(
+	list: readonly T[]
+): { open: T[]; done: T[] } {
+	const open: T[] = [];
+	const done: T[] = [];
+	for (const item of list) (item.doneAt ? done : open).push(item);
+	return { open, done };
+}
+
+/**
+ * `first`/`last` flags for row `i` of a list rendered as open/done groups: ↑/↓ must
+ * never cross the group boundary (see `moveWithinGroup`), so buttons are disabled at
+ * the edges of a *group*, not just of the list.
+ */
+export function groupEdges<T extends { doneAt: Date | string | null }>(
+	list: readonly T[],
+	i: number
+): { first: boolean; last: boolean } {
+	const done = (t: T) => t.doneAt !== null;
+	return {
+		first: i === 0 || done(list[i - 1]) !== done(list[i]),
+		last: i === list.length - 1 || done(list[i + 1]) !== done(list[i])
+	};
+}

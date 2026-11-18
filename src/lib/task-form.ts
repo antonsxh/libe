@@ -12,6 +12,10 @@ export interface TaskFormResult {
 	ok?: boolean;
 	intent?: string;
 	taskId?: string;
+	/** Scheduled day of a failed add — routes the echo to the matching day column's form. */
+	day?: string;
+	/** Quest chosen in a failed add (or `'other'`), so the picker can restore its selection. */
+	questId?: string;
 	errors?: { title?: string; duration?: string };
 	title?: string;
 	duration?: string;

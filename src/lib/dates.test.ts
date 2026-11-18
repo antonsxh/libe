@@ -10,6 +10,7 @@ import {
 	startOfWeek,
 	todayISO,
 	weekDays,
+	weekMonthLabel,
 	weekdayIndex
 } from './dates.ts';
 
@@ -65,5 +66,13 @@ describe('dates', () => {
 		expect(minuteOfDay(instant, 'UTC')).toBe(13 * 60 + 45);
 		expect(minuteOfDay(instant, 'America/New_York')).toBe(8 * 60 + 45); // UTC−5
 		expect(minuteOfDay(new Date('2026-11-19T04:59:00Z'), 'UTC')).toBe(4 * 60 + 59);
+	});
+
+	test('weekMonthLabel names the month, or both months when a week spans two', () => {
+		expect(weekMonthLabel('2026-10-12')).toBe('October 2026'); // Mon 12 – Sun 18
+		expect(weekMonthLabel('2026-11-16')).toBe('November 2026');
+		expect(weekMonthLabel('2026-10-26')).toBe('Oct – Nov 2026'); // Mon 26 – Sun 1 Nov
+		// A week spanning a year end names both years.
+		expect(weekMonthLabel('2026-12-28')).toBe('Dec 2026 – Jan 2027');
 	});
 });

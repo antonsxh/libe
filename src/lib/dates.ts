@@ -56,6 +56,29 @@ export function weekDays(day: ISODay): ISODay[] {
 	return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 }
 
+/**
+ * Month heading for the week whose Monday is `monday`: `"October 2026"`, or
+ * `"Oct – Nov 2026"` when the Mon–Sun range spans two months (with years baked
+ * in when it spans a year end: `"Dec 2025 – Jan 2026"`).
+ */
+export function weekMonthLabel(monday: ISODay): string {
+	const first = parseDay(monday);
+	const last = new Date(first.getTime() + 6 * DAY_MS);
+	if (
+		first.getUTCFullYear() === last.getUTCFullYear() &&
+		first.getUTCMonth() === last.getUTCMonth()
+	) {
+		return formatDayLabel(monday, { month: 'long', year: 'numeric' });
+	}
+	const fmt = (d: Date, options: Intl.DateTimeFormatOptions) =>
+		new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).format(d);
+	const sameYear = first.getUTCFullYear() === last.getUTCFullYear();
+	const left = sameYear
+		? fmt(first, { month: 'short' })
+		: fmt(first, { month: 'short', year: 'numeric' });
+	return `${left} – ${fmt(last, { month: 'short', year: 'numeric' })}`;
+}
+
 /** First day of the calendar quarter containing `day`. */
 export function startOfQuarter(day: ISODay): ISODay {
 	const d = parseDay(day);
