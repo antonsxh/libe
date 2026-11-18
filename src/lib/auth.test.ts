@@ -8,6 +8,8 @@ import {
 	formatCode,
 	isApiPath,
 	isPublicPath,
+	isPublicRequest,
+	isRemoteCall,
 	isTokenFormat,
 	normalizeCode,
 	pairRedirect,
@@ -163,6 +165,8 @@ describe('routing', () => {
 			'/manifest.webmanifest',
 			'/service-worker.js',
 			'/_app/immutable/entry/start.js',
+			'/_app/version.json',
+			'/_app/env.js',
 			'/icons/icon-192.png',
 			'/apple-touch-icon.png',
 			'/favicon.ico'
@@ -182,6 +186,9 @@ describe('routing', () => {
 			'/api/timer/stream',
 			'/api/devices/codes',
 			'/api/healthz',
+			'/_app/remote/abc123/getTasks',
+			'/_app/routes/plan/__route.js',
+			'/_app/other',
 			'/offline/x'
 		])
 			expect([p, isPublicPath(p)]).toEqual([p, false]);
@@ -279,5 +286,18 @@ describe('touchPlan', () => {
 		expect(touchPlan(stale, now, true)).toEqual({ seen: true, renew: true });
 		expect(touchPlan({ lastSeenAt: now, cookieRenewedAt: null }, now, true).renew).toBe(true);
 		expect(touchPlan(stale, now, false)).toEqual({ seen: false, renew: false });
+	});
+});
+
+describe('isPublicRequest', () => {
+	test('a remote call is never public, even if Kit rewrote event.url to a public page', () => {
+		expect(isPublicRequest('/pair', '/_app/remote/abc/getTasks')).toBe(false);
+		expect(isRemoteCall('/_app/remote/abc/getTasks')).toBe(true);
+	});
+
+	test('otherwise the (rewritten) page path decides', () => {
+		expect(isPublicRequest('/pair', '/pair/__data.json')).toBe(true);
+		expect(isPublicRequest('/plan', '/plan/__data.json')).toBe(false);
+		expect(isPublicRequest('/setup', '/setup')).toBe(true);
 	});
 });

@@ -100,15 +100,35 @@ const PUBLIC_EXACT = new Set([
 	'/favicon.svg',
 	'/favicon-32.png',
 	'/apple-touch-icon.png',
-	'/apple-touch-icon-precomposed.png'
+	'/apple-touch-icon-precomposed.png',
+	'/_app/version.json',
+	'/_app/env.js'
 ]);
 
-const PUBLIC_PREFIXES = ['/pair/', '/api/pair/', '/_app/', '/icons/'];
+// Only the hashed build assets are public under `/_app/` — never `/_app/remote/…` (remote
+// functions) or anything Kit may add there later.
+const PUBLIC_PREFIXES = ['/pair/', '/api/pair/', '/_app/immutable/', '/icons/'];
 
 /** Routes reachable without a paired device (pairing, health, PWA shell assets). */
 export function isPublicPath(pathname: string): boolean {
 	const path = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
 	return PUBLIC_EXACT.has(path) || PUBLIC_PREFIXES.some((p) => path.startsWith(p));
+}
+
+/**
+ * Whether a request may skip device auth. `pathname` is `event.url.pathname`, `rawPathname`
+ * the pathname of the URL actually requested. They differ for Kit's internal requests: for
+ * remote-function calls (`/_app/remote/…`) Kit rewrites `event.url` from the client-supplied
+ * `x-sveltekit-pathname` header, so the rewritten path alone must never grant access.
+ */
+export function isPublicRequest(pathname: string, rawPathname: string): boolean {
+	if (isRemoteCall(rawPathname)) return false;
+	return isPublicPath(pathname);
+}
+
+/** Remote-function endpoint (always behind device auth; answers 401 JSON). */
+export function isRemoteCall(rawPathname: string): boolean {
+	return rawPathname.startsWith('/_app/remote/');
 }
 
 /** API paths answer 401 JSON instead of redirecting to the pairing page. */

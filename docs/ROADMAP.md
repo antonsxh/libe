@@ -505,3 +505,12 @@ Decisions during M7:
   `docs/TAURI.md`. The OS keychain could not be exercised headless (no Secret Service daemon):
   the test used the debug-only `LIBE_TAURI_CREDENTIALS_FILE` file store. **Not tested**: macOS
   and Windows builds/runtime, real keychains, code signing.
+
+Fix during M7 review:
+
+- **Auth bypass guard for remote functions**: for `/_app/remote/…` calls Kit 3 rewrites
+  `event.url` from the client-supplied `x-sveltekit-pathname` header before `handle` runs, so a
+  forged `/pair` would have looked public. The hook now checks the raw request path too
+  (`isPublicRequest` / `isRemoteCall` in `#lib/auth.ts`); remote calls always need a device
+  (401 JSON). The public `/_app/` prefix is narrowed to `/_app/immutable/`, `/_app/version.json`,
+  `/_app/env.js`. No remote functions exist yet — this closes the gap before one is added.

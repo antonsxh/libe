@@ -1,6 +1,13 @@
 import { json, redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit/hooks';
-import { DEVICE_COOKIE, bearerToken, isApiPath, isPublicPath, pairRedirect } from '#lib/auth.ts';
+import {
+	DEVICE_COOKIE,
+	bearerToken,
+	isApiPath,
+	isPublicRequest,
+	isRemoteCall,
+	pairRedirect
+} from '#lib/auth.ts';
 import { clearDeviceCookie, setDeviceCookie } from '#lib/server/auth.ts';
 import { authenticate, countActiveDevices } from '#lib/server/devices.ts';
 
@@ -29,8 +36,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	if (!event.locals.device && !isPublicPath(url.pathname)) {
-		if (isApiPath(url.pathname)) {
+	const rawPathname = new URL(request.url).pathname;
+	if (!event.locals.device && !isPublicRequest(url.pathname, rawPathname)) {
+		if (isApiPath(url.pathname) || isRemoteCall(rawPathname)) {
 			return json(
 				{ ok: false, code: 'unauthorized', error: 'This device is not paired.' },
 				{ status: 401, headers: { 'cache-control': 'no-store' } }
