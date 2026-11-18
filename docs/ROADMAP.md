@@ -113,3 +113,12 @@ Decisions / fixes during M2:
   `onclose()`, otherwise the component unmounts mid-enhance and the timeline never re-renders.
 - 390px overflow fixes: grid columns need `minmax(0, 1fr)` (implicit `auto` tracks size to
   min-content); add-row and card-meta rows wrap.
+
+Fixes during M2 review:
+
+- **List scope**: a scheduled task's list is now _all tasks of the same kind on that day_ (quest
+  work of every quest shares one list, as Home/Plan render it); backlog lists stay per quest.
+  Previously Top/Bottom and ↑/↓ were computed per quest, so two "Top" adds for different quests
+  tied at `-1` and ↑ swapped with an invisible task.
+- ↑/↓ never cross between open and done tasks (`moveWithinGroup` in `ordering.ts`; the UI disables
+  the buttons at group edges). With a quest filter active, ↑/↓ may swap with a hidden task.

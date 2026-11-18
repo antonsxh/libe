@@ -17,6 +17,15 @@
 
 	let { data, form } = $props();
 
+	/** Open and done tasks are separate groups: ↑/↓ never crosses between them (see `moveTask`). */
+	const isDone = (t: { doneAt: Date | string | null }) => t.doneAt !== null;
+	function groupEdges(list: TaskWithQuest[], i: number) {
+		return {
+			first: i === 0 || isDone(list[i - 1]) !== isDone(list[i]),
+			last: i === list.length - 1 || isDone(list[i + 1]) !== isDone(list[i])
+		};
+	}
+
 	/** The open "Time-block" dialog target (null = closed). */
 	let blockEditor = $state<BlockEditor | null>(null);
 
@@ -125,8 +134,7 @@
 					<DayTaskCard
 						{task}
 						loggedMs={data.byTaskMs[task.id] ?? 0}
-						first={i === 0}
-						last={i === data.questTasks.length - 1}
+						{...groupEdges(data.questTasks, i)}
 						ontimeblock={openTaskBlock}
 					/>
 				{/each}
@@ -156,8 +164,7 @@
 					<DayTaskCard
 						{task}
 						loggedMs={data.byTaskMs[task.id] ?? 0}
-						first={i === 0}
-						last={i === data.otherTasks.length - 1}
+						{...groupEdges(data.otherTasks, i)}
 						ontimeblock={openTaskBlock}
 					/>
 				{/each}

@@ -1,12 +1,15 @@
 /**
  * Task data access — generic so later milestones (day lists, "other" list, plan board)
- * can reuse it. A task's *list* is defined by (quest_id ?? 'other') + (day ?? backlog):
- * move up/down swaps within the same list only.
+ * can reuse it. A task's *list* is
+ *   - scheduled (day set): all tasks of the same kind on that day — quest work of every quest
+ *     shares one list, exactly as Home/Plan show it;
+ *   - backlog (day null): the tasks of one quest (or all "other" tasks) without a day.
+ * Top/bottom inserts and move up/down operate within that list only.
  */
 import { and, asc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { quests, tasks, type Task } from '#lib/server/db/schema.ts';
-import { orderAtBottom, orderAtTop } from '#lib/ordering.ts';
+import { moveWithinGroup, orderAtBottom, orderAtTop } from '#lib/ordering.ts';
 
 export type MoveDirection = 'up' | 'down';
 export type ListPosition = 'top' | 'bottom';
@@ -62,11 +65,13 @@ export async function listOpenBacklog(): Promise<TaskWithQuest[]> {
 	return rows.map(flattenTask);
 }
 
-/** A task's sibling scope: same quest (or both "other") and same day (or both backlog). */
-function inListCondition(task: Pick<Task, 'questId' | 'day'>) {
-	const questCond = task.questId ? eq(tasks.questId, task.questId) : isNull(tasks.questId);
-	const dayCond = task.day ? eq(tasks.day, task.day) : isNull(tasks.day);
-	return and(questCond, dayCond);
+/** A task's sibling scope — see the module comment. */
+function inListCondition(task: Pick<Task, 'kind' | 'questId' | 'day'>) {
+	if (task.day) return and(eq(tasks.day, task.day), eq(tasks.kind, task.kind));
+	return and(
+		isNull(tasks.day),
+		task.questId ? eq(tasks.questId, task.questId) : isNull(tasks.questId)
+	);
 }
 
 /** Tasks of one quest without a day (the backlog), in list order. */
@@ -104,7 +109,7 @@ export async function createTask(
 					: sql<number | null>`max(${tasks.order})`
 		})
 		.from(tasks)
-		.where(inListCondition({ questId, day }));
+		.where(inListCondition({ kind: target.kind, questId, day }));
 	const order = position === 'top' ? orderAtTop(bound?.bound) : orderAtBottom(bound?.bound);
 	const [task] = await db
 		.insert(tasks)
@@ -131,7 +136,7 @@ export async function moveTaskToDay(id: string, day: string | null): Promise<voi
 	const [max] = await db
 		.select({ max: sql<number | null>`max(${tasks.order})` })
 		.from(tasks)
-		.where(inListCondition({ questId: task.questId, day }));
+		.where(inListCondition({ kind: task.kind, questId: task.questId, day }));
 	await db
 		.update(tasks)
 		.set({ day, order: orderAtBottom(max?.max) })
@@ -158,12 +163,14 @@ export async function moveTask(id: string, dir: MoveDirection): Promise<void> {
 		.from(tasks)
 		.where(inListCondition(task))
 		.orderBy(asc(tasks.order), asc(tasks.createdAt));
-	const i = siblings.findIndex((t) => t.id === id);
-	if (i < 0) return;
-	const j = dir === 'up' ? i - 1 : i + 1;
-	if (j < 0 || j >= siblings.length) return;
-	const next = siblings.slice();
-	[next[i], next[j]] = [next[j], next[i]];
+	// Open and done tasks are rendered as separate groups, so only swap within the same group.
+	const next = moveWithinGroup(
+		siblings,
+		id,
+		dir,
+		(a, b) => (a.doneAt === null) === (b.doneAt === null)
+	);
+	if (!next) return;
 	// Re-number the whole list 0..n-1: swapping bare order values would no-op or
 	// create ties when the bucket's values have gaps or start below zero.
 	await db.transaction(async (tx) => {
