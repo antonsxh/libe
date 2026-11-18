@@ -1,0 +1,128 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-sans);
+	font-size: var(--fs-md);
+	line-height: 1.45;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	font-feature-settings: 'cv11', 'ss01';
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+	margin: 0;
+}
+
+h1 {
+	font-size: var(--fs-2xl);
+	font-weight: var(--fw-regular);
+	letter-spacing: -0.02em;
+	line-height: 1.1;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+	font: inherit;
+	color: inherit;
+}
+
+button {
+	cursor: pointer;
+}
+
+:focus-visible {
+	outline: none;
+	box-shadow: var(--ring);
+}
+
+::selection {
+	background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+::placeholder {
+	color: var(--text-faint);
+}
+
+/* ── Utilities shared across features ─────────────────────── */
+
+/** Uppercase spaced section label: QUEST WORK, OTHER, THIS WEEK. */
+.label {
+	font-size: var(--fs-sm);
+	font-weight: var(--fw-medium);
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.muted {
+	color: var(--text-muted);
+}
+
+.tabular {
+	font-variant-numeric: tabular-nums;
+}
+
+/** Card surface. */
+.card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+}
+
+/**
+ * Diagonal hatching tinted by `--q` (a quest colour).
+ * Usage: <div class="hatch" style="--q: var(--quest-red)">…</div>
+ */
+.hatch {
+	--q: var(--quest-slate);
+	background:
+		repeating-linear-gradient(
+			var(--hatch-angle),
+			color-mix(in srgb, var(--q) 34%, transparent) 0 var(--hatch-line),
+			transparent var(--hatch-line) var(--hatch-gap)
+		),
+		color-mix(in srgb, var(--q) 14%, var(--surface));
+	border: 1px solid color-mix(in srgb, var(--q) 55%, transparent);
+	border-left: 2px solid var(--q);
+	border-radius: var(--radius-sm);
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* Thin, dark scrollbars */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-strong) transparent;
+}

@@ -1,0 +1,105 @@
+/*
+ * libe design tokens — measured from the reference screenshots.
+ * Dark-only theme. Every colour/size used in components should come from here.
+ */
+:root {
+	color-scheme: dark;
+
+	/* ── Surfaces ─────────────────────────────────────────── */
+	--bg: #0e0e10; /* page */
+	--bg-nav: #09090b; /* top bar */
+	--surface: #151517; /* cards, inputs, panels */
+	--surface-2: #1c1b20; /* raised: icon tiles, avatar, active nav item */
+	--surface-hover: #1a1a1d;
+	--track: #1a1a1c; /* empty progress/bar track */
+	--bar-muted: #3d3c42; /* inactive chart bars */
+
+	/* ── Lines ────────────────────────────────────────────── */
+	--border: #252527;
+	--border-strong: #323236;
+	--border-dashed: #2a2a2d; /* "add …" inputs, empty-state tiles */
+
+	/* ── Text ─────────────────────────────────────────────── */
+	--text: #f4f4f5;
+	--text-2: #c9c9ce; /* secondary, still readable */
+	--text-muted: #8b8b92; /* labels, nav items */
+	--text-faint: #5a5a61; /* placeholders, done tasks */
+
+	/* ── Accent (amber) ───────────────────────────────────── */
+	--accent: #f0b44c;
+	--accent-hover: #f5c46a;
+	--accent-ink: #1b1305; /* text on accent */
+	--accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+	--today-tint: color-mix(in srgb, var(--accent) 7%, transparent); /* today column / timeline */
+
+	/* ── Semantic ─────────────────────────────────────────── */
+	--danger: #e5645f;
+	--success: #5dbe7a;
+
+	/* ── Quest colour family (see #lib/quest-colors.ts) ───── */
+	--quest-red: #e5645f;
+	--quest-orange: #e8874f;
+	--quest-amber: #f0b44c;
+	--quest-lime: #b4cd55;
+	--quest-green: #5dbe7a;
+	--quest-teal: #4fb8b0;
+	--quest-blue: #5b9be6;
+	--quest-purple: #9b7bd8;
+	--quest-pink: #d96ba8;
+	--quest-olive: #8e9e5a;
+	--quest-slate: #8a8a93; /* "other" tasks */
+
+	/* ── Typography ───────────────────────────────────────── */
+	--font-sans:
+		'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+
+	--fs-xs: 0.75rem; /* 12  pills, meta */
+	--fs-sm: 0.8125rem; /* 13  secondary */
+	--fs-md: 0.9375rem; /* 15  body, nav */
+	--fs-lg: 1.125rem; /* 18  card titles */
+	--fs-xl: 1.5rem; /* 24  section stat */
+	--fs-2xl: 2.75rem; /* 44  page titles ("Thursday, October 15") */
+	--fs-stat: 3rem; /* 48  KPI numbers */
+	--fs-timer: 11rem; /* focus timer */
+
+	--fw-regular: 400;
+	--fw-medium: 500;
+	--fw-semibold: 600;
+
+	--tracking-label: 0.12em; /* uppercase section labels: QUEST WORK, THIS WEEK */
+
+	/* ── Spacing (4px grid) ───────────────────────────────── */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-10: 40px;
+	--space-12: 48px;
+	--space-16: 64px;
+
+	--page-gutter: 44px;
+	--page-max: 1880px;
+	--nav-h: 72px;
+
+	/* ── Radii ────────────────────────────────────────────── */
+	--radius-sm: 6px;
+	--radius-md: 8px; /* buttons, inputs, nav item */
+	--radius-lg: 12px; /* cards */
+	--radius-xl: 16px; /* large panels (timeline, review cards) */
+	--radius-pill: 999px;
+
+	/* ── Effects ──────────────────────────────────────────── */
+	--shadow-pop: 0 12px 32px rgb(0 0 0 / 0.45), 0 0 0 1px var(--border);
+	--ring: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+	--ease: cubic-bezier(0.2, 0, 0, 1);
+	--dur: 140ms;
+
+	/* ── Hatching (planned blocks, calendar entries) ──────── */
+	--hatch-angle: 135deg;
+	--hatch-line: 2px;
+	--hatch-gap: 7px;
+}

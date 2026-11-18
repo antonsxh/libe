@@ -1,0 +1,37 @@
+name: libe
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: libe
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-libe}
+      POSTGRES_DB: libe
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U libe -d libe']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://libe:${POSTGRES_PASSWORD:-libe}@db:5432/libe
+      # Origin the app is reached under (needed by SvelteKit's CSRF check for form actions)
+      ORIGIN: ${LIBE_ORIGIN:-http://localhost:3000}
+      # "Today" is computed in this timezone on the server
+      TZ: ${TZ:-Europe/Berlin}
+    ports:
+      - '${LIBE_PORT:-3000}:3000'
+
+volumes:
+  pgdata:

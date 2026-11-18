@@ -1,0 +1,96 @@
+/**
+ * Calendar-day helpers. A "day" is an ISO date string `YYYY-MM-DD` without timezone,
+ * matching the `date` columns in the database. Weeks start on Monday.
+ * All arithmetic is done in UTC on the date parts, so DST never shifts a day.
+ */
+
+export type ISODay = string;
+
+const DAY_MS = 86_400_000;
+
+/** Today's date in the given IANA timezone (default: the runtime's timezone, i.e. `TZ` on the server). */
+export function todayISO(timeZone?: string, now: Date = new Date()): ISODay {
+	// en-CA formats as YYYY-MM-DD
+	return new Intl.DateTimeFormat('en-CA', {
+		timeZone,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	}).format(now);
+}
+
+export function parseDay(day: ISODay): Date {
+	const [y, m, d] = day.split('-').map(Number);
+	return new Date(Date.UTC(y, m - 1, d));
+}
+
+export function formatDay(date: Date): ISODay {
+	return date.toISOString().slice(0, 10);
+}
+
+export function isISODay(value: unknown): value is ISODay {
+	return (
+		typeof value === 'string' &&
+		/^\d{4}-\d{2}-\d{2}$/.test(value) &&
+		formatDay(parseDay(value)) === value
+	);
+}
+
+export function addDays(day: ISODay, n: number): ISODay {
+	return formatDay(new Date(parseDay(day).getTime() + n * DAY_MS));
+}
+
+/** 0 = Monday … 6 = Sunday */
+export function weekdayIndex(day: ISODay): number {
+	return (parseDay(day).getUTCDay() + 6) % 7;
+}
+
+/** Monday of the week containing `day`. */
+export function startOfWeek(day: ISODay): ISODay {
+	return addDays(day, -weekdayIndex(day));
+}
+
+/** The 7 days (Mon–Sun) of the week containing `day`. */
+export function weekDays(day: ISODay): ISODay[] {
+	const monday = startOfWeek(day);
+	return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+}
+
+/** First day of the calendar quarter containing `day`. */
+export function startOfQuarter(day: ISODay): ISODay {
+	const d = parseDay(day);
+	const month = Math.floor(d.getUTCMonth() / 3) * 3;
+	return formatDay(new Date(Date.UTC(d.getUTCFullYear(), month, 1)));
+}
+
+/** Format a day for display, e.g. `formatDayLabel('2026-10-15', { weekday: 'long', month: 'long', day: 'numeric' })`. */
+export function formatDayLabel(
+	day: ISODay,
+	options: Intl.DateTimeFormatOptions,
+	locale = 'en-US'
+): string {
+	return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(parseDay(day));
+}
+
+/** Minutes since midnight → `HH:MM` (e.g. 570 → "09:30"). */
+export function formatMinutes(min: number): string {
+	const h = Math.floor(min / 60);
+	const m = min % 60;
+	return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** Milliseconds → `H:MM:SS` or `MM:SS` (timer display). */
+export function formatDuration(ms: number): string {
+	const total = Math.max(0, Math.round(ms / 1000));
+	const h = Math.floor(total / 3600);
+	const m = Math.floor((total % 3600) / 60);
+	const s = total % 60;
+	const mm = String(m).padStart(2, '0');
+	const ss = String(s).padStart(2, '0');
+	return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** Hours with at most one decimal, without trailing `.0` (10.5 → "10.5h", 3 → "3h"). */
+export function formatHours(hours: number): string {
+	return `${Math.round(hours * 10) / 10}h`;
+}

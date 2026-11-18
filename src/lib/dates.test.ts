@@ -1,0 +1,61 @@
+import { describe, expect, test } from 'bun:test';
+import {
+	addDays,
+	formatDuration,
+	formatHours,
+	formatMinutes,
+	isISODay,
+	startOfQuarter,
+	startOfWeek,
+	todayISO,
+	weekDays,
+	weekdayIndex
+} from './dates.ts';
+
+describe('dates', () => {
+	test('addDays crosses month/year and DST boundaries', () => {
+		expect(addDays('2026-10-24', 2)).toBe('2026-10-26'); // EU DST end
+		expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
+		expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+	});
+
+	test('weeks start on Monday', () => {
+		expect(weekdayIndex('2026-11-16')).toBe(0); // Monday
+		expect(weekdayIndex('2026-11-22')).toBe(6); // Sunday
+		expect(startOfWeek('2026-11-22')).toBe('2026-11-16');
+		expect(weekDays('2026-11-18')).toEqual([
+			'2026-11-16',
+			'2026-11-17',
+			'2026-11-18',
+			'2026-11-19',
+			'2026-11-20',
+			'2026-11-21',
+			'2026-11-22'
+		]);
+	});
+
+	test('startOfQuarter', () => {
+		expect(startOfQuarter('2026-11-18')).toBe('2026-10-01');
+		expect(startOfQuarter('2026-03-31')).toBe('2026-01-01');
+	});
+
+	test('todayISO respects the timezone', () => {
+		const instant = new Date('2026-11-18T23:30:00Z');
+		expect(todayISO('UTC', instant)).toBe('2026-11-18');
+		expect(todayISO('Europe/Berlin', instant)).toBe('2026-11-19');
+	});
+
+	test('isISODay', () => {
+		expect(isISODay('2026-02-28')).toBe(true);
+		expect(isISODay('2026-02-30')).toBe(false);
+		expect(isISODay('26-2-1')).toBe(false);
+	});
+
+	test('formatting', () => {
+		expect(formatMinutes(570)).toBe('09:30');
+		expect(formatDuration(36 * 60_000)).toBe('36:00');
+		expect(formatDuration(3_600_000)).toBe('1:00:00');
+		expect(formatHours(10.46)).toBe('10.5h');
+		expect(formatHours(3)).toBe('3h');
+	});
+});
