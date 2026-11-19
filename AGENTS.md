@@ -11,7 +11,8 @@ but use the name **libe** and our own logo — never "Quest" branding).
   no `$:`; avoid stores unless a value must cross unrelated components.
 - **SvelteKit 3** (see "Kit 3 differences" below), adapter-node, run with **Bun**.
 - **Drizzle ORM + Postgres** (postgres.js driver). Schema: `src/lib/server/db/schema.ts`.
-- **Docker Compose**: `compose.yaml` (app + Postgres 17).
+- **Docker Compose**: `compose.yaml` (app + Postgres 17); the app image is published to
+  `ghcr.io/antonsxh/libe` by the release pipeline (see "CI and releases").
 - **No Tailwind, no shadcn, no UI kit.** Design tokens are CSS custom properties in
   `src/lib/styles/tokens.css`; components use Svelte-scoped `<style>`. Icons: `@lucide/svelte`.
 - **Tauri 2** thin desktop client in `src-tauri/` (see `docs/TAURI.md`); iPhone/iPad use the
@@ -26,7 +27,7 @@ Bun lives in `~/.bun/bin` — run `export PATH=$HOME/.bun/bin:$PATH` first if `b
 | `bun install`             | install deps                                                |
 | `bun run dev`             | dev server (needs `DATABASE_URL`, see `.env`)               |
 | `bun run check`           | svelte-check / TypeScript — **must be 0 errors**            |
-| `bun run test`            | unit tests (`bun test`, files `src/**/*.test.ts`)           |
+| `bun run test`            | unit tests (`bun test`, `src/**/*.test.ts`, `scripts/`)     |
 | `bun run lint`            | prettier check (`bun run format` to fix)                    |
 | `bun run build`           | production build into `build/`                              |
 | `bun run db:generate`     | create a SQL migration from `schema.ts` changes             |
@@ -38,6 +39,7 @@ Bun lives in `~/.bun/bin` — run `export PATH=$HOME/.bun/bin:$PATH` first if `b
 | `bun run test:e2e`        | browser e2e suite, desktop (see "End-to-end tests")         |
 | `bun run test:e2e:mobile` | the same suite's `@mobile` tests on iPhone + iPad emulation |
 | `bun run test:tauri`      | Tauri app e2e (debug build, tauri-driver, `xvfb-run`; slow) |
+| `bun scripts/release.ts`  | release planning / `set-version` (see docs/RELEASING.md)    |
 
 ### Database without Docker
 
@@ -199,6 +201,27 @@ failure, HTML report, auth state) go to the ignored `e2e/.output/`.
    No pixel/screenshot comparisons.
 5. When a test guards a bug, check that it fails with the bug reintroduced (temporarily —
    never commit the mutation), and that it passes again afterwards.
+
+## CI and releases
+
+GitHub Actions (`.github/workflows/`), runbook in [`docs/RELEASING.md`](docs/RELEASING.md).
+`ci.yml` runs `checks.yml` (check/lint/unit/build, e2e desktop + iPhone/iPad against a Postgres
+service on :54330, Tauri clippy + e2e) and `docker.yml` (amd64 + arm64 image build + smoke test)
+on every PR and push to `main`. `release.yml` publishes **nightly** (hourly check: `main` moved and
+the last nightly is ≥ 6 h old), **preview** (manual, any branch, draft) and **stable** (manual
+promotion of the latest nightly, or a `vX.Y.Z` tag): GitHub release with desktop installers +
+`ghcr.io/antonsxh/libe` tags (`nightly` / `stable`, `latest`, versions).
+
+- Versions: `package.json` = last stable release; `scripts/release.ts set-version` keeps
+  `src-tauri/tauri.conf.json`, `Cargo.toml` and `Cargo.lock` equal — never bump by hand.
+  Release logic lives in `scripts/release.ts` (unit tests next to it; `bun run test` covers `scripts/`).
+- `vite build` must work **without** `.env` (Docker, CI): env vars read at build time need a
+  schema that allows `undefined`; enforce them at runtime instead (see `DATABASE_URL` in
+  `src/env.ts` / `#lib/server/db/index.ts`). Bun auto-loads `.env` from the cwd, so test that
+  from a clean checkout.
+- Bun's version is pinned by `packageManager` in `package.json` (used by CI); keep the
+  Dockerfile's `oven/bun` tag on the same minor. Actions are pinned by commit SHA.
+- Validate workflow edits with `actionlint` before pushing.
 
 ## Database changes
 

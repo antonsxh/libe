@@ -1,0 +1,115 @@
+name: Desktop app
+
+# Release builds of the Tauri thin client (src-tauri/) for every platform, called by
+# release.yml. Each target uploads its installers as the artifact `desktop-<name>`, named
+# `libe-desktop-<version>-<os>-<arch>.<ext>`. Builds are unsigned (macOS: ad-hoc signature,
+# so Apple Silicon runs it after "Open anyway"); see docs/RELEASING.md.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
+      version:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Desktop ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04: the oldest supported glibc, so the AppImage/.deb run on older distros too.
+          - name: linux-x64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+          - name: linux-arm64
+            runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            bundles: deb,appimage
+          - name: macos-arm64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - name: macos-x64
+            runner: macos-15
+            target: x86_64-apple-darwin
+            bundles: dmg
+          # NSIS only: WiX (.msi) refuses non-numeric prerelease versions such as -nightly.N.
+          - name: windows-x64
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf file
+
+      - name: Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+
+      - run: bun install --frozen-lockfile
+
+      - name: Align version
+        run: bun scripts/release.ts set-version "$VERSION"
+        env:
+          VERSION: ${{ inputs.version }}
+
+      - name: Build
+        run: |
+          config='{}'
+          if [ "$RUNNER_OS" = macOS ]; then config='{"bundle":{"macOS":{"signingIdentity":"-"}}}'; fi
+          bun run tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config "$config"
+
+      - name: Collect installers
+        run: |
+          out="$RUNNER_TEMP/dist"
+          mkdir -p "$out"
+          bundle="src-tauri/target/${{ matrix.target }}/release/bundle"
+          prefix="libe-desktop-$VERSION-${{ matrix.name }}"
+          shopt -s nullglob
+          for f in "$bundle"/deb/*.deb;               do cp "$f" "$out/$prefix.deb"; done
+          for f in "$bundle"/appimage/*.AppImage;     do cp "$f" "$out/$prefix.AppImage"; done
+          for f in "$bundle"/dmg/*.dmg;               do cp "$f" "$out/$prefix.dmg"; done
+          for f in "$bundle"/nsis/*-setup.exe;        do cp "$f" "$out/$prefix-setup.exe"; done
+          ls -la "$out"
+          expected=$(tr ',' '\n' <<< "${{ matrix.bundles }}" | wc -l)
+          test "$(ls "$out" | wc -l)" -eq "$expected"
+        env:
+          VERSION: ${{ inputs.version }}
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-${{ matrix.name }}
+          path: ${{ runner.temp }}/dist/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

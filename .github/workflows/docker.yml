@@ -1,0 +1,156 @@
+name: Docker image
+
+# Builds the server image natively for linux/amd64 and linux/arm64 and smoke-tests each one
+# against a real Postgres (migrations, health check, /setup). With `push: true` every arch is
+# pushed to GHCR by digest only — untagged. release.yml tags the multi-arch manifest
+# (stable / nightly / version tags) once all checks passed; see docs/RELEASING.md.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
+      push:
+        type: boolean
+        default: false
+      version:
+        description: Image version (OCI label; also written into package.json for the build)
+        type: string
+        default: ''
+
+# No `permissions:` here: the caller grants them (release.yml adds packages: write for the push).
+
+jobs:
+  build:
+    name: Image ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: libe
+          POSTGRES_PASSWORD: libe
+          POSTGRES_DB: libe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U libe -d libe"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: inputs.version != ''
+        with:
+          bun-version-file: package.json
+
+      - name: Align version
+        if: inputs.version != ''
+        run: bun scripts/release.ts set-version "$VERSION"
+        env:
+          VERSION: ${{ inputs.version }}
+
+      - id: meta
+        name: Image labels
+        run: |
+          image="${IMAGE,,}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          {
+            echo 'labels<<EOF'
+            echo "org.opencontainers.image.title=libe"
+            echo "org.opencontainers.image.description=Personal quest/time planner (server)"
+            echo "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}"
+            echo "org.opencontainers.image.revision=$(git rev-parse HEAD)"
+            echo "org.opencontainers.image.version=${VERSION:-dev}"
+            echo "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+        env:
+          VERSION: ${{ inputs.version }}
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          load: true
+          tags: libe:smoke
+          cache-from: type=gha,scope=docker-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=docker-${{ matrix.arch }}
+
+      - name: Smoke test
+        run: |
+          docker run -d --name libe --network host \
+            -e DATABASE_URL=postgres://libe:libe@127.0.0.1:5432/libe \
+            -e LIBE_SETUP_SECRET=ci-smoke-secret-0123 \
+            -e ORIGIN=http://127.0.0.1:3000 \
+            libe:smoke
+          for i in $(seq 1 60); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' libe 2>/dev/null || echo gone)"
+            [ "$status" = healthy ] && break
+            [ "$status" = gone ] && break
+            sleep 2
+          done
+          docker logs libe
+          test "$status" = healthy
+          # every migration in drizzle/ was applied on start …
+          applied="$(docker run --rm --network host -e PGPASSWORD=libe postgres:17-alpine \
+            psql -h 127.0.0.1 -U libe -d libe -tAc 'select count(*) from drizzle.__drizzle_migrations')"
+          expected="$(ls drizzle/*.sql | wc -l)"
+          echo "migrations applied: $applied / $expected"
+          test "$applied" -eq "$expected"
+          # … the first-device page renders, and the API refuses unpaired clients
+          curl -fsS http://127.0.0.1:3000/setup | grep -q '<form'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/timer)" = 401
+
+      - name: Log in to GHCR
+        if: inputs.push
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Push by digest
+        id: push
+        if: inputs.push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ steps.meta.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=docker-${{ matrix.arch }}
+
+      - name: Export digest
+        if: inputs.push
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.push
+        with:
+          name: docker-digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 3
