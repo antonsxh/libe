@@ -24,6 +24,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -35,18 +36,12 @@ jobs:
       - run: bun run test
       - run: bun run build
 
+  # Desktop and iPhone/iPad in one invocation: one server, one global setup, one job's setup
+  # (the tests themselves take ~1 min of it).
   e2e:
-    name: E2E ${{ matrix.suite }}
+    name: E2E desktop + iPhone/iPad
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - suite: desktop
-            projects: --project=desktop
-          - suite: iPhone + iPad
-            projects: --project=mobile-iphone --project=mobile-ipad
+    timeout-minutes: 15
     services:
       # The suite expects the dev Postgres (`bun run db:dev`): libe/libe on :54330, allowed to
       # create its own `libe_e2e*` databases.
@@ -65,6 +60,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -81,30 +77,33 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
 
+      # No `playwright install-deps`: the runner image already has every library Chromium needs
+      # (install-deps only added CJK fonts, at 15 s–4.5 min of apt mirror downloads per run).
+      # If Chromium ever fails to launch on a new image with a missing .so, add it back.
       - name: Install Chromium
         if: steps.browsers.outputs.cache-hit != 'true'
         run: bunx playwright install chromium
 
-      - name: Install Chromium system libraries
-        run: bunx playwright install-deps chromium
-
       - run: bun run build
 
-      - name: Run e2e (${{ matrix.suite }})
-        run: bunx playwright test -c e2e/playwright.config.ts ${{ matrix.projects }}
+      - name: Run e2e
+        run: bunx playwright test -c e2e/playwright.config.ts --project=desktop --project=mobile-iphone --project=mobile-ipad
 
       - name: Upload report and traces
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-${{ strategy.job-index }}-output
+          name: e2e-output
           path: e2e/.output/
           retention-days: 7
 
   tauri:
     name: Desktop app (Tauri) e2e
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
+    env:
+      # Smaller target dir (cache restore/save) and faster linking; backtraces keep file:line.
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     services:
       postgres:
         image: postgres:17-alpine
@@ -121,22 +120,44 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
 
+      # The downloads, not the install, are slow: the Ubuntu mirrors serve 150–300 kB/s to the
+      # runners, i.e. 4–7 min for these ~70 MB. Keep the .debs in a cache instead (refreshed
+      # monthly; packages updated in between are downloaded on top). apt still installs them
+      # normally, so package scripts and triggers run.
+      - id: apt
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-archives
+          key: apt-tauri-${{ runner.os }}-${{ runner.arch }}-${{ steps.apt.outputs.month }}
+          restore-keys: apt-tauri-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Install WebKitGTK, WebKitWebDriver and Xvfb
         run: |
+          mkdir -p ~/apt-archives/partial
+          sudo rm -f /var/lib/man-db/auto-update # skip the man-db trigger
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
+          sudo apt-get install -y --no-install-recommends \
+            -o Dir::Cache::Archives="$HOME/apt-archives" -o APT::Keep-Downloaded-Packages=true \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
             webkit2gtk-driver xvfb
+          sudo apt-get autoclean -o Dir::Cache::Archives="$HOME/apt-archives" # drop superseded .debs
+          sudo chown -R "$(id -u):$(id -g)" ~/apt-archives
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           cache-bin: true
+          # PR-scoped caches (~1 GB each) only crowd main's out of the 10 GB quota; PRs and
+          # releases restore main's.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install tauri-driver
         run: command -v tauri-driver || cargo install tauri-driver --locked

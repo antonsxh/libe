@@ -54,6 +54,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         if: inputs.version != ''
@@ -95,7 +96,9 @@ jobs:
           load: true
           tags: libe:smoke
           cache-from: type=gha,scope=docker-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=docker-${{ matrix.arch }}
+          # Written by main's CI only: PR-scoped entries are unreachable for everyone else, and
+          # release builds (version-stamped package.json) would only add layers nobody reuses.
+          cache-to: ${{ github.ref == 'refs/heads/main' && !inputs.push && format('type=gha,mode=max,scope=docker-{0}', matrix.arch) || '' }}
 
       - name: Smoke test
         run: |
