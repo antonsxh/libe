@@ -15,8 +15,9 @@ but use the name **libe** and our own logo — never "Quest" branding).
   `ghcr.io/antonsxh/libe` by the release pipeline (see "CI and releases").
 - **No Tailwind, no shadcn, no UI kit.** Design tokens are CSS custom properties in
   `src/lib/styles/tokens.css`; components use Svelte-scoped `<style>`. Icons: `@lucide/svelte`.
-- **Tauri 2** thin desktop client in `src-tauri/` (see `docs/TAURI.md`); iPhone/iPad use the
-  installable PWA. The server is the single source of truth.
+- **Tauri 2** thin desktop client in `src-tauri/` (see `docs/TAURI.md`), auto-updating on a
+  Stable/Nightly track (`src-tauri/src/updates.rs`); iPhone/iPad use the installable PWA. The
+  server is the single source of truth.
 
 ## Commands
 
@@ -132,6 +133,11 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   (Bearer) issues pairing codes for multi-device tests. The rate limit is 10 failed attempts
   per IP and minute (in memory — restart the server to reset); the e2e server runs with
   `ADDRESS_HEADER=x-forwarded-for`, so tests send a fresh `X-Forwarded-For` (`freshIp()`).
+- **Desktop app from the server's pages**: only `#lib/desktop.ts` talks to Tauri
+  (`desktopApp()` → `null` outside the app). Remote pages may call nothing but the four
+  `update_*` commands (runtime capability in `src-tauri/src/lib.rs`); a new command must be
+  listed in `src-tauri/build.rs` and granted explicitly. Settings → Desktop app
+  (`components/settings/DesktopAppSection.svelte`) is the update UI.
 - **PWA**: the service worker (`src/service-worker/`, production only) must never cache
   `/api/**`, page data or authenticated HTML — only build assets, `static/` files and
   `/offline`. Full-screen/fixed UI must pad with the `--safe-top/right/bottom/left` tokens.
@@ -226,6 +232,11 @@ promotion of the latest nightly, or a `vX.Y.Z` tag): GitHub release with desktop
   (`~/apt-archives`), the e2e job installs no system packages (the runner image has Chromium's
   libraries). Rust and Docker layer caches are saved from `main` only (10 GB repo quota);
   PRs and releases restore them. Desktop and iPhone/iPad e2e run in one job.
+- Desktop auto-update: release builds sign updater payloads with the secret
+  `TAURI_SIGNING_PRIVATE_KEY` (public key in `tauri.conf.json`); the release job writes
+  `latest.json` (`release.ts updater-manifest`) and copies it to the `update-feed` release as
+  `stable.json` / `nightly.json`. Never change the public key without a migration plan —
+  installed apps only accept updates signed with the key they shipped with.
 
 ## Database changes
 

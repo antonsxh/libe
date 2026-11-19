@@ -4,6 +4,7 @@ import { isUuid } from '#lib/ids.ts';
 import { clearDeviceCookie } from '#lib/server/auth.ts';
 import { listDevices, renameDevice, revokeDevice } from '#lib/server/devices.ts';
 import { updatePomodoroSettings } from '#lib/server/timer.ts';
+import { SERVER_VERSION } from '#lib/server/version.ts';
 import { parsePomodoroSettings } from '#lib/timer.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -12,7 +13,9 @@ export const load = (async ({ locals, url }) => ({
 	currentId: locals.device!.id,
 	now: Date.now(),
 	/** `?pair` (avatar menu "Pair new device") opens the pairing dialog. */
-	pairOpen: url.searchParams.has('pair')
+	pairOpen: url.searchParams.has('pair'),
+	/** Shown next to the desktop app's update track. */
+	serverVersion: SERVER_VERSION
 })) satisfies PageServerLoad;
 
 export const actions = {

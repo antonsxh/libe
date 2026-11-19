@@ -2,8 +2,11 @@ name: Desktop app
 
 # Release builds of the Tauri thin client (src-tauri/) for every platform, called by
 # release.yml. Each target uploads its installers as the artifact `desktop-<name>`, named
-# `libe-desktop-<version>-<os>-<arch>.<ext>`. Builds are unsigned (macOS: ad-hoc signature,
-# so Apple Silicon runs it after "Open anyway"); see docs/RELEASING.md.
+# `libe-desktop-<version>-<os>-<arch>.<ext>`, plus the auto-updater payloads with their
+# minisign signatures (`.sig`, key: secret TAURI_SIGNING_PRIVATE_KEY): the `.AppImage`,
+# `.deb` and `-setup.exe` themselves, and `.app.tar.gz` on macOS. The installers are not
+# code-signed (macOS: ad-hoc signature, so Apple Silicon runs it after "Open anyway"); see
+# docs/RELEASING.md.
 
 on:
   workflow_call:
@@ -14,6 +17,11 @@ on:
       version:
         type: string
         required: true
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
 
 permissions:
   contents: read
@@ -32,23 +40,29 @@ jobs:
             runner: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             bundles: deb,appimage
+            files: 4 # .deb, .AppImage + their .sig
           - name: linux-arm64
             runner: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
             bundles: deb,appimage
+            files: 4
+          # `app` produces the updater payload (.app.tar.gz + .sig), `dmg` the installer.
           - name: macos-arm64
             runner: macos-15
             target: aarch64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
+            files: 3
           - name: macos-x64
             runner: macos-15
             target: x86_64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
+            files: 3
           # NSIS only: WiX (.msi) refuses non-numeric prerelease versions such as -nightly.N.
           - name: windows-x64
             runner: windows-2025
             target: x86_64-pc-windows-msvc
             bundles: nsis
+            files: 2
     defaults:
       run:
         shell: bash
@@ -87,9 +101,14 @@ jobs:
 
       - name: Build
         run: |
-          config='{}'
-          if [ "$RUNNER_OS" = macOS ]; then config='{"bundle":{"macOS":{"signingIdentity":"-"}}}'; fi
+          config='{"bundle":{"createUpdaterArtifacts":true}}'
+          if [ "$RUNNER_OS" = macOS ]; then
+            config='{"bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'
+          fi
           bun run tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config "$config"
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Collect installers
         run: |
@@ -98,13 +117,15 @@ jobs:
           bundle="src-tauri/target/${{ matrix.target }}/release/bundle"
           prefix="libe-desktop-$VERSION-${{ matrix.name }}"
           shopt -s nullglob
-          for f in "$bundle"/deb/*.deb;               do cp "$f" "$out/$prefix.deb"; done
-          for f in "$bundle"/appimage/*.AppImage;     do cp "$f" "$out/$prefix.AppImage"; done
-          for f in "$bundle"/dmg/*.dmg;               do cp "$f" "$out/$prefix.dmg"; done
-          for f in "$bundle"/nsis/*-setup.exe;        do cp "$f" "$out/$prefix-setup.exe"; done
+          # copy <file> <name>: the file and, when there is one, its updater signature
+          copy() { cp "$1" "$out/$2"; if [ -f "$1.sig" ]; then cp "$1.sig" "$out/$2.sig"; fi; }
+          for f in "$bundle"/deb/*.deb;               do copy "$f" "$prefix.deb"; done
+          for f in "$bundle"/appimage/*.AppImage;     do copy "$f" "$prefix.AppImage"; done
+          for f in "$bundle"/dmg/*.dmg;               do copy "$f" "$prefix.dmg"; done
+          for f in "$bundle"/macos/*.app.tar.gz;      do copy "$f" "$prefix.app.tar.gz"; done
+          for f in "$bundle"/nsis/*-setup.exe;        do copy "$f" "$prefix-setup.exe"; done
           ls -la "$out"
-          expected=$(tr ',' '\n' <<< "${{ matrix.bundles }}" | wc -l)
-          test "$(ls "$out" | wc -l)" -eq "$expected"
+          test "$(ls "$out" | wc -l)" -eq ${{ matrix.files }}
         env:
           VERSION: ${{ inputs.version }}
 

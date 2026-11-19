@@ -14,6 +14,7 @@ token in the OS keychain and restores the session on start.
 | Later starts      | Keychain → `GET {server}/api/pair/session` (Bearer): valid → session bootstrap → app; `401` → keychain entry deleted, pairing screen ("This device was signed out…"); unreachable → "Can't reach your server" with **Retry** and **Change server / Unpair**.                                                                                                                                                           |
 | While running     | A navigation guard sees every page load. When the server sends the webview to `/pair` or `/setup` (cookie expired/cleared, or the device was revoked) the app re-checks the token: still valid → the cookie is restored and you land where you were; revoked → pairing screen. Navigations to other origins are blocked. Remote pages get **no** Tauri IPC (the capability only covers the local page).                |
 | Menu              | **libe → Reload** (Ctrl/⌘ R), **Change server / Unpair…** (revokes the device on the server when reachable, deletes the keychain entry, clears the webview's cookies/caches, back to the pairing screen with the server pre-filled), **Quit libe** (Ctrl/⌘ Q). macOS also gets the standard Edit menu (copy/paste shortcuts).                                                                                          |
+| Updates           | Settings → **Desktop app** (on the server's Settings page, only inside the app): version, **Check for updates**, **Update track** Stable / Nightly, **Restart to update**. The app checks 10 s after start and every 4 h, downloads in the background and installs on restart or quit — see "Updates" below.                                                                                                           |
 | Window            | Title "libe", background `#0e0e10` (no white flash), 1280×860 default, min 380×560; size/position are remembered (`tauri-plugin-window-state`).                                                                                                                                                                                                                                                                        |
 
 Why not Tauri's cookie API? Tauri 2.12 has `WebviewWindow::set_cookie`, but the server-issued
@@ -21,6 +22,33 @@ cookie carries exactly the server's attributes (`Secure` behind HTTPS, `SameSite
 expiry, sliding renewal) and works the same on every platform and webview, so the app lets the
 server set it. No CSRF exemption is needed: the pairing call comes from Rust with a JSON body,
 and the session exchange is a same-origin `fetch` in the webview.
+
+## Updates
+
+`src-tauri/src/updates.rs` with `tauri-plugin-updater`:
+
+- **Tracks.** Stable follows the stable releases, Nightly the nightlies. Each track's manifest is
+  an asset of the GitHub release `update-feed` (`stable.json`, `nightly.json`, uploaded by
+  `release.yml`). The choice is saved in `{config dir}/app.libe.desktop/updates.json`; without one
+  a build follows the track it came from (previews → Nightly).
+- **Switching** saves the track and immediately looks for that track's newest build — also
+  when it is older than the running one (Nightly → Stable goes back to the last stable release).
+- **Install.** Downloads are verified against the public key in `tauri.conf.json`
+  (`plugins.updater.pubkey`, `requireSignedVersion`). macOS replaces the `.app`, AppImage the
+  file, Windows runs the NSIS installer (passive), `.deb` installs through `pkexec`/`sudo` and
+  therefore only on "Install and restart", never silently on quit. A plain `cargo build`
+  binary has no bundle type and gets no updates.
+- **Access from the server's pages.** Remote pages normally get no IPC. While paired, the app
+  grants the server's origin a runtime capability with only `update_state`, `update_check`,
+  `update_set_track` and `update_install`; `build.rs` declares an app manifest so every command
+  needs an explicit permission (the pairing commands stay local-only).
+- **Signing key.** `bun run tauri signer generate -w ~/.config/libe/updater.key` made the pair;
+  the private key is the repository secret `TAURI_SIGNING_PRIVATE_KEY` (optional
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`). Losing it means installed apps can't update any more
+  (they would need a manual reinstall with a new public key).
+- **Debug builds** never update unless `LIBE_UPDATER_FEED` (base URL with `<track>.json`) is set;
+  `LIBE_UPDATER_PUBKEY` overrides the key. `e2e/tauri/tauri.spec.ts` uses both with a local,
+  test-signed feed (download + verification, track persistence, tampered signature).
 
 ## Prerequisites
 
@@ -118,4 +146,5 @@ Please check on your machine (macOS / Windows / a Linux desktop):
   use **Reload** once the server is back.
 - Self-signed HTTPS certificates are only accepted if the OS trusts them (the app uses the
   platform certificate verifier).
-- No auto-update, no code signing, no tray icon, no notifications (yet).
+- No code signing, no tray icon, no notifications (yet). The server is not updated by the app
+  (pick its track with the Docker image tag).
