@@ -48,6 +48,8 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       IMAGE: ghcr.io/${{ github.repository }}
+      # Keep the run's artifact list to installers/digests (the build summary stays).
+      DOCKER_BUILD_RECORD_UPLOAD: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

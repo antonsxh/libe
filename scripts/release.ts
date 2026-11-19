@@ -180,8 +180,9 @@ export function withVersion(file: (typeof VERSION_FILES)[number], text: string, 
 		// first top-level "version" key (indented by one tab/space level)
 		'package.json': /^(\s{1,4}"version":\s*")[^"]*(")/m,
 		'src-tauri/tauri.conf.json': /^(\s{1,4}"version":\s*")[^"]*(")/m,
-		'src-tauri/Cargo.toml': /(\[package\][^[]*?\nversion\s*=\s*")[^"]*(")/,
-		'src-tauri/Cargo.lock': /(\[\[package\]\]\nname = "libe"\nversion = ")[^"]*(")/
+		// \r?\n: Windows runners check the repository out with CRLF line endings
+		'src-tauri/Cargo.toml': /(\[package\][^[]*?\r?\nversion\s*=\s*")[^"]*(")/,
+		'src-tauri/Cargo.lock': /(\[\[package\]\]\r?\nname = "libe"\r?\nversion = ")[^"]*(")/
 	};
 	if (!parseVersion(version)) throw new Error(`Invalid version: ${version}`);
 	const re = patterns[file];

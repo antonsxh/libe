@@ -161,6 +161,16 @@ describe('withVersion', () => {
 		);
 	});
 
+	test('works on CRLF checkouts (Windows runners)', () => {
+		const crlf = (t: string) => t.replaceAll('\n', '\r\n');
+		const lock = crlf('[[package]]\nname = "libe"\nversion = "0.0.0"\n');
+		expect(withVersion('src-tauri/Cargo.lock', lock, '0.1.0')).toBe(lock.replace('0.0.0', '0.1.0'));
+		const toml = crlf('[package]\nname = "libe"\nversion = "0.0.0"\n');
+		expect(withVersion('src-tauri/Cargo.toml', toml, '0.1.0')).toBe(toml.replace('0.0.0', '0.1.0'));
+		const pkg = crlf('{\n\t"name": "libe",\n\t"version": "0.0.0"\n}');
+		expect(withVersion('package.json', pkg, '0.1.0')).toBe(pkg.replace('0.0.0', '0.1.0'));
+	});
+
 	test('refuses files without a version field', () => {
 		expect(() => withVersion('src-tauri/Cargo.lock', 'name = "x"', '0.1.0')).toThrow();
 	});
