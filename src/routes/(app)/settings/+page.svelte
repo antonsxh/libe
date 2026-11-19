@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -22,11 +23,14 @@
 	import PairDeviceDialog from '#lib/components/settings/PairDeviceDialog.svelte';
 	import { formatAgo, type DeviceKind } from '#lib/auth.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
+	import type { LanguageSetting } from '#lib/i18n/index.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	const timer = useTimer();
+	const t = useI18n();
 	const pomodoro = $derived(timer.settings);
 
 	/** This device first, then by last activity (server order). */
@@ -55,12 +59,6 @@
 		if (page.url.searchParams.has('pair')) void goto('/settings', { replace: true, reset: false });
 	}
 
-	const KIND_LABEL: Record<DeviceKind, string> = {
-		browser: 'Browser',
-		pwa: 'Home-screen app',
-		tauri: 'Desktop app'
-	};
-
 	function kindIcon(kind: DeviceKind, name: string) {
 		if (kind === 'tauri') return Monitor;
 		if (kind === 'pwa') return /iPad|tablet/i.test(name) ? Tablet : Smartphone;
@@ -68,7 +66,26 @@
 	}
 
 	const fmtDate = (d: Date) =>
-		d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+		d.toLocaleDateString(t.intl, { month: 'short', day: 'numeric', year: 'numeric' });
+
+	/* ── Language ─────────────────────────────────────────────────────────── */
+	// English and German first (each named in its own language), then the browser default.
+	const LANGUAGE_ORDER: LanguageSetting[] = ['en', 'de', 'auto'];
+	// Optimistic choice while the save is in flight; follows `data.language` afterwards.
+	let language = $derived<LanguageSetting>(data.language);
+	let languageForm = $state<HTMLFormElement | undefined>();
+	/** Without JS a Save button submits the choice; with JS a change submits right away. */
+	let hydrated = $state(false);
+	onMount(() => (hydrated = true));
+	const languageError = $derived(
+		form && 'intent' in form && form.intent === 'language' && 'error' in form ? form.error : null
+	);
+	const onLanguage: SubmitFunction = () => {
+		return async ({ update }) => {
+			// Reloads all page data → the layout's `locale` switches the whole UI.
+			await update({ reset: false });
+		};
+	};
 
 	/** Rename inline: close the editor once the list is refreshed. */
 	const onRename: SubmitFunction = () => {
@@ -99,22 +116,20 @@
 	);
 </script>
 
-<svelte:head><title>Settings · libe</title></svelte:head>
+<svelte:head><title>{t.settings.title} · libe</title></svelte:head>
 
-<PageHeader title="Settings" subtitle="Paired devices and focus timer." />
+<PageHeader title={t.settings.title} subtitle={t.settings.subtitle} />
 
 <div class="sections">
 	<section class="card section" aria-labelledby="devices-title">
 		<header class="section-head">
 			<div>
-				<h2 id="devices-title" class="label">Devices</h2>
-				<p class="muted desc">
-					Every browser, home-screen app and desktop app that can open libe. Revoke one to sign it
-					out everywhere at once.
-				</p>
+				<h2 id="devices-title" class="label">{t.settings.devices}</h2>
+				<p class="muted desc">{t.settings.devicesDesc}</p>
 			</div>
 			<Button variant="primary" onclick={() => (pairOpen = true)}>
-				<QrCode size={16} /> Pair new device
+				<QrCode size={16} />
+				{t.settings.pairNew}
 			</Button>
 		</header>
 
@@ -135,11 +150,13 @@
 									maxlength="60"
 									required
 									autofocus
-									aria-label="Device name"
+									aria-label={t.settings.deviceName}
 									onkeydown={(e) => e.key === 'Escape' && (editingId = null)}
 								/>
-								<Button variant="primary" size="sm" type="submit">Save</Button>
-								<Button variant="ghost" size="sm" onclick={() => (editingId = null)}>Cancel</Button>
+								<Button variant="primary" size="sm" type="submit">{t.common.save}</Button>
+								<Button variant="ghost" size="sm" onclick={() => (editingId = null)}>
+									{t.common.cancel}
+								</Button>
 							</form>
 							{#if renameError && renameError.id === device.id}
 								<p class="error" role="alert">{renameError.error}</p>
@@ -147,23 +164,22 @@
 						{:else}
 							<p class="name">
 								<span class="name-text">{device.name}</span>
-								{#if self}<span class="badge">This device</span>{/if}
+								{#if self}<span class="badge">{t.settings.thisDevice}</span>{/if}
 							</p>
 						{/if}
 						<p class="meta muted">
-							<span>{KIND_LABEL[device.kind]}</span>
+							<span>{t.settings.kinds[device.kind]}</span>
 							<span aria-hidden="true">·</span>
-							<span>Paired {fmtDate(device.pairedAt)}</span>
+							<span>{t.settings.paired(fmtDate(device.pairedAt))}</span>
 							<span aria-hidden="true">·</span>
 							<span>
-								{#if self}Active now{:else if device.lastSeenAt}Last seen {formatAgo(
-										device.lastSeenAt,
-										now
-									)}{:else}Never seen{/if}
+								{#if self}{t.settings.activeNow}{:else if device.lastSeenAt}{t.settings.lastSeen(
+										formatAgo(device.lastSeenAt, now, t)
+									)}{:else}{t.settings.neverSeen}{/if}
 							</span>
 						</p>
 					</div>
-					<Menu label={`Actions for ${device.name}`}>
+					<Menu label={t.common.actionsFor(device.name)}>
 						{#snippet children(close)}
 							<button
 								type="button"
@@ -174,7 +190,8 @@
 									editingId = device.id;
 								}}
 							>
-								<Pencil size={14} /> Rename…
+								<Pencil size={14} />
+								{t.settings.rename}
 							</button>
 							<button
 								type="button"
@@ -186,7 +203,9 @@
 									confirmOpen = true;
 								}}
 							>
-								{#if self}<LogOut size={14} /> Sign out{:else}<Trash2 size={14} /> Revoke…{/if}
+								{#if self}<LogOut size={14} />
+									{t.settings.signOut}{:else}<Trash2 size={14} />
+									{t.settings.revokeMenu}{/if}
 							</button>
 						{/snippet}
 					</Menu>
@@ -195,25 +214,72 @@
 		</ul>
 
 		<form class="signout" method="POST" action="/settings?/signout">
-			<Button variant="ghost" type="submit"><LogOut size={16} /> Sign out this device</Button>
+			<Button variant="ghost" type="submit">
+				<LogOut size={16} />
+				{t.settings.signOutDevice}
+			</Button>
 		</form>
 	</section>
 
 	<section class="card section" aria-labelledby="focus-title">
 		<header class="section-head">
 			<div>
-				<h2 id="focus-title" class="label">Focus timer</h2>
+				<h2 id="focus-title" class="label">{t.settings.focusTimer}</h2>
 				<p class="muted desc tabular">
-					Pomodoro: {pomodoro.focusMin} min focus · {pomodoro.shortBreakMin} min break · {pomodoro.longBreakMin}
-					min long break every {pomodoro.longBreakEvery} rounds{pomodoro.autoStart
-						? ' · auto-start'
-						: ''}
+					{t.settings.pomodoroSummary(
+						pomodoro.focusMin,
+						pomodoro.shortBreakMin,
+						pomodoro.longBreakMin,
+						pomodoro.longBreakEvery
+					)}{pomodoro.autoStart ? t.settings.autoStart : ''}
 				</p>
 			</div>
 			<Button variant="secondary" onclick={() => (pomodoroOpen = true)}>
-				<Settings2 size={16} /> Pomodoro settings
+				<Settings2 size={16} />
+				{t.settings.pomodoroSettings}
 			</Button>
 		</header>
+	</section>
+
+	<section class="card section" aria-labelledby="language-title">
+		<form
+			class="section-head"
+			method="POST"
+			action="?/language"
+			use:enhance={onLanguage}
+			bind:this={languageForm}
+		>
+			<div>
+				<h2 id="language-title" class="label">{t.settings.language}</h2>
+				<p class="muted desc">{t.settings.languageDesc}</p>
+				{#if languageError}<p class="error" role="alert">{languageError}</p>{/if}
+			</div>
+			<div class="language">
+				<div class="segments" role="radiogroup" aria-labelledby="language-title">
+					{#each LANGUAGE_ORDER as option (option)}
+						<label class:on={language === option}>
+							<input
+								type="radio"
+								name="language"
+								value={option}
+								checked={language === option}
+								lang={option === 'auto' ? undefined : option}
+								onchange={() => {
+									language = option;
+									languageForm?.requestSubmit();
+								}}
+							/>
+							<span lang={option === 'auto' ? undefined : option}>
+								{t.settings.languageOptions[option]}
+							</span>
+						</label>
+					{/each}
+				</div>
+				{#if !hydrated}
+					<Button variant="secondary" size="sm" type="submit">{t.common.save}</Button>
+				{/if}
+			</div>
+		</form>
 	</section>
 
 	<DesktopAppSection serverVersion={data.serverVersion} />
@@ -232,20 +298,21 @@
 {/if}
 
 {#if confirm}
-	<Dialog bind:open={confirmOpen} title={confirm.self ? 'Sign out this device?' : 'Revoke device?'}>
+	<Dialog
+		bind:open={confirmOpen}
+		title={confirm.self ? t.settings.confirmSignOutTitle : t.settings.confirmRevokeTitle}
+	>
 		<p class="confirm-text">
-			{#if confirm.self}
-				<strong>{confirm.name}</strong> will be signed out. To use libe here again you’ll need a pairing
-				code from another device (or the setup secret).
-			{:else}
-				<strong>{confirm.name}</strong> will be signed out immediately and can’t open libe until it is
-				paired again.
-			{/if}
+			<strong>{confirm.name}</strong>{confirm.self
+				? t.settings.confirmSignOut
+				: t.settings.confirmRevoke}
 		</p>
 		<form method="POST" action="?/revoke" use:enhance={onRevoke} class="confirm-actions">
 			<input type="hidden" name="id" value={confirm.id} />
-			<Button variant="secondary" onclick={() => (confirmOpen = false)}>Cancel</Button>
-			<Button variant="primary" type="submit">{confirm.self ? 'Sign out' : 'Revoke'}</Button>
+			<Button variant="secondary" onclick={() => (confirmOpen = false)}>{t.common.cancel}</Button>
+			<Button variant="primary" type="submit">
+				{confirm.self ? t.settings.signOut : t.settings.revoke}
+			</Button>
 		</form>
 	</Dialog>
 {/if}
@@ -385,6 +452,46 @@
 	}
 	.item.danger {
 		color: var(--danger);
+	}
+
+	.language {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-3);
+		max-width: 100%;
+	}
+	/* Segmented control (same look as the desktop app's update track). */
+	.segments {
+		display: inline-flex;
+		flex-wrap: wrap;
+		max-width: 100%;
+		padding: 3px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--bg);
+	}
+	.segments label {
+		position: relative;
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius-sm);
+		color: var(--text-muted);
+		font-size: var(--fs-sm);
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.segments label.on {
+		background: var(--surface-2);
+		color: var(--text);
+		font-weight: var(--fw-medium);
+	}
+	.segments label:has(:focus-visible) {
+		box-shadow: var(--ring);
+	}
+	.segments input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.confirm-text {

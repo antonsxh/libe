@@ -3,6 +3,7 @@
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { formatDayLabel } from '#lib/dates.ts';
 	import type { PickTask } from '#lib/calendar.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
 		tasks: PickTask[];
@@ -25,35 +26,36 @@
 		invalid = false
 	}: Props = $props();
 
+	const t = useI18n();
 	let query = $state('');
 
 	const groups = $derived.by(() => {
 		const q = query.trim().toLowerCase();
-		const match = (t: PickTask) =>
-			!q || t.title.toLowerCase().includes(q) || (t.questName ?? '').toLowerCase().includes(q);
+		const match = (x: PickTask) =>
+			!q || x.title.toLowerCase().includes(q) || (x.questName ?? '').toLowerCase().includes(q);
 		const list = tasks.filter(match);
 		const week = new Set(weekDays);
 		return [
 			{
 				key: 'extra',
-				label: 'Logged task',
-				items: extra && !tasks.some((t) => t.id === extra.id) && match(extra) ? [extra] : []
+				label: t.calendar.picker.loggedTask,
+				items: extra && !tasks.some((x) => x.id === extra.id) && match(extra) ? [extra] : []
 			},
 			{
 				key: 'day',
-				label: formatDayLabel(day, { weekday: 'long', month: 'short', day: 'numeric' }),
-				items: list.filter((t) => t.day === day)
+				label: formatDayLabel(day, { weekday: 'long', month: 'short', day: 'numeric' }, t.intl),
+				items: list.filter((x) => x.day === day)
 			},
 			{
 				key: 'week',
-				label: 'This week',
-				items: list.filter((t) => t.day !== null && t.day !== day && week.has(t.day))
+				label: t.common.thisWeek,
+				items: list.filter((x) => x.day !== null && x.day !== day && week.has(x.day))
 			},
-			{ key: 'backlog', label: 'Backlog', items: list.filter((t) => t.day === null) },
+			{ key: 'backlog', label: t.common.backlog, items: list.filter((x) => x.day === null) },
 			{
 				key: 'other',
-				label: 'Other days',
-				items: list.filter((t) => t.day !== null && t.day !== day && !week.has(t.day))
+				label: t.calendar.picker.otherDays,
+				items: list.filter((x) => x.day !== null && x.day !== day && !week.has(x.day))
 			}
 		].filter((g) => g.items.length > 0);
 	});
@@ -77,24 +79,29 @@
 <div class="picker" class:invalid>
 	<label class="search">
 		<Search size={14} aria-hidden="true" />
-		<span class="sr-only">Search tasks</span>
-		<input type="search" placeholder="Search tasks…" bind:value={query} autocomplete="off" />
+		<span class="sr-only">{t.calendar.picker.search}</span>
+		<input
+			type="search"
+			placeholder={t.calendar.picker.searchPlaceholder}
+			bind:value={query}
+			autocomplete="off"
+		/>
 	</label>
-	<div class="list" role="radiogroup" aria-label="Task" bind:this={listEl}>
+	<div class="list" role="radiogroup" aria-label={t.common.task} bind:this={listEl}>
 		{#each groups as g (g.key)}
 			<p class="group label">{g.label}</p>
-			{#each g.items as t (t.id)}
-				<label class="row" class:on={t.id === value} class:done={t.done}>
-					<input type="radio" {name} value={t.id} bind:group={value} class="sr-only" />
-					<span class="dot" style:--q={questColorVar(t.questColor ?? 'slate')} aria-hidden="true"
+			{#each g.items as task (task.id)}
+				<label class="row" class:on={task.id === value} class:done={task.done}>
+					<input type="radio" {name} value={task.id} bind:group={value} class="sr-only" />
+					<span class="dot" style:--q={questColorVar(task.questColor ?? 'slate')} aria-hidden="true"
 					></span>
-					<span class="t-title">{t.title}</span>
-					<span class="t-quest muted">{t.questName ?? 'Other'}</span>
-					{#if t.id === value}<Check size={14} aria-hidden="true" />{/if}
+					<span class="t-title">{task.title}</span>
+					<span class="t-quest muted">{task.questName ?? t.common.other}</span>
+					{#if task.id === value}<Check size={14} aria-hidden="true" />{/if}
 				</label>
 			{/each}
 		{:else}
-			<p class="empty muted">No matching tasks.</p>
+			<p class="empty muted">{t.calendar.picker.noMatches}</p>
 		{/each}
 	</div>
 </div>

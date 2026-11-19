@@ -2,6 +2,7 @@
  * Pure timeline helpers (client-safe, no DB imports): layout of overlapping blocks
  * into side-by-side columns, and clock-time parsing for the block dialog.
  */
+import type { ErrorCode } from '#lib/i18n/index.ts';
 
 /** Anything with a position in minutes-of-day, e.g. a `blocks` row. */
 export interface TimedBlock {
@@ -102,13 +103,13 @@ export interface BlockEditor {
 export function validateBlockSpan(
 	startMin: number,
 	durationMin: number
-): { ok: true; endMin: number } | { ok: false; error: string } {
+): { ok: true; endMin: number } | { ok: false; error: ErrorCode } {
 	if (!Number.isInteger(startMin) || startMin < DAY_START_MIN || startMin >= DAY_END_MIN)
-		return { ok: false, error: 'Pick a start time between 00:00 and 23:59.' };
+		return { ok: false, error: 'blockStartInvalid' };
 	if (!Number.isInteger(durationMin) || durationMin <= 0)
-		return { ok: false, error: 'Duration must be a positive whole number of minutes.' };
+		return { ok: false, error: 'blockDurationInvalid' };
 	const endMin = startMin + durationMin;
-	if (endMin > DAY_END_MIN) return { ok: false, error: 'The block must end by midnight (24:00).' };
+	if (endMin > DAY_END_MIN) return { ok: false, error: 'blockPastMidnight' };
 	return { ok: true, endMin };
 }
 

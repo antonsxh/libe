@@ -8,6 +8,7 @@
 	import type { Quest } from '#lib/server/db/schema.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	export interface Column {
 		day: string;
@@ -31,6 +32,7 @@
 		ontoggleother: (day: string, open: boolean) => void;
 	};
 	let { col, quests, form = null, ontoggleother }: Props = $props();
+	const t = useI18n();
 
 	const otherCount = $derived(col.otherTasks.length + col.otherDone.length);
 
@@ -112,12 +114,12 @@
 			<span class="weekday">{col.weekday}</span>
 			<span class="daynum tabular">{col.dayNum}</span>
 		</h2>
-		{#if col.isToday}<span class="sr-only">(today)</span>{/if}
+		{#if col.isToday}<span class="sr-only">{t.plan.todayMarker}</span>{/if}
 	</header>
 
 	<TaskAddForm
 		action="add"
-		placeholder="Add a task…"
+		placeholder={t.tasks.addTask}
 		{quests}
 		otherOption
 		topBottom
@@ -151,7 +153,7 @@
 					<span class="caret" class:open={col.otherOpen} aria-hidden="true">
 						<ChevronRight size={14} />
 					</span>
-					<span>Other</span>
+					<span>{t.common.other}</span>
 					<span class="count tabular">{otherCount}</span>
 				</button>
 				{#if col.otherOpen}
@@ -168,7 +170,7 @@
 					</ul>
 					<TaskAddForm
 						action="addOther"
-						placeholder="Add an other task…"
+						placeholder={t.plan.addOther}
 						topBottom
 						compact
 						day={col.day}

@@ -5,6 +5,7 @@
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { layoutBlocks } from '#lib/timeline.ts';
 	import type { BlockWithTask } from '#lib/server/blocks.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	/** Timeline window: 06:00 until midnight. */
 	const START_HOUR = 6;
@@ -24,6 +25,7 @@
 		onedit: (block: BlockWithTask) => void;
 	} = $props();
 
+	const t = useI18n();
 	let placed = $derived(layoutBlocks(blocks));
 	let nowMin = $state(untrack(() => serverNow));
 	let cardEl: HTMLDivElement | undefined = $state();
@@ -51,7 +53,7 @@
 	});
 </script>
 
-<div class="timeline card" role="group" aria-label="Day timeline" bind:this={cardEl}>
+<div class="timeline card" role="group" aria-label={t.home.dayTimeline} bind:this={cardEl}>
 	<div class="grid" style:--tl-hour={`${HOUR_H}px`}>
 		<div class="labels" aria-hidden="true">
 			{#each { length: END_HOUR - START_HOUR } as _, i}
@@ -73,9 +75,11 @@
 					style:--e={p.block.endMin}
 					style:--col={p.column}
 					style:--cols={p.columns}
-					aria-label="Edit time block: {p.block.taskTitle}, {formatMinutes(
-						p.block.startMin
-					)} to {formatMinutes(p.block.endMin)}"
+					aria-label={t.home.editBlockAria(
+						p.block.taskTitle,
+						formatMinutes(p.block.startMin),
+						formatMinutes(p.block.endMin)
+					)}
 					onclick={() => onedit(p.block)}
 				>
 					<span class="b-title">{p.block.taskTitle}</span>

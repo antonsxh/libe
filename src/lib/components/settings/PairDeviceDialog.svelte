@@ -6,9 +6,11 @@
 	import Dialog from '#lib/components/Dialog.svelte';
 	import { PAIRING_CODE_TTL_MS } from '#lib/auth.ts';
 	import { qrShape } from '#lib/qr.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = { onclose: () => void };
 	let { onclose }: Props = $props();
+	const t = useI18n();
 
 	let open = $state(true);
 	$effect(() => {
@@ -63,7 +65,7 @@
 			issued = { id: data.id, code: data.code, url: data.url, expiresAt: data.expiresAt - offset };
 			now = Date.now();
 		} catch {
-			error = 'Could not create a code. Check the connection and try again.';
+			error = t.settings.pair.createFailed;
 		} finally {
 			loading = false;
 		}
@@ -102,10 +104,10 @@
 				if (!res.ok || stopped) return;
 				const data = (await res.json()) as { status: string; deviceName: string | null };
 				if (data.status === 'used' && !stopped) {
-					paired = data.deviceName ?? 'The new device';
+					paired = data.deviceName ?? t.settings.pair.newDevice;
 					await refreshAll();
 				} else if (data.status === 'locked' && !stopped) {
-					error = 'Too many wrong attempts — this code is no longer valid.';
+					error = t.settings.pair.locked;
 					issued = null;
 				}
 			} catch {
@@ -119,37 +121,39 @@
 	});
 </script>
 
-<Dialog bind:open title="Pair a new device">
+<Dialog bind:open title={t.settings.pair.title}>
 	{#if paired}
 		<div class="done" role="status">
 			<CircleCheck size={40} strokeWidth={1.5} />
-			<p><strong>{paired}</strong> is paired.</p>
+			<p><strong>{paired}</strong>{t.settings.pair.isPaired}</p>
 			<div class="actions">
 				<Button variant="secondary" onclick={() => ((paired = null), newCode())}>
-					Pair another
+					{t.settings.pair.pairAnother}
 				</Button>
-				<Button variant="primary" onclick={() => (open = false)}>Done</Button>
+				<Button variant="primary" onclick={() => (open = false)}>{t.common.done}</Button>
 			</div>
 		</div>
 	{:else}
 		<p class="muted intro">
-			On the new device open <strong>libe</strong> (in the browser, the home-screen app or the desktop
-			app) and enter this code — or scan the QR code with its camera.
+			{t.settings.pair.introBefore}<strong>libe</strong>{t.settings.pair.introAfter}
 		</p>
 
 		<div class="code-box" aria-live="polite">
 			{#if issued && !expired}
-				<p class="code tabular" aria-label={`Pairing code ${issued.code.split('').join(' ')}`}>
+				<p
+					class="code tabular"
+					aria-label={t.settings.pair.codeAria(issued.code.split('').join(' '))}
+				>
 					{issued.code}
 				</p>
-				<p class="timer tabular muted">Valid for {countdown}</p>
+				<p class="timer tabular muted">{t.settings.pair.validFor(countdown)}</p>
 				<span class="bar" style:--p={remaining / PAIRING_CODE_TTL_MS} aria-hidden="true"></span>
 			{:else if loading}
-				<p class="code tabular faint" aria-label="Generating code">––– –––</p>
-				<p class="timer muted">Generating…</p>
+				<p class="code tabular faint" aria-label={t.settings.pair.generatingAria}>––– –––</p>
+				<p class="timer muted">{t.settings.pair.generating}</p>
 			{:else}
 				<p class="code tabular faint">––– –––</p>
-				<p class="timer muted">{expired ? 'Code expired.' : 'No code.'}</p>
+				<p class="timer muted">{expired ? t.settings.pair.expired : t.settings.pair.noCode}</p>
 			{/if}
 		</div>
 
@@ -158,13 +162,15 @@
 				<svg
 					viewBox={`-2 -2 ${qr.size + 4} ${qr.size + 4}`}
 					role="img"
-					aria-label="QR code that opens the pairing page with this code"
+					aria-label={t.settings.pair.qrAria}
 					shape-rendering="crispEdges"
 				>
 					<rect x="-2" y="-2" width={qr.size + 4} height={qr.size + 4} class="qr-bg" />
 					<path d={qr.path} class="qr-fg" />
 				</svg>
-				<figcaption class="muted">Opens <span class="url">{issued.url}</span></figcaption>
+				<figcaption class="muted">
+					{t.settings.pair.opens} <span class="url">{issued.url}</span>
+				</figcaption>
 			</figure>
 		{/if}
 
@@ -172,9 +178,10 @@
 
 		<div class="actions">
 			<Button variant="ghost" onclick={newCode} disabled={loading}>
-				<RefreshCw size={15} /> New code
+				<RefreshCw size={15} />
+				{t.settings.pair.newCode}
 			</Button>
-			<Button variant="secondary" onclick={() => (open = false)}>Close</Button>
+			<Button variant="secondary" onclick={() => (open = false)}>{t.common.close}</Button>
 		</div>
 	{/if}
 </Dialog>

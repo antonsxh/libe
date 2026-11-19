@@ -9,6 +9,7 @@ import {
 	setupSecretConfigured
 } from '#lib/server/auth.ts';
 import { countActiveDevices, createDevice } from '#lib/server/devices.ts';
+import { i18n } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -20,27 +21,30 @@ export const load = (async ({ locals, request, url }) => ({
 	configured: setupSecretConfigured(),
 	hasDevices: (await countActiveDevices()) > 0,
 	pairedAs: locals.device?.name ?? null,
-	defaultName: deviceNameFromUA(request.headers.get('user-agent')),
+	defaultName: deviceNameFromUA(request.headers.get('user-agent'), {
+		names: i18n(locals.locale).deviceNames
+	}),
 	next: safeNext(url.searchParams.get('next'))
 })) satisfies PageServerLoad;
 
 export const actions = {
 	default: async (event) => {
-		const { request, cookies, url } = event;
+		const { request, cookies, url, locals } = event;
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '');
-		if (!setupSecretConfigured())
-			return fail(503, { name, error: 'Setup is disabled: LIBE_SETUP_SECRET is not set.' });
+		const t = i18n(locals.locale);
+		if (!setupSecretConfigured()) return fail(503, { name, error: t.errors.setupDisabled });
 
 		const key = clientKey(event);
 		const limit = setupLimiter.check(key);
-		if (!limit.ok) return fail(429, { name, error: retryMessage(limit.retryAfterMs) });
+		if (!limit.ok)
+			return fail(429, { name, error: retryMessage(limit.retryAfterMs, locals.locale) });
 
 		const parsedName = parseDeviceName(name);
-		if (!parsedName.ok) return fail(400, { name, error: parsedName.error });
+		if (!parsedName.ok) return fail(400, { name, error: t.errors[parsedName.error] });
 		if (!checkSetupSecret(form.get('secret'))) {
 			setupLimiter.fail(key);
-			return fail(400, { name, error: 'Wrong setup secret.' });
+			return fail(400, { name, error: t.errors.wrongSetupSecret });
 		}
 
 		const { token } = await createDevice({

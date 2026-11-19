@@ -11,17 +11,18 @@ import {
 	setTaskDone
 } from '#lib/server/tasks.ts';
 import { parseTaskDuration, validateTaskTitle } from '#lib/task-form.ts';
+import { i18n, type Locale } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-async function loadQuest(id: string) {
-	if (!isUuid(id)) error(404, 'Quest not found');
+async function loadQuest(id: string, locale: Locale) {
+	if (!isUuid(id)) error(404, i18n(locale).quests.notFound);
 	const quest = await getQuest(id);
-	if (!quest) error(404, 'Quest not found');
+	if (!quest) error(404, i18n(locale).quests.notFound);
 	return quest;
 }
 
-export const load: PageServerLoad = async ({ params }) => {
-	const quest = await loadQuest(params.id);
+export const load: PageServerLoad = async ({ params, locals }) => {
+	const quest = await loadQuest(params.id, locals.locale);
 	const [backlog, scheduled] = await Promise.all([
 		listQuestBacklog(quest.id),
 		listQuestScheduled(quest.id)
@@ -38,8 +39,9 @@ async function loadOwnTask(taskId: string, questId: string) {
 }
 
 export const actions = {
-	add: async ({ params, request }) => {
-		const quest = await loadQuest(params.id);
+	add: async ({ params, request, locals }) => {
+		const quest = await loadQuest(params.id, locals.locale);
+		const t = i18n(locals.locale);
 		const formData = await request.formData();
 		const rawTitle = String(formData.get('title') ?? '');
 		const rawDuration = String(formData.get('duration') ?? '');
@@ -51,8 +53,8 @@ export const actions = {
 			return fail(400, {
 				...echo,
 				errors: {
-					title: title.ok ? undefined : title.error,
-					duration: duration.ok ? undefined : duration.error
+					title: title.ok ? undefined : t.errors[title.error],
+					duration: duration.ok ? undefined : t.errors[duration.error]
 				}
 			});
 		}

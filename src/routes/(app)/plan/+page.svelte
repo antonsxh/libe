@@ -8,9 +8,11 @@
 	import PlanColumn from '#lib/components/plan/PlanColumn.svelte';
 	import { addDays } from '#lib/dates.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+	const t = useI18n();
 
 	const taskForm = $derived(form as TaskFormResult | null);
 
@@ -77,10 +79,10 @@
 </script>
 
 <svelte:head>
-	<title>Plan the week · libe</title>
+	<title>{t.plan.title} · libe</title>
 </svelte:head>
 
-<PageHeader title="Plan the week">
+<PageHeader title={t.plan.title}>
 	{#snippet titleActions()}
 		<QuestFilter quests={data.quests} selected={data.questFilter} onchange={setQuestFilter} />
 	{/snippet}
@@ -90,7 +92,7 @@
 			<a
 				class="nav-btn"
 				href={weekHref(addDays(data.weekMonday, -7))}
-				aria-label="Previous week"
+				aria-label={t.week.previous}
 				data-sveltekit-reset="false"
 			>
 				<ChevronLeft size={16} />
@@ -98,7 +100,7 @@
 			<a
 				class="nav-btn"
 				href={weekHref(addDays(data.weekMonday, 7))}
-				aria-label="Next week"
+				aria-label={t.week.next}
 				data-sveltekit-reset="false"
 			>
 				<ChevronRight size={16} />
@@ -109,13 +111,13 @@
 				aria-current={isCurrentWeek ? 'date' : undefined}
 				data-sveltekit-reset="false"
 			>
-				Today
+				{t.common.today}
 			</a>
 			<a
 				class="nav-btn"
 				href={hideDoneHref}
-				aria-label={data.hideDone ? 'Show done tasks' : 'Hide done tasks'}
-				title={data.hideDone ? 'Show done tasks' : 'Hide done tasks'}
+				aria-label={data.hideDone ? t.common.showDone : t.common.hideDone}
+				title={data.hideDone ? t.common.showDone : t.common.hideDone}
 				data-sveltekit-reset="false"
 			>
 				{#if data.hideDone}<EyeOff size={17} />{:else}<Eye size={17} />{/if}

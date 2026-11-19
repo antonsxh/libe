@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { X } from '@lucide/svelte';
 	import Button from '#lib/components/Button.svelte';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
 		open = $bindable(false),
@@ -13,6 +14,7 @@
 		children?: Snippet;
 	} = $props();
 
+	const t = useI18n();
 	let el: HTMLDialogElement | undefined = $state();
 
 	// Keep the native dialog's open state in sync with the `open` prop.
@@ -35,7 +37,7 @@
 >
 	<header class="bar">
 		<h2>{title}</h2>
-		<Button variant="ghost" size="sm" icon aria-label="Close dialog" onclick={() => el?.close()}>
+		<Button variant="ghost" size="sm" icon aria-label={t.dialog.close} onclick={() => el?.close()}>
 			<X size={16} />
 		</Button>
 	</header>

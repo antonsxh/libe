@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { Calendar, ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import { addDays } from '#lib/dates.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
 		/** Monday of the shown week. */
@@ -15,6 +16,7 @@
 		children?: Snippet;
 	};
 	let { monday, rangeLabel, isCurrentWeek, children }: Props = $props();
+	const t = useI18n();
 
 	/** Same page with `?week=` set (or removed for the current week), other params kept. */
 	function weekHref(week: string | null): string {
@@ -26,11 +28,11 @@
 	}
 </script>
 
-<nav class="week-nav" aria-label="Week">
+<nav class="week-nav" aria-label={t.week.nav}>
 	<a
 		class="icon-btn"
 		href={weekHref(addDays(monday, -7))}
-		aria-label="Previous week"
+		aria-label={t.week.previous}
 		data-sveltekit-reset="false"
 	>
 		<ChevronLeft size={16} />
@@ -39,18 +41,20 @@
 	<a
 		class="icon-btn"
 		href={weekHref(addDays(monday, 7))}
-		aria-label="Next week"
+		aria-label={t.week.next}
 		data-sveltekit-reset="false"
 	>
 		<ChevronRight size={16} />
 	</a>
 	{#if isCurrentWeek}
 		<span class="pill-btn disabled" aria-disabled="true" aria-current="date">
-			<Calendar size={15} /> This week
+			<Calendar size={15} />
+			{t.week.thisWeek}
 		</span>
 	{:else}
 		<a class="pill-btn" href={weekHref(null)} data-sveltekit-reset="false">
-			<Calendar size={15} /> This week
+			<Calendar size={15} />
+			{t.week.thisWeek}
 		</a>
 	{/if}
 	{@render children?.()}

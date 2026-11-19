@@ -5,6 +5,7 @@
 	import Button from '#lib/components/Button.svelte';
 	import { formatMinutes } from '#lib/dates.ts';
 	import { parseClock, type BlockEditor, type BlockFormResult } from '#lib/timeline.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
 		editor: BlockEditor;
@@ -14,6 +15,7 @@
 	};
 
 	let { editor, form, onclose }: Props = $props();
+	const t = useI18n();
 
 	let open = $state(true);
 	// svelte-ignore state_referenced_locally — initial values; the dialog remounts per editor.
@@ -28,7 +30,7 @@
 			form.intent === (isEdit ? 'blockUpdate' : 'block') &&
 			(isEdit ? form.blockId === editor.blockId : form.taskId === editor.taskId)
 	);
-	const errorMessage = $derived(failed ? (form?.errors?.time ?? 'That time does not work.') : '');
+	const errorMessage = $derived(failed ? (form?.errors?.time ?? t.home.block.fallbackError) : '');
 
 	/** Live “7:45 PM → 8:15 PM” preview mirroring the server-side span check. */
 	const preview = $derived.by(() => {
@@ -44,7 +46,7 @@
 	}
 </script>
 
-<Dialog bind:open title={isEdit ? 'Edit time block' : 'Time-block'}>
+<Dialog bind:open title={isEdit ? t.home.block.titleEdit : t.home.block.titleNew}>
 	<!-- The delete form must stay outside the edit form (no nested <form>); buttons attach via `form=`. -->
 	<form
 		id="block-form"
@@ -66,11 +68,11 @@
 
 		<div class="fields">
 			<label class="field">
-				<span class="label">Start</span>
+				<span class="label">{t.common.start}</span>
 				<input name="time" type="time" required bind:value={start} />
 			</label>
 			<label class="field">
-				<span class="label">Duration (minutes)</span>
+				<span class="label">{t.home.block.duration}</span>
 				<input
 					name="duration"
 					type="number"
@@ -83,7 +85,7 @@
 			</label>
 		</div>
 		<p class="preview" class:bad={preview === null}>
-			{preview ?? 'Must be a positive span ending by 24:00'}
+			{preview ?? t.home.block.invalidSpan}
 		</p>
 
 		{#if isEdit}
@@ -111,11 +113,11 @@
 
 	<div class="actions">
 		{#if isEdit}
-			<Button variant="ghost" type="submit" form="block-delete-form">Delete</Button>
+			<Button variant="ghost" type="submit" form="block-delete-form">{t.common.delete}</Button>
 		{/if}
 		<span class="spacer"></span>
-		<Button variant="secondary" type="button" onclick={close}>Cancel</Button>
-		<Button type="submit" form="block-form">{isEdit ? 'Save' : 'Add block'}</Button>
+		<Button variant="secondary" type="button" onclick={close}>{t.common.cancel}</Button>
+		<Button type="submit" form="block-form">{isEdit ? t.common.save : t.home.block.add}</Button>
 	</div>
 </Dialog>
 

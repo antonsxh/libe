@@ -20,6 +20,7 @@ import {
 } from '#lib/server/db/schema.ts';
 import { getPomodoroSettings, savePomodoroSettings } from '#lib/server/settings.ts';
 import { publishTimer } from '#lib/server/timer-hub.ts';
+import type { ErrorCode } from '#lib/i18n/index.ts';
 import {
 	defaultPlannedMin,
 	finishClock,
@@ -41,13 +42,16 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type TimerErrorCode = 'conflict' | 'invalid' | 'not_found';
 
-/** A rejected timer operation; `code` maps to the HTTP status of `/api/timer`. */
+/**
+ * A rejected timer operation; `code` maps to the HTTP status of `/api/timer`, `reason` is the
+ * message key (`t.errors[reason]`, translated by the endpoint).
+ */
 export class TimerError extends Error {
 	constructor(
 		readonly code: TimerErrorCode,
-		message: string
+		readonly reason: ErrorCode
 	) {
-		super(message);
+		super(reason);
 	}
 }
 
@@ -239,7 +243,7 @@ async function mutate(
 		// Two concurrent starts: the partial unique index rejects the second one.
 		const e = err as { message?: string; cause?: { message?: string } } | null;
 		if (!(err instanceof TimerError) && /one_active_idx/.test(`${e?.message} ${e?.cause?.message}`))
-			throw new TimerError('conflict', 'Another timer is already active.');
+			throw new TimerError('conflict', 'timerConflict');
 		throw err;
 	}
 	return broadcastTimer();
@@ -295,9 +299,9 @@ export interface StartInput {
 export async function startTimer(input: StartInput): Promise<TimerSnapshot> {
 	return mutate(async (tx, { rows, now, settings }) => {
 		const [task] = await tx.select().from(tasks).where(eq(tasks.id, input.taskId));
-		if (!task) throw new TimerError('not_found', 'Task not found.');
+		if (!task) throw new TimerError('not_found', 'taskNotFound');
 		if (rows.run || rows.session) {
-			if (!input.replace) throw new TimerError('conflict', 'Another timer is already active.');
+			if (!input.replace) throw new TimerError('conflict', 'timerConflict');
 			await endActive(tx, rows, now, 'keep');
 		}
 		const startedAt = new Date(now);
@@ -330,7 +334,7 @@ export async function startTimer(input: StartInput): Promise<TimerSnapshot> {
 
 export async function pauseTimer(): Promise<TimerSnapshot> {
 	return mutate(async (tx, { rows, now }) => {
-		if (!rows.session) throw new TimerError('invalid', 'Nothing to pause.');
+		if (!rows.session) throw new TimerError('invalid', 'nothingToPause');
 		const next = must(pauseClock(clockOf(rows.session), now));
 		await tx
 			.update(sessions)
@@ -341,7 +345,7 @@ export async function pauseTimer(): Promise<TimerSnapshot> {
 
 export async function resumeTimer(): Promise<TimerSnapshot> {
 	return mutate(async (tx, { rows, now }) => {
-		if (!rows.session) throw new TimerError('invalid', 'Nothing to resume.');
+		if (!rows.session) throw new TimerError('invalid', 'nothingToResume');
 		const next = must(resumeClock(clockOf(rows.session), now));
 		await tx
 			.update(sessions)
@@ -353,7 +357,7 @@ export async function resumeTimer(): Promise<TimerSnapshot> {
 /** End the session (logged) and mark the task done. */
 export async function completeTimer(): Promise<TimerSnapshot> {
 	return mutate(async (tx, { rows, now }) => {
-		if (!rows.run && !rows.session) throw new TimerError('invalid', 'No active timer.');
+		if (!rows.run && !rows.session) throw new TimerError('invalid', 'noActiveTimer');
 		const taskId = await endActive(tx, rows, now, 'keep');
 		if (taskId)
 			await tx
@@ -366,7 +370,7 @@ export async function completeTimer(): Promise<TimerSnapshot> {
 /** End the session (logged); the task stays open. */
 export async function stopTimer(): Promise<TimerSnapshot> {
 	return mutate(async (tx, { rows, now }) => {
-		if (!rows.run && !rows.session) throw new TimerError('invalid', 'No active timer.');
+		if (!rows.run && !rows.session) throw new TimerError('invalid', 'noActiveTimer');
 		await endActive(tx, rows, now, 'keep');
 	});
 }
@@ -374,7 +378,7 @@ export async function stopTimer(): Promise<TimerSnapshot> {
 /** Throw the active session away (nothing logged); a pomodoro run ends. */
 export async function discardTimer(): Promise<TimerSnapshot> {
 	return mutate(async (tx, { rows, now }) => {
-		if (!rows.run && !rows.session) throw new TimerError('invalid', 'No active timer.');
+		if (!rows.run && !rows.session) throw new TimerError('invalid', 'noActiveTimer');
 		await endActive(tx, rows, now, 'discard');
 	});
 }
@@ -382,7 +386,7 @@ export async function discardTimer(): Promise<TimerSnapshot> {
 /** Pomodoro: start the waiting phase (break or next focus round) now. */
 export async function startPhase(): Promise<TimerSnapshot> {
 	return mutate(async (tx, { rows, now, settings }) => {
-		if (!rows.run) throw new TimerError('invalid', 'No pomodoro is running.');
+		if (!rows.run) throw new TimerError('invalid', 'noPomodoro');
 		const next = must(startPendingPhase(runClockOf(rows.run, rows.session), settings, now));
 		await writeRun(tx, rows.run, rows.session, next, next.phase === 'focus');
 	});
@@ -391,7 +395,7 @@ export async function startPhase(): Promise<TimerSnapshot> {
 /** Pomodoro: skip the current/waiting break — the next focus round starts now. */
 export async function skipPhase(): Promise<TimerSnapshot> {
 	return mutate(async (tx, { rows, now, settings }) => {
-		if (!rows.run) throw new TimerError('invalid', 'No pomodoro is running.');
+		if (!rows.run) throw new TimerError('invalid', 'noPomodoro');
 		const next = must(skipBreak(runClockOf(rows.run, rows.session), settings, now));
 		await writeRun(tx, rows.run, null, next, true);
 	});

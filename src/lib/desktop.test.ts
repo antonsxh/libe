@@ -1,5 +1,18 @@
 import { describe, expect, test } from 'bun:test';
-import { desktopApp, downloadPercent, isBusy, phaseText, trackOfVersion } from './desktop.ts';
+import { i18n } from '#lib/i18n/index.ts';
+import {
+	commandErrorText,
+	desktopApp,
+	downloadPercent,
+	isBusy,
+	phaseText as phaseTextIn,
+	trackOfVersion,
+	type UpdatePhase
+} from './desktop.ts';
+
+const en = i18n('en');
+const de = i18n('de');
+const phaseText = (phase: UpdatePhase) => phaseTextIn(phase, en);
 
 describe('trackOfVersion', () => {
 	test('releases, nightlies, previews and dev builds', () => {
@@ -35,6 +48,55 @@ describe('update phases', () => {
 		expect(phaseText({ kind: 'ready', version: '0.3.0', needsPassword: false })).toContain(
 			'restart or quit'
 		);
+	});
+});
+
+describe('app errors in the UI language', () => {
+	test('coded phases are translated, the English text is the fallback', () => {
+		const failed = {
+			kind: 'failed',
+			message: 'No nightly release is published yet.',
+			code: 'noRelease',
+			track: 'nightly'
+		} as const;
+		expect(phaseTextIn(failed, de)).toBe('Es ist noch kein Nightly-Release veröffentlicht.');
+		expect(phaseTextIn(failed, en)).toBe('No Nightly release is published yet.');
+		expect(
+			phaseTextIn(
+				{
+					kind: 'failed',
+					message: 'Downloading libe 1.2.0 failed: timeout',
+					code: 'downloadFailed',
+					version: '1.2.0',
+					detail: 'timeout'
+				},
+				de
+			)
+		).toBe('Der Download von libe 1.2.0 ist fehlgeschlagen: timeout');
+		expect(phaseTextIn({ kind: 'unavailable', reason: 'x', code: 'devBuild' }, de)).toBe(
+			'Entwicklungs-Builds aktualisieren sich nicht selbst.'
+		);
+	});
+
+	test('older apps (no code) and unknown codes show the app’s own text', () => {
+		expect(phaseTextIn({ kind: 'failed', message: 'Something broke.' }, de)).toBe(
+			'Something broke.'
+		);
+		expect(
+			phaseTextIn({ kind: 'unavailable', reason: 'Not here.', code: 'fromTheFuture' }, de)
+		).toBe('Not here.');
+		expect(phaseTextIn({ kind: 'failed', message: 'Oops', code: 'noRelease' }, de)).toBe('Oops');
+	});
+
+	test('command errors are recognised by their (stable) English text', () => {
+		expect(commandErrorText('No update has been downloaded yet.', de)).toBe(
+			'Es wurde noch kein Update heruntergeladen.'
+		);
+		expect(commandErrorText('Installing the update failed: denied', de)).toBe(
+			'Die Installation des Updates ist fehlgeschlagen: denied'
+		);
+		expect(commandErrorText('Something new', de)).toBe('Something new');
+		expect(commandErrorText(new Error('x'), en)).toBe('Error: x');
 	});
 });
 

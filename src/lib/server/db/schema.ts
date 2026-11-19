@@ -188,9 +188,14 @@ export const settings = pgTable(
 		pomodoroLongBreakEvery: integer('pomodoro_long_break_every').notNull().default(4),
 		/** Start the next phase automatically when one ends. */
 		pomodoroAutoStart: boolean('pomodoro_auto_start').notNull().default(true),
+		/** UI language: `auto` (per request from `Accept-Language`), `en` or `de`. */
+		language: text('language').notNull().default('auto'),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
-	(t) => [check('settings_single_row_chk', sql`${t.id} = 1`)]
+	(t) => [
+		check('settings_single_row_chk', sql`${t.id} = 1`),
+		check('settings_language_chk', sql`${t.language} in ('auto', 'en', 'de')`)
+	]
 );
 
 // ─── Devices & pairing (M7) ─────────────────────────────────────────────────

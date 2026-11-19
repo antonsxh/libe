@@ -12,6 +12,8 @@ import {
 } from '#lib/server/tasks.ts';
 import { updatePomodoroSettings } from '#lib/server/timer.ts';
 import { parsePomodoroSettings } from '#lib/timer.ts';
+import { i18n } from '#lib/i18n/index.ts';
+import { pomodoroSettingsFailure } from '#lib/server/settings.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export interface PickTask {
@@ -30,8 +32,9 @@ const pick = (t: TaskWithQuest): PickTask => ({
 	durationMin: t.durationMin
 });
 
-export const load = (async ({ url }) => {
+export const load = (async ({ url, locals }) => {
 	const day = todayISO();
+	const g = i18n(locals.locale).focus.groups;
 	const [questToday, otherToday, questBacklog, otherBacklog] = await Promise.all([
 		listDayTasks(day, 'quest'),
 		listDayTasks(day, 'other'),
@@ -40,9 +43,9 @@ export const load = (async ({ url }) => {
 	]);
 	const open = (list: TaskWithQuest[]) => list.filter((t) => t.doneAt === null).map(pick);
 	const groups = [
-		{ key: 'today-quest', label: 'Today · Quest work', tasks: open(questToday) },
-		{ key: 'today-other', label: 'Today · Other', tasks: open(otherToday) },
-		{ key: 'backlog', label: 'Backlog', tasks: open([...questBacklog, ...otherBacklog]) }
+		{ key: 'today-quest', label: g.todayQuest, tasks: open(questToday) },
+		{ key: 'today-other', label: g.todayOther, tasks: open(otherToday) },
+		{ key: 'backlog', label: g.backlog, tasks: open([...questBacklog, ...otherBacklog]) }
 	];
 
 	// `?task=<id>` preselects a task — also one from another day (Plan's ▶).
@@ -60,7 +63,7 @@ export const load = (async ({ url }) => {
 			if (row && row.task.doneAt === null) {
 				groups.unshift({
 					key: 'selected',
-					label: 'Selected',
+					label: g.selected,
 					tasks: [pick({ ...row.task, questName: row.questName, questColor: row.questColor })]
 				});
 				selectedId = raw;
@@ -77,16 +80,11 @@ export const load = (async ({ url }) => {
 
 export const actions = {
 	/** Pomodoro settings dialog. New intervals apply from the active run's next phase. */
-	settings: async ({ request }) => {
+	settings: async ({ request, locals }) => {
 		const form = await request.formData();
 		const values = Object.fromEntries(form);
 		const parsed = parsePomodoroSettings(values);
-		if (!parsed.ok)
-			return fail(400, {
-				intent: 'settings' as const,
-				errors: parsed.errors,
-				values: Object.fromEntries(Object.entries(values).map(([k, v]) => [k, String(v)]))
-			});
+		if (!parsed.ok) return fail(400, pomodoroSettingsFailure(values, parsed.errors, locals.locale));
 		await updatePomodoroSettings(parsed.value);
 		return { intent: 'settings' as const, saved: true };
 	}

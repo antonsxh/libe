@@ -15,8 +15,10 @@
 	import type { TaskFormResult } from '#lib/task-form.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { BlockWithTask } from '#lib/server/blocks.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let { data, form } = $props();
+	const t = useI18n();
 
 	/** The open "Time-block" dialog target (null = closed). */
 	let blockEditor = $state<BlockEditor | null>(null);
@@ -79,20 +81,22 @@
 	{#snippet actions()}
 		<div class="day-stats">
 			<p class="today tabular">
-				<strong>{formatHours(data.todayMin / 60)}</strong> <span>today</span>
+				<strong>{formatHours(data.todayMin / 60, t.intl)}</strong> <span>{t.home.today}</span>
 			</p>
 			<div class="week">
 				<div
 					class="bar"
 					role="progressbar"
-					aria-label="Share of this week's quest budget used"
+					aria-label={t.home.budgetBar}
 					aria-valuemin="0"
 					aria-valuemax="100"
 					aria-valuenow={weekPct}
 				>
 					<div class="bar-fill" style={`width: ${weekPct}%`}></div>
 				</div>
-				<span class="week-label tabular">{formatHours(data.weekMin / 60)} this week</span>
+				<span class="week-label tabular">
+					{t.home.thisWeek(formatHours(data.weekMin / 60, t.intl))}
+				</span>
 			</div>
 		</div>
 	{/snippet}
@@ -100,20 +104,20 @@
 
 {#if blockFailed}
 	<p class="form-error" role="alert">
-		That time block could not be saved — start before end, and keep it within 00:00–24:00.
+		{t.home.blockFailed}
 	</p>
 {/if}
 
 <div class="today-grid">
 	<div class="main-col">
 		<div class="col-head">
-			<h2 class="label">Quest work</h2>
+			<h2 class="label">{t.home.questWork}</h2>
 			<QuestFilter quests={data.quests} selected={data.questFilter} onchange={setQuestFilter} />
 		</div>
 
 		<TaskAddForm
 			action="addQuest"
-			placeholder="Add quest work…"
+			placeholder={t.home.addQuestWork}
 			quests={data.visibleQuests}
 			topBottom
 			showDuration
@@ -141,19 +145,19 @@
 		/>
 
 		<div class="other-head">
-			<h2 class="label">Other</h2>
+			<h2 class="label">{t.common.other}</h2>
 			<span class="rule" aria-hidden="true"></span>
 			<a
 				class="eye"
 				href={hideDoneHref}
-				aria-label={data.hideDone ? 'Show done tasks' : 'Hide done tasks'}
-				title={data.hideDone ? 'Show done tasks' : 'Hide done tasks'}
+				aria-label={data.hideDone ? t.common.showDone : t.common.hideDone}
+				title={data.hideDone ? t.common.showDone : t.common.hideDone}
 			>
 				{#if data.hideDone}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
 			</a>
 		</div>
 
-		<TaskAddForm action="addOther" placeholder="Add a task…" topBottom form={taskForm} />
+		<TaskAddForm action="addOther" placeholder={t.tasks.addTask} topBottom form={taskForm} />
 
 		{#if data.otherTasks.length > 0}
 			<ul class="tasks">
@@ -169,7 +173,7 @@
 		{/if}
 	</div>
 
-	<aside class="side-col" aria-label="Timeline">
+	<aside class="side-col" aria-label={t.home.timeline}>
 		<DayTimeline blocks={data.blocks} now={data.now} onedit={openBlockEdit} />
 	</aside>
 </div>

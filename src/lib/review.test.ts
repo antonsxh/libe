@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { i18n } from '#lib/i18n/index.ts';
 import {
 	buildReview,
 	comparisonLabel,
@@ -304,6 +305,8 @@ describe('formatting', () => {
 
 	test('formatSignedHours', () => {
 		expect(formatSignedHours(2.14)).toBe('+2.1h');
+		expect(formatSignedHours(-0.44, 'de-DE')).toBe('−0,4\u202fh');
+		expect(formatSignedHours(0.01, 'de-DE')).toBe('±0\u202fh');
 		expect(formatSignedHours(-0.4)).toBe('−0.4h');
 		expect(formatSignedHours(0.02)).toBe('±0h');
 		expect(formatSignedHours(3)).toBe('+3h');
@@ -315,8 +318,12 @@ describe('formatting', () => {
 	});
 
 	test('comparisonLabel', () => {
-		expect(comparisonLabel(7)).toBe('vs last week');
-		expect(comparisonLabel(3)).toBe('vs last Mon–Wed');
-		expect(comparisonLabel(1)).toBe('vs last Mon');
+		const en = i18n('en');
+		expect(comparisonLabel(7, en)).toBe('vs last week');
+		expect(comparisonLabel(3, en)).toBe('vs last Mon–Wed');
+		expect(comparisonLabel(1, en)).toBe('vs last Mon');
+		const de = i18n('de');
+		expect(comparisonLabel(7, de)).toBe('ggü. Vorwoche');
+		expect(comparisonLabel(3, de)).toBe('ggü. Mo–Mi der Vorwoche');
 	});
 });

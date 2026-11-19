@@ -7,9 +7,11 @@
 	import QuestForm from '#lib/components/quests/QuestForm.svelte';
 	import { formatHours } from '#lib/dates.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+	const t = useI18n();
 
 	let creating = $state(false);
 	let editingQuest = $state<Quest | null>(null);
@@ -27,24 +29,20 @@
 	const closedQuests = $derived(data.closed);
 </script>
 
-<svelte:head><title>Quests · libe</title></svelte:head>
+<svelte:head><title>{t.quests.title} · libe</title></svelte:head>
 
-<PageHeader
-	title="Quests"
-	subtitle="The few things that actually matter. Every hour you log is tagged to one of these."
->
+<PageHeader title={t.quests.title} subtitle={t.quests.subtitle}>
 	{#snippet actions()}
 		<Button variant="primary" onclick={() => (creating = true)}>
-			<Plus size={18} /> New quest
+			<Plus size={18} />
+			{t.quests.newQuest}
 		</Button>
 	{/snippet}
 </PageHeader>
 
 <p class="summary">
-	<strong class="big tabular">{formatHours(data.hours.quarterTotalH)}</strong>
-	<span class="muted">
-		logged this quarter across {openQuests.length} quest{openQuests.length === 1 ? '' : 's'}
-	</span>
+	<strong class="big tabular">{formatHours(data.hours.quarterTotalH, t.intl)}</strong>
+	<span class="muted">{t.quests.summary(openQuests.length)}</span>
 </p>
 
 <div class="grid">
@@ -59,13 +57,13 @@
 	{/each}
 	<button type="button" class="new-tile" onclick={() => (creating = true)}>
 		<Plus size={20} />
-		<span>New quest</span>
+		<span>{t.quests.newQuest}</span>
 	</button>
 </div>
 
 {#if closedQuests.length > 0}
 	<details class="closed-section">
-		<summary class="label">Closed ({closedQuests.length})</summary>
+		<summary class="label">{t.quests.closedCount(closedQuests.length)}</summary>
 		<div class="grid">
 			{#each closedQuests as quest (quest.id)}
 				<QuestCard {quest} stats={data.hours.byQuest[quest.id]} closed onedit={startEdit} />
@@ -74,14 +72,14 @@
 	</details>
 {/if}
 
-<Dialog bind:open={creating} title="New quest">
+<Dialog bind:open={creating} title={t.quests.newQuest}>
 	{#key creating}
 		<QuestForm mode="create" {form} ondone={() => (creating = false)} />
 	{/key}
 </Dialog>
 
 {#if editingQuest}
-	<Dialog bind:open={editing} title="Edit quest">
+	<Dialog bind:open={editing} title={t.quests.editQuest}>
 		{#key `${editingQuest.id}:${editNonce}`}
 			<QuestForm mode="update" quest={editingQuest} {form} ondone={() => (editing = false)} />
 		{/key}

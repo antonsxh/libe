@@ -13,6 +13,7 @@ import {
 	updatePomodoroSettings
 } from '#lib/server/timer.ts';
 import { parseTimerCommand, type TimerCommand, type TimerSnapshot } from '#lib/timer.ts';
+import { i18n } from '#lib/i18n/index.ts';
 import type { RequestHandler } from './$types';
 
 /** The current timer snapshot (rolled forward to now — also publishes a phase change). */
@@ -53,7 +54,8 @@ function landing(raw: unknown): string {
  * or `{ ok: false, code, error }` with 400/404/409. Plain HTML form posts (no JS) are
  * accepted too and answered with a 303 back to `redirectTo` (errors in `?timerError=`).
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const t = i18n(locals.locale);
 	const type = request.headers.get('content-type') ?? '';
 	const isForm =
 		type.includes('application/x-www-form-urlencoded') || type.includes('multipart/form-data');
@@ -63,21 +65,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			? Object.fromEntries(await request.formData())
 			: ((await request.json()) as Record<string, unknown>);
 	} catch {
-		error(400, 'Invalid request body.');
+		error(400, t.errors.invalidBody);
 	}
-	if (typeof raw !== 'object' || raw === null) error(400, 'Invalid request body.');
+	if (typeof raw !== 'object' || raw === null) error(400, t.errors.invalidBody);
 
 	const parsed = parseTimerCommand(raw);
 	let failure: { status: number; code: string; error: string } | null = null;
 	let snapshot: TimerSnapshot | null = null;
 	if (!parsed.ok) {
-		failure = { status: 400, code: 'invalid', error: parsed.error };
+		failure = { status: 400, code: 'invalid', error: t.errors[parsed.error] };
 	} else {
 		try {
 			snapshot = await run(parsed.command);
 		} catch (err) {
 			if (!(err instanceof TimerError)) throw err;
-			failure = { status: STATUS[err.code], code: err.code, error: err.message };
+			failure = { status: STATUS[err.code], code: err.code, error: t.errors[err.reason] };
 		}
 	}
 

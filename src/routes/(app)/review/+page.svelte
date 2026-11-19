@@ -7,9 +7,12 @@
 	import QuestVsOther from '#lib/components/review/QuestVsOther.svelte';
 	import { formatHours } from '#lib/dates.ts';
 	import { comparisonLabel, formatSignedHours, percent, type ReviewQuest } from '#lib/review.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+	const t = useI18n();
+	const hours = (h: number) => formatHours(h, t.intl);
 
 	const week = $derived(data.review.week);
 	const prev = $derived(week.previous);
@@ -18,7 +21,7 @@
 	const questsById = $derived(
 		Object.fromEntries(week.quests.map((r) => [r.quest.id, r.quest])) as Record<string, ReviewQuest>
 	);
-	const vs = $derived(prev ? comparisonLabel(prev.days) : '');
+	const vs = $derived(prev ? comparisonLabel(prev.days, t) : '');
 
 	/** Week-over-week deltas (null for future weeks / no data on either side). */
 	const deltas = $derived.by(() => {
@@ -36,12 +39,13 @@
 		};
 	});
 	const sign = (n: number) => (Math.round(n * 10) === 0 ? 'zero' : n > 0 ? 'up' : 'down');
-	const signedPts = (n: number) => (n === 0 ? '±0 pts' : `${n > 0 ? '+' : '−'}${Math.abs(n)} pts`);
+	const signedPts = (n: number) =>
+		t.review.points(n === 0 ? '±0' : `${n > 0 ? '+' : '−'}${Math.abs(n)}`);
 </script>
 
-<svelte:head><title>Weekly review · libe</title></svelte:head>
+<svelte:head><title>{t.review.title} · libe</title></svelte:head>
 
-<PageHeader title="Weekly review" subtitle="How much of the week moved your quests forward.">
+<PageHeader title={t.review.title} subtitle={t.review.subtitle}>
 	{#snippet actions()}
 		<WeekNav
 			monday={data.weekMonday}
@@ -52,58 +56,57 @@
 </PageHeader>
 
 <div class="review">
-	<section class="kpis" aria-label="Key figures">
+	<section class="kpis" aria-label={t.review.keyFigures}>
 		<article class="card kpi">
 			<header class="kpi-head">
-				<h2 class="label">Quest hours</h2>
+				<h2 class="label">{t.review.questHours}</h2>
 				{#if deltas}
 					<span class="delta tabular" data-sign={sign(deltas.quest)} data-testid="delta-quest">
-						{formatSignedHours(deltas.quest)}
+						{formatSignedHours(deltas.quest, t.intl)}
 						{vs}
 					</span>
 				{/if}
 			</header>
 			<p class="figure">
 				<span class="num accent tabular" data-testid="kpi-quest">
-					{formatHours(week.questMin / 60)}
+					{hours(week.questMin / 60)}
 				</span>
 				{#if week.budgetMin > 0}
 					<span class="unit tabular" data-testid="kpi-budget">
-						/ {formatHours(week.budgetMin / 60)}
+						/ {hours(week.budgetMin / 60)}
 					</span>
 				{/if}
 			</p>
 			<p class="sub tabular" data-testid="kpi-target">
-				{targetPct === null ? 'No weekly budget set' : `${targetPct}% of target`}
+				{targetPct === null ? t.review.noBudget : t.common.pctOfTarget(targetPct)}
 			</p>
 		</article>
 
 		<article class="card kpi">
 			<header class="kpi-head">
-				<h2 class="label">Daily average</h2>
+				<h2 class="label">{t.review.dailyAverage}</h2>
 				{#if deltas}
 					<span class="delta tabular" data-sign={sign(deltas.avg)}>
-						{formatSignedHours(deltas.avg)}
+						{formatSignedHours(deltas.avg, t.intl)}
 						{vs}
 					</span>
 				{/if}
 			</header>
 			<p class="figure">
-				<span class="num tabular" data-testid="kpi-avg">{formatHours(week.dailyAvgMin / 60)}</span>
+				<span class="num tabular" data-testid="kpi-avg">{hours(week.dailyAvgMin / 60)}</span>
 			</p>
 			<p class="sub tabular">
 				{#if week.daysElapsed === 0}
-					This week hasn’t started yet
+					{t.review.notStarted}
 				{:else}
-					{formatHours(week.totalMin / 60)} logged over {week.daysElapsed}
-					{week.daysElapsed === 1 ? 'day' : 'days'}
+					{t.review.loggedOver(hours(week.totalMin / 60), week.daysElapsed)}
 				{/if}
 			</p>
 		</article>
 
 		<article class="card kpi">
 			<header class="kpi-head">
-				<h2 class="label">Quest work vs other</h2>
+				<h2 class="label">{t.review.questVsOther}</h2>
 				{#if deltas && deltas.share !== null}
 					<span class="delta tabular" data-sign={sign(deltas.share)}>
 						{signedPts(deltas.share)}
@@ -120,7 +123,7 @@
 				{/if}
 			</p>
 			<p class="sub tabular">
-				{week.totalMin > 0 ? `of ${formatHours(week.totalMin / 60)} logged` : 'No time logged'}
+				{week.totalMin > 0 ? t.review.ofLogged(hours(week.totalMin / 60)) : t.review.noTimeLogged}
 			</p>
 		</article>
 	</section>

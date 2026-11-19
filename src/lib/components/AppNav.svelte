@@ -16,8 +16,12 @@
 	import Logo from './Logo.svelte';
 	import Menu from './Menu.svelte';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
+	import { timerLabelText } from '#lib/timer.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	const timer = useTimer();
+	const t = useI18n();
+	const timerState = $derived(timer.view ? timerLabelText(timer.view.label, t) : '');
 
 	/** Icons for the compact bottom tab bar (phones). */
 	const ICONS = {
@@ -29,18 +33,18 @@
 		'/review': ChartColumn
 	} as Record<string, typeof House>;
 
-	const deviceName = $derived(page.data.device?.name ?? 'This device');
+	const deviceName = $derived(page.data.device?.name ?? t.nav.thisDevice);
 
 	const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 </script>
 
 <header class="nav">
-	<a class="brand" href="/" aria-label="libe home">
+	<a class="brand" href="/" aria-label={t.nav.brandHome}>
 		<Logo />
 		<span>libe</span>
 	</a>
 
-	<nav aria-label="Main">
+	<nav aria-label={t.nav.main}>
 		{#each NAV_ITEMS as item (item.href)}
 			{@const Icon = ICONS[item.href]}
 			<a
@@ -49,7 +53,7 @@
 				aria-current={isActive(page.url.pathname, item.href) ? 'page' : undefined}
 			>
 				<span class="tab-icon" aria-hidden="true"><Icon size={20} strokeWidth={1.75} /></span>
-				<span class="tab-label">{item.label}</span>
+				<span class="tab-label">{t.nav[item.key]}</span>
 			</a>
 		{/each}
 	</nav>
@@ -60,8 +64,12 @@
 				class="chip"
 				class:paused={timer.view.status !== 'running'}
 				href="/focus"
-				title={`${timer.view.label} · ${timer.timer.task.title}`}
-				aria-label={`Timer ${timer.view.display} (${timer.view.label.toLowerCase()}): ${timer.timer.task.title} — open focus`}
+				title={`${timerState} · ${timer.timer.task.title}`}
+				aria-label={t.nav.timerChip(
+					timer.view.display,
+					timerState.toLocaleLowerCase(t.intl),
+					timer.timer.task.title
+				)}
 			>
 				<span class="rec" aria-hidden="true"></span>
 				<span class="chip-time tabular">{timer.view.display}</span>
@@ -69,27 +77,30 @@
 			</a>
 		{/if}
 		<!-- Command palette lands in a later milestone; the trigger is already part of the shell. -->
-		<button class="search" type="button" title="Search (coming soon)" disabled>
+		<button class="search" type="button" title={t.nav.searchSoon} disabled>
 			<Search size={16} strokeWidth={1.75} />
-			<span>Search or jump…</span>
+			<span>{t.nav.search}</span>
 			<kbd>{isMac ? '⌘' : 'Ctrl'} K</kbd>
 		</button>
-		<Menu label="Account and devices">
+		<Menu label={t.nav.account}>
 			{#snippet trigger()}<span class="avatar" aria-hidden="true">L</span>{/snippet}
 			{#snippet children(close)}
 				<p class="menu-head">
-					<span class="muted">Signed in as</span>
+					<span class="muted">{t.nav.signedInAs}</span>
 					<span class="device-name">{deviceName}</span>
 				</p>
 				<a class="item" role="menuitem" href="/settings" onclick={close}>
-					<Settings size={14} /> Settings
+					<Settings size={14} />
+					{t.nav.settings}
 				</a>
 				<a class="item" role="menuitem" href="/settings?pair" onclick={close}>
-					<QrCode size={14} /> Pair new device
+					<QrCode size={14} />
+					{t.nav.pairNewDevice}
 				</a>
 				<form method="POST" action="/settings?/signout">
 					<button type="submit" class="item danger" role="menuitem">
-						<LogOut size={14} /> Sign out this device
+						<LogOut size={14} />
+						{t.nav.signOut}
 					</button>
 				</form>
 			{/snippet}

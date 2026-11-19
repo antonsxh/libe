@@ -63,7 +63,7 @@ describe('validateManualLog', () => {
 	test('not in the future', () => {
 		const r = validateManualLog({ day: '2026-11-18', start: '14:30', durationMin: 60 }, ctx);
 		expect(r.ok).toBe(false);
-		if (!r.ok) expect(r.errors.start).toMatch(/future/);
+		if (!r.ok) expect(r.errors.start).toBe('logInFuture');
 		// ending right now is fine
 		expect(validateManualLog({ day: '2026-11-18', start: '14:00', durationMin: 60 }, ctx).ok).toBe(
 			true
@@ -76,7 +76,7 @@ describe('validateManualLog', () => {
 		);
 		const r = validateManualLog({ day: '2025-11-17', start: '09:00', durationMin: 30 }, ctx);
 		expect(r.ok).toBe(false);
-		if (!r.ok) expect(r.errors.day).toMatch(/365/);
+		if (!r.ok) expect(r.errors.day).toBe('logTooOld');
 	});
 
 	test('rejects overlap with the active session', () => {
@@ -131,11 +131,11 @@ describe('validateSessionSpan', () => {
 
 	test('end must be after start, at most 24 hours', () => {
 		const same = validateSessionSpan(span('2026-11-17', '09:00', '2026-11-17', '09:00'), ctx);
-		expect(!same.ok && same.errors.end).toBe('End must be after the start.');
+		expect(!same.ok && same.errors.end).toBe('endBeforeStart');
 		const before = validateSessionSpan(span('2026-11-17', '09:00', '2026-11-17', '08:00'), ctx);
-		expect(!before.ok && before.errors.end).toBe('End must be after the start.');
+		expect(!before.ok && before.errors.end).toBe('endBeforeStart');
 		const long = validateSessionSpan(span('2026-11-16', '09:00', '2026-11-17', '09:01'), ctx);
-		expect(!long.ok && long.errors.end).toContain('24 hours');
+		expect(!long.ok && long.errors.end).toBe('sessionTooLong');
 		expect(validateSessionSpan(span('2026-11-16', '09:00', '2026-11-17', '09:00'), ctx).ok).toBe(
 			true
 		);
@@ -150,15 +150,15 @@ describe('validateSessionSpan', () => {
 
 	test('future, too old, overlapping the active session', () => {
 		const future = validateSessionSpan(span('2026-11-18', '14:30', '2026-11-18', '15:30'), ctx);
-		expect(!future.ok && future.errors.end).toBe('That time is in the future.');
+		expect(!future.ok && future.errors.end).toBe('logInFuture');
 		const old = validateSessionSpan(span('2025-11-01', '09:00', '2025-11-01', '10:00'), ctx);
-		expect(!old.ok && old.errors.day).toContain('365');
+		expect(!old.ok && old.errors.day).toBe('logTooOld');
 		const active = { start: new Date('2026-11-18T14:00:00Z'), end: now };
 		const clash = validateSessionSpan(span('2026-11-18', '13:30', '2026-11-18', '14:15'), {
 			...ctx,
 			active
 		});
-		expect(!clash.ok && clash.errors.start).toContain('running timer');
+		expect(!clash.ok && clash.errors.start).toBe('logOverlapsTimer');
 		expect(
 			validateSessionSpan(span('2026-11-18', '13:00', '2026-11-18', '14:00'), { ...ctx, active }).ok
 		).toBe(true);

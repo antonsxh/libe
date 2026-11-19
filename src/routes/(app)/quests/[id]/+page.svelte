@@ -6,9 +6,11 @@
 	import TaskRow from '#lib/components/tasks/TaskRow.svelte';
 	import { formatDayLabel, formatHours } from '#lib/dates.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+	const t = useI18n();
 
 	const quest = $derived(data.quest);
 	/** Echoed values while the "add to backlog" row shows validation errors. */
@@ -17,7 +19,7 @@
 
 <svelte:head><title>{quest.name} · libe</title></svelte:head>
 
-<a class="back muted" href="/quests"><ArrowLeft size={15} /> All quests</a>
+<a class="back muted" href="/quests"><ArrowLeft size={15} /> {t.quests.allQuests}</a>
 
 <header class="head">
 	<span class="tile" aria-hidden="true">{quest.icon}</span>
@@ -25,15 +27,18 @@
 		<h1 class="quest-name" style:color={questColorVar(quest.color)}>{quest.name}</h1>
 		{#if quest.description}<p class="muted desc">{quest.description}</p>{/if}
 		{#if quest.closedAt !== null}
-			<p class="label">Closed quest</p>
+			<p class="label">{t.common.closedQuest}</p>
 		{:else if quest.weeklyBudgetH !== null}
-			<QuestPill color={quest.color} label={`${formatHours(quest.weeklyBudgetH)} / week`} />
+			<QuestPill
+				color={quest.color}
+				label={t.quests.perWeek(formatHours(quest.weeklyBudgetH, t.intl))}
+			/>
 		{/if}
 	</div>
 </header>
 
 <section class="section">
-	<h2 class="label">Backlog</h2>
+	<h2 class="label">{t.common.backlog}</h2>
 
 	<form class="add" method="POST" action="?/add" use:enhance>
 		<input
@@ -41,7 +46,7 @@
 			name="title"
 			type="text"
 			maxlength="200"
-			placeholder="Add to backlog…"
+			placeholder={t.tasks.addToBacklog}
 			autocomplete="off"
 			value={addEcho?.title ?? ''}
 		/>
@@ -52,11 +57,11 @@
 			min="1"
 			max="1440"
 			step="1"
-			placeholder="min"
-			aria-label="Duration in minutes (optional)"
+			placeholder={t.common.durationPlaceholder}
+			aria-label={t.common.durationOptional}
 			value={addEcho?.duration ?? ''}
 		/>
-		<Button size="sm" type="submit"><Plus size={16} /> Add</Button>
+		<Button size="sm" type="submit"><Plus size={16} /> {t.common.add}</Button>
 	</form>
 	{#if addEcho?.errors?.title}<p class="error">{addEcho.errors.title}</p>{/if}
 	{#if addEcho?.errors?.duration}<p class="error">{addEcho.errors.duration}</p>{/if}
@@ -69,30 +74,30 @@
 		</ul>
 	{:else}
 		<p class="muted empty">
-			Nothing in the backlog yet — everything scheduled lives under “Scheduled”.
+			{t.quests.backlogEmpty}
 		</p>
 	{/if}
 </section>
 
 <section class="section">
-	<h2 class="label">Scheduled</h2>
+	<h2 class="label">{t.quests.scheduled}</h2>
 	{#if data.scheduled.length > 0}
 		<ul class="tasks">
 			{#each data.scheduled as task (task.id)}
 				<li class="sched card" class:done={task.doneAt !== null}>
 					<span class="day muted">
-						{formatDayLabel(task.day, { weekday: 'short', month: 'short', day: 'numeric' })}
+						{formatDayLabel(task.day, { weekday: 'short', month: 'short', day: 'numeric' }, t.intl)}
 					</span>
 					<span class="title">{task.title}</span>
 					{#if task.durationMin !== null}
-						<span class="dur muted tabular">{task.durationMin} min</span>
+						<span class="dur muted tabular">{t.common.minutes(task.durationMin)}</span>
 					{/if}
 					{#if task.doneAt !== null}<span class="done-mark">✓</span>{/if}
 				</li>
 			{/each}
 		</ul>
 	{:else}
-		<p class="muted empty">Nothing scheduled for this quest yet.</p>
+		<p class="muted empty">{t.quests.scheduledEmpty}</p>
 	{/if}
 </section>
 

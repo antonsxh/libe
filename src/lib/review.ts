@@ -16,12 +16,15 @@ import {
 	daysBetween,
 	endOfQuarter,
 	formatDayLabel,
+	formatDecimal,
+	hourUnit,
 	startOfQuarter,
 	startOfWeek,
 	todayISO,
 	type ISODay
 } from '#lib/dates.ts';
 import { sessionMinutes, type SessionRow } from '#lib/stats-core.ts';
+import type { I18n } from '#lib/i18n/index.ts';
 
 export type { SessionRow };
 
@@ -359,11 +362,12 @@ export function formatHMin(min: number): string {
 	return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-/** Signed hours with one decimal: `+2.1h`, `−0.4h`, `±0h`. */
-export function formatSignedHours(hours: number): string {
+/** Signed hours with one decimal: `+2.1h`, `−0.4h`, `±0h` (German: `+2,1 h`). */
+export function formatSignedHours(hours: number, locale = 'en-US'): string {
 	const r = Math.round(hours * 10) / 10;
-	if (r === 0) return '±0h';
-	return `${r > 0 ? '+' : '−'}${Math.abs(r)}h`;
+	const unit = hourUnit(locale);
+	if (r === 0) return `±0${unit}`;
+	return `${r > 0 ? '+' : '−'}${formatDecimal(Math.abs(r), locale)}${unit}`;
 }
 
 /** Whole percent of `part / whole` (null when `whole` is 0). */
@@ -375,8 +379,10 @@ export function percent(part: number, whole: number): number | null {
  * "vs …" suffix of the week-over-week deltas: `vs last week`, or for the current week
  * `vs last Mon–Wed` (`vs last Mon` on Monday) — the same days of the previous week.
  */
-export function comparisonLabel(days: number): string {
-	if (days >= 7) return 'vs last week';
-	const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-	return days <= 1 ? 'vs last Mon' : `vs last Mon–${names[days - 1]}`;
+export function comparisonLabel(days: number, t: I18n): string {
+	if (days >= 7) return t.review.vsLastWeek;
+	// 2024-01-01 is a Monday.
+	const name = (i: number) =>
+		formatDayLabel(addDays('2024-01-01', i), { weekday: 'short' }, t.intl);
+	return t.review.vsLastDays(days <= 1 ? name(0) : `${name(0)}–${name(days - 1)}`);
 }

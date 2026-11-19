@@ -2,9 +2,10 @@
 	import type { Snippet } from 'svelte';
 	import { tick } from 'svelte';
 	import { MoreHorizontal } from '@lucide/svelte';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
-		label = 'Open menu',
+		label,
 		trigger,
 		children,
 		onclose
@@ -18,6 +19,7 @@
 		onclose?: () => void;
 	} = $props();
 
+	const t = useI18n();
 	let open = $state(false);
 	let triggerEl: HTMLButtonElement | undefined = $state();
 	let pop: HTMLDivElement | undefined = $state();
@@ -105,7 +107,7 @@
 		type="button"
 		class={trigger ? 'trigger-custom' : 'trigger'}
 		bind:this={triggerEl}
-		aria-label={label}
+		aria-label={label ?? t.menu.open}
 		aria-haspopup="menu"
 		aria-expanded={open}
 		onclick={toggle}

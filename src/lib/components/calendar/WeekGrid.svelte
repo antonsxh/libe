@@ -17,6 +17,7 @@
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { layoutBlocks } from '#lib/timeline.ts';
 	import type { BlockWithTask } from '#lib/server/blocks.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
 		days: CalendarDay[];
@@ -31,6 +32,7 @@
 		onlog: (day: string, minute: number) => void;
 	};
 	let { days, week, blocks, timeZone, now, onedit, onlog }: Props = $props();
+	const t = useI18n();
 
 	/** Must match `--cal-hour` (px per hour) — click positions are converted with it. */
 	const HOUR_PX = 50;
@@ -87,7 +89,7 @@
 <div
 	class="cal card"
 	role="group"
-	aria-label="Week calendar"
+	aria-label={t.calendar.grid}
 	bind:this={scroller}
 	style:--start={startHour * 60}
 	style:--hours={hours}
@@ -98,7 +100,7 @@
 		{#each days as d, i (d.day)}
 			<div class="head" class:today={d.isToday} style:grid-column={i + 2}>
 				<span class="wd">{d.weekday} <span class="num">{d.dayNum}</span></span>
-				<span class="total tabular" data-testid="day-total">{formatHM(week.dayMs[i])}</span>
+				<span class="total tabular" data-testid="day-total">{formatHM(week.dayMs[i], t.intl)}</span>
 			</div>
 		{/each}
 
@@ -113,7 +115,7 @@
 				<button
 					type="button"
 					class="slot"
-					aria-label="Log time on {d.label}"
+					aria-label={t.calendar.logTimeOn(d.label)}
 					onclick={(e) => slotClick(e, d)}
 				></button>
 
@@ -125,7 +127,7 @@
 						style:--b={p.block.endMin}
 						style:--col={p.column}
 						style:--cols={p.columns}
-						title="Planned: {p.block.taskTitle}"
+						title={t.calendar.planned(p.block.taskTitle)}
 					>
 						<span class="plan-title">{p.block.taskTitle}</span>
 					</div>
@@ -134,7 +136,7 @@
 				{#each placed[i] as p (p.item.key)}
 					{@const s = p.item.session}
 					{@const tall = p.bottom - p.top >= TALL_MIN}
-					{@const span = sessionSpanLabel(s, timeZone)}
+					{@const span = sessionSpanLabel(s, timeZone, t.intl)}
 					{#if s.active}
 						<a
 							class="entry hatch active"
@@ -147,15 +149,18 @@
 							style:--b={p.bottom}
 							style:--col={p.column}
 							style:--cols={p.columns}
-							aria-label="{s.paused ? 'Paused' : 'Running'}: {s.taskTitle}, since {wallClock(
-								s.startedAt,
-								timeZone
-							)}"
+							aria-label={t.calendar.activeAria(
+								!!s.paused,
+								s.taskTitle,
+								wallClock(s.startedAt, timeZone)
+							)}
 						>
 							<span class="title"><span class="rec" aria-hidden="true"></span>{s.taskTitle}</span>
 							{#if tall}
 								<span class="time tabular">
-									{wallClock(s.startedAt, timeZone)} – {s.paused ? 'paused' : 'now'}
+									{wallClock(s.startedAt, timeZone)} – {s.paused
+										? t.calendar.paused
+										: t.calendar.now}
 								</span>
 							{/if}
 						</a>
@@ -170,14 +175,14 @@
 							style:--b={p.bottom}
 							style:--col={p.column}
 							style:--cols={p.columns}
-							aria-label="Edit {s.taskTitle}, {span}"
+							aria-label={t.calendar.editAria(s.taskTitle, span)}
 							title="{s.taskTitle} · {span}"
 							onclick={() => onedit(s)}
 						>
 							<span class="title">{s.taskTitle}</span>
 							{#if tall}<span class="time tabular">{span}</span>{/if}
 							{#if s.taskDone}
-								<span class="done" aria-label="Done"><CircleCheck size={11} /></span>
+								<span class="done" aria-label={t.calendar.done}><CircleCheck size={11} /></span>
 							{/if}
 						</button>
 					{/if}

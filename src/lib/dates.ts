@@ -61,17 +61,17 @@ export function weekDays(day: ISODay): ISODay[] {
  * `"Oct – Nov 2026"` when the Mon–Sun range spans two months (with years baked
  * in when it spans a year end: `"Dec 2025 – Jan 2026"`).
  */
-export function weekMonthLabel(monday: ISODay): string {
+export function weekMonthLabel(monday: ISODay, locale = 'en-US'): string {
 	const first = parseDay(monday);
 	const last = new Date(first.getTime() + 6 * DAY_MS);
 	if (
 		first.getUTCFullYear() === last.getUTCFullYear() &&
 		first.getUTCMonth() === last.getUTCMonth()
 	) {
-		return formatDayLabel(monday, { month: 'long', year: 'numeric' });
+		return formatDayLabel(monday, { month: 'long', year: 'numeric' }, locale);
 	}
 	const fmt = (d: Date, options: Intl.DateTimeFormatOptions) =>
-		new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).format(d);
+		new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(d);
 	const sameYear = first.getUTCFullYear() === last.getUTCFullYear();
 	const left = sameYear
 		? fmt(first, { month: 'short' })
@@ -82,14 +82,24 @@ export function weekMonthLabel(monday: ISODay): string {
 /**
  * Compact range label for the week whose Monday is `monday`: `"Nov 9 – 15"`, or
  * `"Oct 26 – Nov 1"` when the Mon–Sun range spans two months (also across a year end).
+ * Other locales use their own range pattern (German: `"9.–15. Nov."`).
  */
-export function weekRangeLabel(monday: ISODay): string {
+export function weekRangeLabel(monday: ISODay, locale = 'en-US'): string {
 	const sunday = addDays(monday, 6);
-	const left = formatDayLabel(monday, { month: 'short', day: 'numeric' });
-	const sameMonth = monday.slice(0, 7) === sunday.slice(0, 7);
+	return dayRangeLabel(monday, sunday, locale);
+}
+
+/** `"Oct 1 – Dec 31"` / `"1. Okt. – 31. Dez."` (month + day; one month shown once when shared). */
+export function dayRangeLabel(first: ISODay, last: ISODay, locale = 'en-US'): string {
+	const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', timeZone: 'UTC' };
+	if (!locale.startsWith('en')) {
+		return new Intl.DateTimeFormat(locale, options).formatRange(parseDay(first), parseDay(last));
+	}
+	const left = formatDayLabel(first, options, locale);
+	const sameMonth = first.slice(0, 7) === last.slice(0, 7);
 	const right = sameMonth
-		? String(Number(sunday.slice(8, 10)))
-		: formatDayLabel(sunday, { month: 'short', day: 'numeric' });
+		? String(Number(last.slice(8, 10)))
+		: formatDayLabel(last, options, locale);
 	return `${left} – ${right}`;
 }
 
@@ -151,7 +161,22 @@ export function formatDuration(ms: number): string {
 	return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/** Hours with at most one decimal, without trailing `.0` (10.5 → "10.5h", 3 → "3h"). */
-export function formatHours(hours: number): string {
-	return `${Math.round(hours * 10) / 10}h`;
+/**
+ * Hours with at most one decimal, without trailing `.0` (10.5 → "10.5h", 3 → "3h");
+ * German: decimal comma and a narrow space before the unit ("10,5 h").
+ */
+export function formatHours(hours: number, locale = 'en-US'): string {
+	return `${formatDecimal(Math.round(hours * 10) / 10, locale)}${hourUnit(locale)}`;
+}
+
+/** The hour unit appended to a number: `h` (English), narrow no-break space + `h` (German). */
+export function hourUnit(locale = 'en-US'): string {
+	return locale.startsWith('en') ? 'h' : '\u202fh';
+}
+
+/** A number as written in `locale` (English keeps the plain `String(n)` form: no grouping). */
+export function formatDecimal(n: number, locale = 'en-US'): string {
+	return locale.startsWith('en')
+		? String(n)
+		: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(n);
 }

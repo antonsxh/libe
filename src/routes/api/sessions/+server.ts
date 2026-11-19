@@ -5,13 +5,15 @@ import { validateManualLog, validateSessionSpan } from '#lib/manual-log.ts';
 import { createManualSession, listTaskSessionsOnDay } from '#lib/server/sessions.ts';
 import { getTask, setTaskDone } from '#lib/server/tasks.ts';
 import { activeSessionSpan } from '#lib/server/timer.ts';
+import { i18n } from '#lib/i18n/index.ts';
+import { translateErrors } from '#lib/server/errors.ts';
 import type { RequestHandler } from './$types';
 
 /** `?taskId=&day=` → that task's completed sessions starting on `day` (server TZ). */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const taskId = url.searchParams.get('taskId');
 	const day = url.searchParams.get('day') ?? todayISO();
-	if (!isUuid(taskId) || !isISODay(day)) error(400, 'taskId and day are required.');
+	if (!isUuid(taskId) || !isISODay(day)) error(400, i18n(locals.locale).errors.taskAndDayRequired);
 	return json({ sessions: await listTaskSessionsOnDay(taskId, day) });
 };
 
@@ -21,16 +23,17 @@ export const GET: RequestHandler = async ({ url }) => {
  * - `{ taskId, day, start, endDay, end: 'HH:MM' }` (calendar, explicit end, `validateSessionSpan`)
  * 400 `{ ok: false, errors }` on invalid input.
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const t = i18n(locals.locale);
 	let body: Record<string, unknown>;
 	try {
 		body = (await request.json()) as Record<string, unknown>;
 	} catch {
-		error(400, 'Invalid JSON.');
+		error(400, t.errors.invalidJson);
 	}
 	const taskId = body?.taskId;
 	const task = isUuid(taskId) ? await getTask(taskId) : undefined;
-	if (!task) return json({ ok: false, errors: { task: 'Task not found.' } }, { status: 400 });
+	if (!task) return json({ ok: false, errors: { task: t.errors.taskNotFound } }, { status: 400 });
 
 	const ctx = { now: new Date(), active: await activeSessionSpan() };
 	const result =
@@ -40,7 +43,8 @@ export const POST: RequestHandler = async ({ request }) => {
 					ctx
 				)
 			: validateManualLog({ day: body.day, start: body.start, durationMin: body.durationMin }, ctx);
-	if (!result.ok) return json({ ok: false, errors: result.errors }, { status: 400 });
+	if (!result.ok)
+		return json({ ok: false, errors: translateErrors(result.errors, t) }, { status: 400 });
 
 	const id = await createManualSession({ taskId: task.id, ...result });
 	if (body.markDone === true && task.doneAt === null) await setTaskDone(task.id, true);

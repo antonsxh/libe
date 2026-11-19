@@ -3,6 +3,7 @@ import {
 	addDays,
 	daysBetween,
 	endOfQuarter,
+	formatDayLabel,
 	formatDuration,
 	formatHours,
 	formatMinutes,
@@ -96,5 +97,15 @@ describe('dates', () => {
 		expect(weekMonthLabel('2026-10-26')).toBe('Oct – Nov 2026'); // Mon 26 – Sun 1 Nov
 		// A week spanning a year end names both years.
 		expect(weekMonthLabel('2026-12-28')).toBe('Dec 2026 – Jan 2027');
+	});
+
+	test('German labels: own range pattern, decimal comma, unit after a narrow space', () => {
+		expect(weekRangeLabel('2026-11-09', 'de-DE')).toBe('9.–15. Nov.');
+		expect(weekRangeLabel('2026-10-26', 'de-DE')).toBe('26. Okt. – 1. Nov.');
+		expect(weekMonthLabel('2026-11-16', 'de-DE')).toBe('November 2026');
+		expect(weekMonthLabel('2026-12-28', 'de-DE')).toBe('Dez. 2026 – Jan. 2027');
+		expect(formatDayLabel('2026-11-16', { weekday: 'short' }, 'de-DE')).toBe('Mo');
+		expect(formatHours(10.46, 'de-DE')).toBe('10,5\u202fh');
+		expect(formatHours(3, 'de-DE')).toBe('3\u202fh');
 	});
 });

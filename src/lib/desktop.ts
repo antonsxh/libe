@@ -6,12 +6,11 @@
  * see `src-tauri/src/updates.rs`). Everywhere else (browser, PWA, SSR) `desktopApp()` is `null`.
  */
 
+import type { I18n } from '#lib/i18n/index.ts';
+
 export type UpdateTrack = 'stable' | 'nightly';
 
-export const UPDATE_TRACKS: { value: UpdateTrack; label: string }[] = [
-	{ value: 'stable', label: 'Stable' },
-	{ value: 'nightly', label: 'Nightly' }
-];
+export const UPDATE_TRACKS: UpdateTrack[] = ['stable', 'nightly'];
 
 /** Mirrors `updates::Phase` (serde `tag = "kind"`). */
 export type UpdatePhase =
@@ -21,8 +20,21 @@ export type UpdatePhase =
 	| { kind: 'downloading'; version: string; downloaded: number; total: number | null }
 	| { kind: 'ready'; version: string; needsPassword: boolean }
 	| { kind: 'installing'; version: string }
-	| { kind: 'failed'; message: string }
-	| { kind: 'unavailable'; reason: string };
+	| ({ kind: 'failed'; message: string } & UpdateErrorInfo)
+	| ({ kind: 'unavailable'; reason: string } & UpdateErrorInfo);
+
+/**
+ * Stable code (+ parameters) next to the English `message` / `reason` — added in the app
+ * version that translated its texts. Older apps send only the English text, so every
+ * translation falls back to it for a missing or unknown code.
+ */
+export type UpdateErrorInfo = {
+	code?: string;
+	/** Technical detail (updater / OS error), not translated. */
+	detail?: string;
+	version?: string;
+	track?: string;
+};
 
 export type UpdateState = {
 	/** Version of the running desktop app. */
@@ -65,8 +77,6 @@ export function trackOfVersion(version: string): UpdateTrack | null {
 	return /-nightly\./.test(version) ? 'nightly' : 'stable';
 }
 
-export const trackLabel = (track: UpdateTrack) => (track === 'stable' ? 'Stable' : 'Nightly');
-
 /** While the app is busy, Settings polls quickly; otherwise now and then. */
 export const isBusy = (phase: UpdatePhase) =>
 	phase.kind === 'checking' || phase.kind === 'downloading' || phase.kind === 'installing';
@@ -76,28 +86,68 @@ export function downloadPercent(phase: UpdatePhase): number | null {
 	return Math.min(100, Math.floor((phase.downloaded / phase.total) * 100));
 }
 
+/** A coded app error in `t`'s language; `fallback` (the app's English text) for unknown codes. */
+export function updateErrorText(info: UpdateErrorInfo, fallback: string, t: I18n): string {
+	const c = t.desktop.codes;
+	const detail = info.detail ?? '';
+	switch (info.code) {
+		case 'devBuild':
+			return c.devBuild;
+		case 'unsupportedInstall':
+			return c.unsupportedInstall;
+		case 'noRelease':
+			return info.track ? c.noRelease(trackName(info.track, t)) : fallback;
+		case 'checkFailed':
+			return c.checkFailed(detail);
+		case 'downloadFailed':
+			return info.version ? c.downloadFailed(info.version, detail) : fallback;
+		default:
+			return fallback;
+	}
+}
+
+function trackName(track: string, t: I18n): string {
+	return track === 'stable' || track === 'nightly' ? t.desktop.tracks[track] : track;
+}
+
+/**
+ * Error of a rejected `update_*` command. These stay plain English strings in every app
+ * version (a structured error would read "[object Object]" on older servers' Settings
+ * pages), so the known ones are recognised by their text; anything else is shown as is.
+ */
+export function commandErrorText(err: unknown, t: I18n): string {
+	const raw = String(err);
+	const c = t.desktop.codes;
+	if (raw === 'An update is being installed.') return c.installing;
+	if (raw === 'No update has been downloaded yet.') return c.nothingDownloaded;
+	const prefixed: [string, (detail: string) => string][] = [
+		['Installing the update failed: ', c.installFailed],
+		['Could not save the update track: ', c.saveTrackFailed]
+	];
+	for (const [prefix, text] of prefixed)
+		if (raw.startsWith(prefix)) return text(raw.slice(prefix.length));
+	return raw;
+}
+
 /** One status line for Settings. */
-export function phaseText(phase: UpdatePhase): string {
+export function phaseText(phase: UpdatePhase, t: I18n): string {
+	const p = t.desktop.phases;
 	switch (phase.kind) {
 		case 'idle':
-			return 'Not checked yet.';
+			return p.idle;
 		case 'checking':
-			return 'Checking for updates…';
+			return p.checking;
 		case 'upToDate':
-			return 'Up to date.';
-		case 'downloading': {
-			const pct = downloadPercent(phase);
-			return `Downloading libe ${phase.version}…${pct === null ? '' : ` ${pct} %`}`;
-		}
+			return p.upToDate;
+		case 'downloading':
+			return p.downloading(phase.version, downloadPercent(phase));
 		case 'ready':
-			return phase.needsPassword
-				? `libe ${phase.version} is ready to install (asks for your password).`
-				: `libe ${phase.version} is ready. It installs when you restart or quit the app.`;
+			return phase.needsPassword ? p.readyPassword(phase.version) : p.ready(phase.version);
 		case 'installing':
-			return `Installing libe ${phase.version}…`;
+			return p.installing(phase.version);
 		case 'failed':
-			return phase.message;
+			return updateErrorText(phase, phase.message, t);
 		case 'unavailable':
-			return phase.reason;
+			return updateErrorText(phase, phase.reason, t);
 	}
 }

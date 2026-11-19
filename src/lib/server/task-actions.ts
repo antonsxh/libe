@@ -18,6 +18,7 @@ import {
 	type TaskTarget
 } from '#lib/server/tasks.ts';
 import { parseTaskDuration, validateTaskTitle } from '#lib/task-form.ts';
+import { i18n, type ErrorCode, type Locale } from '#lib/i18n/index.ts';
 
 export function formStr(form: FormData, name: string): string {
 	return String(form.get(name) ?? '');
@@ -45,18 +46,18 @@ export async function taskIdFrom(request: Request): Promise<string | null> {
 /** `questId` must be a UUID of an existing quest (Home's quest add rows). */
 export async function requireQuestTarget(
 	questId: string
-): Promise<{ ok: true; target: TaskTarget } | { ok: false; error: string }> {
-	if (!isUuid(questId)) return { ok: false, error: 'Pick a quest.' };
+): Promise<{ ok: true; target: TaskTarget } | { ok: false; error: ErrorCode }> {
+	if (!isUuid(questId)) return { ok: false, error: 'pickQuest' };
 	const quest = await db.query.quests.findFirst({ where: eq(quests.id, questId) });
 	return quest
 		? { ok: true, target: { kind: 'quest', questId } }
-		: { ok: false, error: 'Quest not found.' };
+		: { ok: false, error: 'questNotFound' };
 }
 
 /** Like {@link requireQuestTarget}, but `'other'`/empty selects kind `other` (Plan picker). */
 export async function optionalQuestTarget(
 	questId: string
-): Promise<{ ok: true; target: TaskTarget } | { ok: false; error: string }> {
+): Promise<{ ok: true; target: TaskTarget } | { ok: false; error: ErrorCode }> {
 	if (questId === '' || questId === 'other') return { ok: true, target: { kind: 'other' } };
 	return requireQuestTarget(questId);
 }
@@ -64,31 +65,38 @@ export async function optionalQuestTarget(
 /** Validated add target; `day` null = backlog. Returned by the `resolve` callback. */
 export type AddResolution =
 	| { ok: true; target: TaskTarget; day: string | null }
-	| { ok: false; errors: { title?: string; duration?: string } };
+	| { ok: false; errors: { title?: ErrorCode; duration?: ErrorCode } };
 
 /**
  * Build an "add task" action: validates title/duration and the `pos` field (top|bottom),
  * then delegates target/day resolution (page-specific) and inserts via `createTask`.
+ * Errors go back translated (`locals.locale`).
  */
 export function addTaskAction(
 	intent: string,
 	resolve: (form: FormData) => AddResolution | Promise<AddResolution>
 ) {
-	return async ({ request }: { request: Request }) => {
+	return async ({ request, locals }: { request: Request; locals: { locale: Locale } }) => {
 		const form = await request.formData();
 		const echo = taskEcho(intent, form);
+		const t = i18n(locals.locale);
+		const text = (code: ErrorCode | undefined) => (code ? t.errors[code] : undefined);
 		const title = validateTaskTitle(formStr(form, 'title'));
 		const duration = parseTaskDuration(formStr(form, 'duration'));
 		if (!title.ok || !duration.ok)
 			return fail(400, {
 				...echo,
 				errors: {
-					title: title.ok ? undefined : title.error,
-					duration: duration.ok ? undefined : duration.error
+					title: text(title.ok ? undefined : title.error),
+					duration: text(duration.ok ? undefined : duration.error)
 				}
 			});
 		const res = await resolve(form);
-		if (!res.ok) return fail(400, { ...echo, errors: res.errors });
+		if (!res.ok)
+			return fail(400, {
+				...echo,
+				errors: { title: text(res.errors.title), duration: text(res.errors.duration) }
+			});
 		await createTask(
 			res.target,
 			{ title: title.title, durationMin: duration.minutes, day: res.day },

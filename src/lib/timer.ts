@@ -9,6 +9,7 @@
  *   - renders the live timer on clients from a server snapshot plus a clock offset (`timerView`).
  */
 import { isUuid } from '#lib/ids.ts';
+import type { ErrorCode, I18n } from '#lib/i18n/index.ts';
 
 export type TimerMode = 'focus' | 'pomodoro';
 export type PomodoroPhase = 'focus' | 'short_break' | 'long_break';
@@ -51,7 +52,8 @@ export interface SessionClock {
 	durationMin: number | null;
 }
 
-export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+/** `error` is a code for `t.errors[code]`. */
+export type Result<T> = { ok: true; value: T } | { ok: false; error: ErrorCode };
 
 /** Running time so far: wall time minus finished pauses minus the live pause. Never negative. */
 export function clockElapsedMs(s: SessionClock, now: number): number {
@@ -60,12 +62,12 @@ export function clockElapsedMs(s: SessionClock, now: number): number {
 }
 
 export function pauseClock(s: SessionClock, now: number): Result<SessionClock> {
-	if (s.state !== 'running') return { ok: false, error: 'The timer is not running.' };
+	if (s.state !== 'running') return { ok: false, error: 'timerNotRunning' };
 	return { ok: true, value: { ...s, state: 'paused', pausedAt: Math.max(now, s.startedAt) } };
 }
 
 export function resumeClock(s: SessionClock, now: number): Result<SessionClock> {
-	if (s.state !== 'paused') return { ok: false, error: 'The timer is not paused.' };
+	if (s.state !== 'paused') return { ok: false, error: 'timerNotPaused' };
 	const pause = s.pausedAt !== null ? Math.max(0, now - s.pausedAt) : 0;
 	return {
 		ok: true,
@@ -198,7 +200,7 @@ export function startPendingPhase(
 	settings: PomodoroSettings,
 	now: number
 ): Result<RunClock> {
-	if (run.phaseStartedAt !== null) return { ok: false, error: 'This phase is already running.' };
+	if (run.phaseStartedAt !== null) return { ok: false, error: 'phaseRunning' };
 	if (run.phase === 'focus') {
 		const durationMin = settings.focusMin;
 		return {
@@ -220,7 +222,7 @@ export function skipBreak(
 	settings: PomodoroSettings,
 	now: number
 ): Result<RunClock> {
-	if (run.phase === 'focus') return { ok: false, error: 'There is no break to skip.' };
+	if (run.phase === 'focus') return { ok: false, error: 'noBreakToSkip' };
 	const durationMin = settings.focusMin;
 	return {
 		ok: true,
@@ -279,6 +281,19 @@ export interface TimerSnapshot {
 
 export type DotState = 'done' | 'current' | 'todo';
 
+export type TimerLabelState = keyof I18n['timer']['states'];
+/** Language-neutral state line of a timer view; `round` = position in the pomodoro cycle. */
+export interface TimerLabel {
+	state: TimerLabelState;
+	round?: { n: number; of: number };
+}
+
+/** `RUNNING`, `FOCUS · ROUND 2/4`, … in `t`'s language. */
+export function timerLabelText(label: TimerLabel, t: I18n): string {
+	const state = t.timer.states[label.state];
+	return label.round ? `${state} · ${t.timer.round(label.round.n, label.round.of)}` : state;
+}
+
 export interface TimerView {
 	taskId: string;
 	mode: TimerMode;
@@ -288,8 +303,8 @@ export interface TimerView {
 	status: 'running' | 'paused' | 'waiting';
 	/** Big timer text: remaining (countdown), elapsed (stopwatch) or `+mm:ss` overtime. */
 	display: string;
-	/** Upper-case state label: RUNNING, PAUSED, OVERTIME, FOCUS · ROUND 2/4, SHORT BREAK, … */
-	label: string;
+	/** State line: RUNNING, PAUSED, OVERTIME, FOCUS · ROUND 2/4, SHORT BREAK, … (`timerLabelText`). */
+	label: TimerLabel;
 	overtime: boolean;
 	/** 0‥1 share of the current target / phase (0 for a stopwatch). */
 	progress: number;
@@ -321,10 +336,6 @@ export function formatClock(totalSeconds: number): string {
 /** Remaining time shown as a countdown rounds *up* (a fresh 25-min timer shows 25:00). */
 const ceilSec = (ms: number) => Math.ceil(Math.max(0, ms) / 1000);
 const floorSec = (ms: number) => Math.floor(Math.max(0, ms) / 1000);
-
-export function phaseName(phase: PomodoroPhase): string {
-	return phase === 'focus' ? 'Focus' : phase === 'short_break' ? 'Short break' : 'Long break';
-}
 
 /** Convert a snapshot's run + session into the pure {@link RunClock}. */
 export function runClockOf(timer: ActiveTimer): RunClock | null {
@@ -362,7 +373,7 @@ export function timerView(timer: ActiveTimer, settings: PomodoroSettings, now: n
 				phase: null,
 				status: 'waiting',
 				display: formatClock(0),
-				label: 'READY',
+				label: { state: 'ready' },
 				overtime: false,
 				progress: 0,
 				elapsedMs: 0,
@@ -386,7 +397,7 @@ export function timerView(timer: ActiveTimer, settings: PomodoroSettings, now: n
 			phase: null,
 			status: s.state,
 			display,
-			label: s.state === 'paused' ? 'PAUSED' : overtime ? 'OVERTIME' : 'RUNNING',
+			label: { state: s.state === 'paused' ? 'paused' : overtime ? 'overtime' : 'running' },
 			overtime,
 			progress: target ? Math.min(1, elapsed / target) : 0,
 			elapsedMs: elapsed,
@@ -400,7 +411,7 @@ export function timerView(timer: ActiveTimer, settings: PomodoroSettings, now: n
 	const rolled = rolloverPomodoro(run, settings, now);
 	const projected = rolled.run;
 	const every = Math.max(1, settings.longBreakEvery);
-	const roundLabel = `ROUND ${((projected.round - 1) % every) + 1}/${every}`;
+	const round = { n: ((projected.round - 1) % every) + 1, of: every };
 	const dots = cycleDots(projected.round, every, projected.phase);
 	const lengthMs = projected.phaseMin * 60_000;
 	const common = { ...base, phase: projected.phase, overtime: false, dots, stale: rolled.changed };
@@ -410,7 +421,7 @@ export function timerView(timer: ActiveTimer, settings: PomodoroSettings, now: n
 			...common,
 			status: 'waiting',
 			display: formatClock(projected.phaseMin * 60),
-			label: projected.phase === 'focus' ? `READY · ${roundLabel}` : 'BREAK TIME',
+			label: projected.phase === 'focus' ? { state: 'ready', round } : { state: 'breakTime' },
 			progress: 0,
 			elapsedMs: 0,
 			isFocus: projected.phase === 'focus',
@@ -425,7 +436,7 @@ export function timerView(timer: ActiveTimer, settings: PomodoroSettings, now: n
 			...common,
 			status: s.state,
 			display: formatClock(ceilSec(target - elapsed)),
-			label: `${s.state === 'paused' ? 'PAUSED' : 'FOCUS'} · ${roundLabel}`,
+			label: { state: s.state === 'paused' ? 'paused' : 'focus', round },
 			progress: Math.min(1, elapsed / target),
 			elapsedMs: elapsed,
 			isFocus: true,
@@ -437,7 +448,7 @@ export function timerView(timer: ActiveTimer, settings: PomodoroSettings, now: n
 		...common,
 		status: 'running',
 		display: formatClock(ceilSec(lengthMs - elapsed)),
-		label: projected.phase === 'long_break' ? 'LONG BREAK' : 'SHORT BREAK',
+		label: { state: projected.phase === 'long_break' ? 'longBreak' : 'shortBreak' },
 		progress: Math.min(1, elapsed / lengthMs),
 		elapsedMs: 0,
 		isFocus: false,
@@ -452,10 +463,7 @@ export function parsePlannedMin(raw: unknown): Result<number | null> {
 	if (raw === null || raw === undefined || raw === '') return { ok: true, value: null };
 	const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
 	if (!Number.isInteger(n) || n < 1 || n > MAX_TIMER_MIN)
-		return {
-			ok: false,
-			error: `Planned minutes must be a whole number from 1 to ${MAX_TIMER_MIN}.`
-		};
+		return { ok: false, error: 'plannedMinInvalid' };
 	return { ok: true, value: n };
 }
 
@@ -466,26 +474,29 @@ export function defaultPlannedMin(task: { durationMin: number | null }): number 
 		: DEFAULT_FOCUS_MIN;
 }
 
-const SETTING_LIMITS = {
-	focusMin: [1, 180, 'Focus length'],
-	shortBreakMin: [1, 60, 'Short break'],
-	longBreakMin: [1, 120, 'Long break'],
-	longBreakEvery: [1, 12, 'Long break every']
+/** `[min, max]` of each pomodoro setting and its error code. */
+export const POMODORO_LIMITS = {
+	focusMin: [1, 180, 'pomodoroFocusMin'],
+	shortBreakMin: [1, 60, 'pomodoroShortBreakMin'],
+	longBreakMin: [1, 120, 'pomodoroLongBreakMin'],
+	longBreakEvery: [1, 12, 'pomodoroLongBreakEvery']
 } as const;
 
+/** Error codes per field (`parsePomodoroSettings`). */
+export type SettingsErrorCodes = Partial<Record<keyof PomodoroSettings, ErrorCode>>;
+/** Translated errors per field (form action result). */
 export type SettingsErrors = Partial<Record<keyof PomodoroSettings, string>>;
 
 /** Validate pomodoro settings from form/JSON values (`autoStart`: 'on' | '1' | 'true' | true). */
 export function parsePomodoroSettings(
 	raw: Record<string, unknown>
-): { ok: true; value: PomodoroSettings } | { ok: false; errors: SettingsErrors } {
-	const errors: SettingsErrors = {};
+): { ok: true; value: PomodoroSettings } | { ok: false; errors: SettingsErrorCodes } {
+	const errors: SettingsErrorCodes = {};
 	const nums: Record<string, number> = {};
-	for (const [key, [min, max, label]] of Object.entries(SETTING_LIMITS)) {
+	for (const [key, [min, max, code]] of Object.entries(POMODORO_LIMITS)) {
 		const v = raw[key];
 		const n = typeof v === 'number' ? v : Number(String(v ?? '').trim() || NaN);
-		if (!Number.isInteger(n) || n < min || n > max)
-			errors[key as keyof PomodoroSettings] = `${label}: a whole number from ${min} to ${max}.`;
+		if (!Number.isInteger(n) || n < min || n > max) errors[key as keyof PomodoroSettings] = code;
 		else nums[key] = n;
 	}
 	if (Object.keys(errors).length > 0) return { ok: false, errors };
@@ -533,13 +544,13 @@ export type TimerCommand =
  */
 export function parseTimerCommand(
 	raw: Record<string, unknown>
-): { ok: true; command: TimerCommand } | { ok: false; error: string } {
+): { ok: true; command: TimerCommand } | { ok: false; error: ErrorCode } {
 	const action = raw.action;
 	if (action === 'start') {
 		const taskId = raw.taskId;
-		if (!isUuid(taskId)) return { ok: false, error: 'Pick a task.' };
+		if (!isUuid(taskId)) return { ok: false, error: 'pickTask' };
 		const mode = raw.mode ?? 'focus';
-		if (mode !== 'focus' && mode !== 'pomodoro') return { ok: false, error: 'Unknown mode.' };
+		if (mode !== 'focus' && mode !== 'pomodoro') return { ok: false, error: 'unknownMode' };
 		let plannedMin: number | null | undefined;
 		if ('plannedMin' in raw && mode === 'focus') {
 			const p = parsePlannedMin(raw.plannedMin);
@@ -564,10 +575,10 @@ export function parseTimerCommand(
 				? (raw.settings as Record<string, unknown>)
 				: raw
 		);
-		if (!s.ok) return { ok: false, error: Object.values(s.errors).join(' ') };
+		if (!s.ok) return { ok: false, error: Object.values(s.errors)[0] ?? 'invalidBody' };
 		return { ok: true, command: { action, settings: s.value } };
 	}
 	if (typeof action === 'string' && (SIMPLE_ACTIONS as readonly string[]).includes(action))
 		return { ok: true, command: { action: action as SimpleAction } };
-	return { ok: false, error: 'Unknown timer action.' };
+	return { ok: false, error: 'unknownTimerAction' };
 }

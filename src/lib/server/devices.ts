@@ -16,6 +16,7 @@ import { db } from './db/index.ts';
 import { devices, pairingCodes, type Device } from './db/schema.ts';
 import { closeDeviceStreams } from './device-streams.ts';
 import { generatePairingCode, generateToken, sha256Hex } from './tokens.ts';
+import { i18n, type ErrorCode, type Locale } from '#lib/i18n/index.ts';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -311,18 +312,18 @@ export async function pairWithCode(
 	});
 }
 
-/** Human message for a failed pairing. */
-export function pairErrorMessage(reason: Exclude<PairResult, { ok: true }>['reason']): string {
-	switch (reason) {
-		case 'format':
-			return 'Enter the 6-digit code shown on your other device.';
-		case 'expired':
-			return 'This code has expired. Generate a new one on your other device.';
-		case 'used':
-			return 'This code was already used. Generate a new one on your other device.';
-		case 'locked':
-			return 'Too many wrong attempts for this code. Generate a new one on your other device.';
-		case 'wrong':
-			return 'Wrong code. Check the code on your other device and try again.';
-	}
+const PAIR_ERRORS = {
+	format: 'pairCodeFormat',
+	expired: 'pairCodeExpired',
+	used: 'pairCodeUsed',
+	locked: 'pairCodeLocked',
+	wrong: 'pairCodeWrong'
+} as const satisfies Record<Exclude<PairResult, { ok: true }>['reason'], ErrorCode>;
+
+/** Human message for a failed pairing, in `locale`. */
+export function pairErrorMessage(
+	reason: Exclude<PairResult, { ok: true }>['reason'],
+	locale: Locale
+): string {
+	return i18n(locale).errors[PAIR_ERRORS[reason]];
 }

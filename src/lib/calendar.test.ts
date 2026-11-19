@@ -236,6 +236,8 @@ describe('helpers', () => {
 		expect(formatHM(539 * MIN)).toBe('8h 59m');
 		expect(formatHM(120 * MIN)).toBe('2h');
 		expect(formatHM(29_000)).toBe('0m');
+		expect(formatHM(539 * MIN, 'de-DE')).toBe('8\u202fh 59\u202fmin');
+		expect(formatHM(120 * MIN, 'de-DE')).toBe('2\u202fh');
 	});
 
 	test('sessionSpanLabel', () => {
@@ -244,6 +246,9 @@ describe('helpers', () => {
 		);
 		expect(sessionSpanLabel(s('2026-11-12T21:56:00Z', '2026-11-12T23:08:00Z'), TZ)).toBe(
 			'Thu 22:56 – Fri 00:08'
+		);
+		expect(sessionSpanLabel(s('2026-11-12T21:56:00Z', '2026-11-12T23:08:00Z'), TZ, 'de-DE')).toBe(
+			'Do 22:56 – Fr 00:08'
 		);
 		// ending exactly at midnight stays on the start day
 		expect(sessionSpanLabel(s('2026-11-12T22:00:00Z', '2026-11-12T23:00:00Z'), TZ)).toBe(

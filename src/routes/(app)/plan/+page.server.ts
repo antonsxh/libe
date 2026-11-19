@@ -25,9 +25,11 @@ import {
 	sharedTaskActions
 } from '#lib/server/task-actions.ts';
 import { doneLast } from '#lib/ordering.ts';
+import { i18n } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load = (async ({ url }) => {
+export const load = (async ({ url, locals }) => {
+	const t = i18n(locals.locale);
 	// `?week=YYYY-MM-DD` — any day of the desired week (normalised to its Monday);
 	// invalid or missing → the current week.
 	const weekParam = url.searchParams.get('week');
@@ -76,7 +78,7 @@ export const load = (async ({ url }) => {
 		const otherSplit = doneLast(dayTasks.filter((t) => t.kind === 'other'));
 		return {
 			day,
-			weekday: formatDayLabel(day, { weekday: 'short' }),
+			weekday: formatDayLabel(day, { weekday: 'short' }, t.intl),
 			dayNum: Number(day.slice(8, 10)),
 			isToday: day === today,
 			isPast: day < today,
@@ -105,13 +107,13 @@ export const load = (async ({ url }) => {
 					questBacklog.filter((t) => t.questId === quest.id)
 				)
 			),
-		group('other', 'Other', null, otherBacklog)
+		group('other', t.common.other, null, otherBacklog)
 	].filter((g) => g.open.length + g.done.length > 0);
 
 	return {
 		weekMonday,
 		today,
-		monthLabel: weekMonthLabel(weekMonday),
+		monthLabel: weekMonthLabel(weekMonday, t.intl),
 		columns,
 		backlogGroups,
 		quests: quests_,
@@ -134,7 +136,7 @@ export const actions: Actions = {
 	/** Add a task to a day column. `questId` may be `'other'`/empty → kind `other`. */
 	add: addTaskAction('add', async (form) => {
 		const day = formStr(form, 'day');
-		if (!isISODay(day)) return { ok: false, errors: { title: 'Unknown day.' } };
+		if (!isISODay(day)) return { ok: false, errors: { title: 'unknownDay' } };
 		const target = await optionalQuestTarget(formStr(form, 'questId'));
 		return target.ok
 			? { ok: true, target: target.target, day }
@@ -146,7 +148,7 @@ export const actions: Actions = {
 		const day = formStr(form, 'day');
 		return isISODay(day)
 			? { ok: true, target: { kind: 'other' }, day }
-			: { ok: false, errors: { title: 'Unknown day.' } };
+			: { ok: false, errors: { title: 'unknownDay' } };
 	}),
 
 	/** Add a task to a quest's backlog (backlog column). */

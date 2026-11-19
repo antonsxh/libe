@@ -10,6 +10,7 @@
 	import type { Quest } from '#lib/server/db/schema.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	/** One backlog list: a quest's tasks without a day (`key` = quest id), or `'other'`. */
 	export interface BacklogGroup {
@@ -31,6 +32,7 @@
 		form?: TaskFormResult | null;
 	};
 	let { groups, quests, count, today, form = null }: Props = $props();
+	const t = useI18n();
 
 	/** Client-only UI state: whether the rail is expanded (not worth a URL param). */
 	let expanded = $state(true);
@@ -78,14 +80,21 @@
 </script>
 
 {#if expanded}
-	<section class="rail" aria-label="Backlog" bind:this={rail} {ondragover} {ondragleave} {ondrop}>
+	<section
+		class="rail"
+		aria-label={t.common.backlog}
+		bind:this={rail}
+		{ondragover}
+		{ondragleave}
+		{ondrop}
+	>
 		<header class="rail-head">
-			<h2 class="title">Backlog</h2>
-			<span class="count tabular" title="Open backlog tasks">{count}</span>
+			<h2 class="title">{t.common.backlog}</h2>
+			<span class="count tabular" title={t.plan.openBacklog}>{count}</span>
 			<button
 				type="button"
 				class="collapse"
-				aria-label="Collapse backlog"
+				aria-label={t.plan.collapseBacklog}
 				aria-expanded="true"
 				onclick={() => (expanded = false)}
 			>
@@ -94,7 +103,7 @@
 		</header>
 
 		<div class="add-slot">
-			<TaskAddForm action="addBacklog" placeholder="Add to backlog…" compact {quests} {form} />
+			<TaskAddForm action="addBacklog" placeholder={t.tasks.addToBacklog} compact {quests} {form} />
 		</div>
 
 		<div class="body">
@@ -123,7 +132,7 @@
 									<button
 										type="submit"
 										class="check"
-										aria-label={task.doneAt === null ? 'Mark as done' : 'Mark as not done'}
+										aria-label={task.doneAt === null ? t.common.markDone : t.common.markNotDone}
 									>
 										{#if task.doneAt !== null}<Check size={11} strokeWidth={3} />{/if}
 									</button>
@@ -132,14 +141,15 @@
 								{#if task.durationMin !== null}
 									<span class="dur tabular">{formatDuration(task.durationMin * 60_000)}</span>
 								{/if}
-								<Menu label={`Actions for ${task.title}`}>
+								<Menu label={t.common.actionsFor(task.title)}>
 									{#snippet children(close)}
 										<form method="POST" action={formAction('moveTo')} use:enhance={() => close()}>
 											<input type="hidden" name="taskId" value={task.id} />
 											<input type="hidden" name="day" value={today} />
 											<input type="hidden" name="beforeId" value="" />
 											<button type="submit" class="item" role="menuitem">
-												<CalendarArrowDown size={14} /> Move to today
+												<CalendarArrowDown size={14} />
+												{t.tasks.moveToToday}
 											</button>
 										</form>
 										<form
@@ -149,7 +159,8 @@
 										>
 											<input type="hidden" name="taskId" value={task.id} />
 											<button type="submit" class="item danger" role="menuitem">
-												<Trash2 size={14} /> Delete
+												<Trash2 size={14} />
+												{t.common.delete}
 											</button>
 										</form>
 									{/snippet}
@@ -168,7 +179,7 @@
 			{/if}
 
 			{#if groups.length === 0}
-				<p class="muted empty">Nothing waiting in the backlog.</p>
+				<p class="muted empty">{t.tasks.backlogEmpty}</p>
 			{/if}
 		</div>
 
@@ -182,12 +193,12 @@
 	<button
 		type="button"
 		class="rail-strip"
-		aria-label="Expand backlog"
+		aria-label={t.plan.expandBacklog}
 		aria-expanded="false"
 		onclick={() => (expanded = true)}
 	>
 		<ChevronRight size={14} />
-		<span class="strip-label">Backlog</span>
+		<span class="strip-label">{t.common.backlog}</span>
 		<span class="count tabular">{count}</span>
 	</button>
 {/if}

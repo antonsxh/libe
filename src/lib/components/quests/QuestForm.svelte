@@ -6,6 +6,7 @@
 	import { QUEST_COLORS, questColorVar } from '#lib/quest-colors.ts';
 	import { QUEST_DESC_MAX, QUEST_NAME_MAX, type QuestFormResult } from '#lib/quest-form.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
 		mode: 'create' | 'update';
@@ -18,6 +19,7 @@
 	};
 
 	let { mode, quest = null, form = null, ondone }: Props = $props();
+	const t = useI18n();
 
 	/** Echoed input while a validation error is shown; otherwise the quest's values. */
 	const echo = $derived(form?.intent === mode && form.errors ? form : undefined);
@@ -42,13 +44,13 @@
 	{/if}
 
 	<label class="field">
-		<span class="label">Name</span>
+		<span class="label">{t.quests.form.name}</span>
 		<input
 			name="name"
 			type="text"
 			required
 			maxlength={QUEST_NAME_MAX}
-			placeholder="Launch my idea"
+			placeholder={t.quests.form.namePlaceholder}
 			autocomplete="off"
 			value={echo?.name ?? quest?.name ?? ''}
 		/>
@@ -56,19 +58,19 @@
 	</label>
 
 	<label class="field">
-		<span class="label">Description</span>
+		<span class="label">{t.quests.form.description}</span>
 		<textarea
 			name="description"
 			rows="3"
 			maxlength={QUEST_DESC_MAX}
-			placeholder="The few things that actually matter…"
+			placeholder={t.quests.form.descriptionPlaceholder}
 			value={echo?.description ?? quest?.description ?? ''}></textarea>
 		{#if echo?.errors?.description}<span class="error">{echo.errors.description}</span>{/if}
 	</label>
 
 	<div class="row">
 		<div class="field">
-			<span class="label" id="icon-label">Icon</span>
+			<span class="label" id="icon-label">{t.quests.form.icon}</span>
 			<div class="icon-row">
 				<input
 					class="icon-input"
@@ -79,12 +81,12 @@
 					aria-labelledby="icon-label"
 					autocomplete="off"
 				/>
-				<div class="emoji-grid" role="group" aria-label="Suggested emoji">
+				<div class="emoji-grid" role="group" aria-label={t.quests.form.suggested}>
 					{#each SUGGESTED_EMOJIS as emoji (emoji)}
 						<button
 							type="button"
 							class="emoji-pick"
-							aria-label={`Use ${emoji} as icon`}
+							aria-label={t.quests.form.useIcon(emoji)}
 							onclick={() => (icon = emoji)}
 						>
 							{emoji}
@@ -96,7 +98,7 @@
 		</div>
 
 		<label class="field">
-			<span class="label">Weekly budget · h</span>
+			<span class="label">{t.quests.form.budget}</span>
 			<input
 				class="budget"
 				name="weeklyBudgetH"
@@ -104,7 +106,7 @@
 				min="0.5"
 				max="168"
 				step="0.5"
-				placeholder="none"
+				placeholder={t.quests.form.budgetPlaceholder}
 				value={echo?.weeklyBudgetH ?? quest?.weeklyBudgetH ?? ''}
 			/>
 			{#if echo?.errors?.weeklyBudgetH}
@@ -114,11 +116,11 @@
 	</div>
 
 	<div class="field">
-		<span class="label">Colour</span>
-		<div class="swatches" role="radiogroup" aria-label="Quest colour">
+		<span class="label">{t.quests.form.colour}</span>
+		<div class="swatches" role="radiogroup" aria-label={t.quests.form.colourGroup}>
 			{#each QUEST_COLORS as c (c)}
-				<label class="swatch" style:--q={questColorVar(c)} title={c}>
-					<input type="radio" name="color" value={c} bind:group={color} aria-label={c} />
+				<label class="swatch" style:--q={questColorVar(c)} title={t.colors[c]}>
+					<input type="radio" name="color" value={c} bind:group={color} aria-label={t.colors[c]} />
 					<span class="dot" aria-hidden="true"></span>
 				</label>
 			{/each}
@@ -128,11 +130,11 @@
 
 	<div class="foot">
 		<span class="muted hint">
-			{mode === 'create' ? 'You can change everything later.' : ''}
+			{mode === 'create' ? t.quests.form.changeLater : ''}
 		</span>
-		<Button variant="ghost" onclick={() => ondone()}>Cancel</Button>
+		<Button variant="ghost" onclick={() => ondone()}>{t.common.cancel}</Button>
 		<Button variant="primary" type="submit">
-			{mode === 'create' ? 'Create quest' : 'Save changes'}
+			{mode === 'create' ? t.quests.form.create : t.quests.form.saveChanges}
 		</Button>
 	</div>
 </form>

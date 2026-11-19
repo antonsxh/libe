@@ -3,7 +3,8 @@
 	import Button from '#lib/components/Button.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import { formAction } from '#lib/form-action.ts';
-	import type { PomodoroSettings, SettingsErrors } from '#lib/timer.ts';
+	import { POMODORO_LIMITS, type PomodoroSettings, type SettingsErrors } from '#lib/timer.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type SettingsForm = {
 		intent?: string;
@@ -18,6 +19,7 @@
 		onclose: () => void;
 	};
 	let { settings, form, onclose }: Props = $props();
+	const t = useI18n();
 
 	let open = $state(true);
 	$effect(() => {
@@ -28,15 +30,25 @@
 	const val = (key: keyof PomodoroSettings) =>
 		failed?.values?.[key] ?? String(settings[key as Exclude<keyof PomodoroSettings, 'autoStart'>]);
 
-	const FIELDS = [
-		{ key: 'focusMin', label: 'Focus', unit: 'min', min: 1, max: 180 },
-		{ key: 'shortBreakMin', label: 'Short break', unit: 'min', min: 1, max: 60 },
-		{ key: 'longBreakMin', label: 'Long break', unit: 'min', min: 1, max: 120 },
-		{ key: 'longBreakEvery', label: 'Long break every', unit: 'rounds', min: 1, max: 12 }
-	] as const;
+	const FIELDS = $derived.by(() => {
+		const s = t.focus.settings;
+		const field = (key: keyof typeof POMODORO_LIMITS, label: string, unit: string) => ({
+			key,
+			label,
+			unit,
+			min: POMODORO_LIMITS[key][0],
+			max: POMODORO_LIMITS[key][1]
+		});
+		return [
+			field('focusMin', s.focus, s.unitMin),
+			field('shortBreakMin', s.shortBreak, s.unitMin),
+			field('longBreakMin', s.longBreak, s.unitMin),
+			field('longBreakEvery', s.longBreakEvery, s.unitRounds)
+		];
+	});
 </script>
 
-<Dialog bind:open title="Pomodoro settings">
+<Dialog bind:open title={t.focus.pomodoroSettings}>
 	<form
 		method="POST"
 		action={formAction('settings')}
@@ -69,14 +81,12 @@
 		</div>
 		<label class="check">
 			<input type="checkbox" name="autoStart" checked={settings.autoStart} />
-			Start breaks and the next round automatically
+			{t.focus.settings.autoStart}
 		</label>
-		<p class="hint muted">
-			Changes apply from the next phase. After a long break the next round always waits for you.
-		</p>
+		<p class="hint muted">{t.focus.settings.hint}</p>
 		<div class="actions">
-			<Button variant="secondary" onclick={() => (open = false)}>Cancel</Button>
-			<Button variant="primary" type="submit">Save</Button>
+			<Button variant="secondary" onclick={() => (open = false)}>{t.common.cancel}</Button>
+			<Button variant="primary" type="submit">{t.common.save}</Button>
 		</div>
 	</form>
 </Dialog>

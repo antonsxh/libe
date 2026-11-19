@@ -1,21 +1,24 @@
 <script lang="ts">
 	import { formatHours } from '#lib/dates.ts';
 	import { percent } from '#lib/review.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = { questMin: number; otherMin: number };
 	let { questMin, otherMin }: Props = $props();
+	const t = useI18n();
+	const hours = (h: number) => formatHours(h, t.intl);
 
 	const total = $derived(questMin + otherMin);
 	const share = $derived(total > 0 ? (questMin / total) * 100 : 0);
 	const summary = $derived(
 		total > 0
-			? `Quest work ${formatHours(questMin / 60)} (${percent(questMin, total)}%), other ${formatHours(otherMin / 60)}`
-			: 'No time logged this week'
+			? t.review.split(hours(questMin / 60), percent(questMin, total), hours(otherMin / 60))
+			: t.review.noTimeThisWeek
 	);
 </script>
 
 <section class="card panel" aria-labelledby="split-label">
-	<h2 class="label" id="split-label">Quest work vs other</h2>
+	<h2 class="label" id="split-label">{t.review.questVsOther}</h2>
 	<div class="stack" role="img" aria-label={summary}>
 		<span class="quest" style:width={`${share}%`}></span>
 	</div>
@@ -23,15 +26,19 @@
 		<span class="item quest-item">
 			<span class="dot"></span>
 			<span>
-				Quest work · <span class="tabular" data-testid="split-quest">
-					{formatHours(questMin / 60)}
+				{t.review.questWorkLegend} ·
+				<span class="tabular" data-testid="split-quest">
+					{hours(questMin / 60)}
 				</span>
 			</span>
 		</span>
 		<span class="item other-item">
 			<span class="dot"></span>
 			<span>
-				Other · <span class="tabular" data-testid="split-other">{formatHours(otherMin / 60)}</span>
+				{t.common.other} ·
+				<span class="tabular" data-testid="split-other">
+					{hours(otherMin / 60)}
+				</span>
 			</span>
 		</span>
 	</p>

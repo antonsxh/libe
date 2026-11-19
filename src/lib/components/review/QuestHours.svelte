@@ -2,9 +2,11 @@
 	import { formatHours } from '#lib/dates.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { QuestWeekRow } from '#lib/review.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = { rows: QuestWeekRow[] };
 	let { rows }: Props = $props();
+	const t = useI18n();
 
 	/** Full track = the largest of any hours or budget, so every budget tick fits. */
 	const scale = $derived(Math.max(60, ...rows.map((r) => Math.max(r.weekMin, r.budgetMin ?? 0))));
@@ -12,9 +14,9 @@
 </script>
 
 <section class="card panel" aria-labelledby="by-quest-label">
-	<h2 class="label" id="by-quest-label">Hours by quest</h2>
+	<h2 class="label" id="by-quest-label">{t.review.hoursByQuest}</h2>
 	{#if rows.length === 0}
-		<p class="empty muted">No quests yet.</p>
+		<p class="empty muted">{t.review.noQuests}</p>
 	{:else}
 		<ul class="rows">
 			{#each rows as r (r.quest.id)}
@@ -27,7 +29,7 @@
 					<span class="who">
 						<span class="dot" style:--q={questColorVar(r.quest.color)}></span>
 						<a class="name" href={`/quests/${r.quest.id}`} title={r.quest.name}>{r.quest.name}</a>
-						{#if r.quest.closed}<span class="sr-only">(closed)</span>{/if}
+						{#if r.quest.closed}<span class="sr-only">{t.review.closedSr}</span>{/if}
 					</span>
 					<span class="track" aria-hidden="true">
 						<span class="fill" style:--q={questColorVar(r.quest.color)} style:width={pct(r.weekMin)}
@@ -37,8 +39,8 @@
 						{/if}
 					</span>
 					<span class="value tabular" data-testid="quest-value">
-						{formatHours(r.weekMin / 60)}{#if r.budgetMin !== null}<span class="budget">
-								{` / ${formatHours(r.budgetMin / 60)}`}
+						{formatHours(r.weekMin / 60, t.intl)}{#if r.budgetMin !== null}<span class="budget">
+								{` / ${formatHours(r.budgetMin / 60, t.intl)}`}
 							</span>{/if}
 					</span>
 				</li>

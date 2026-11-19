@@ -26,6 +26,7 @@
 	import { formatHM } from '#lib/calendar.ts';
 	import { addDays, parseDay } from '#lib/dates.ts';
 	import { parseClock } from '#lib/timeline.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
 		editor: SessionEditor;
@@ -34,6 +35,7 @@
 		onclose: () => void;
 	};
 	let { editor, tasks, weekDays, onclose }: Props = $props();
+	const t = useI18n();
 
 	type Errors = { task?: string; day?: string; start?: string; end?: string; form?: string };
 
@@ -92,7 +94,7 @@
 				message?: string;
 			} | null;
 			if (!res.ok || !data?.ok) {
-				errors = data?.errors ?? { form: data?.message ?? `Could not save (${res.status}).` };
+				errors = data?.errors ?? { form: data?.message ?? t.common.couldNotSave(res.status) };
 				return;
 			}
 			errors = {};
@@ -100,7 +102,7 @@
 			await refreshAll();
 			open = false;
 		} catch {
-			errors = { form: 'Network error — try again.' };
+			errors = { form: t.common.networkError };
 		} finally {
 			busy = false;
 		}
@@ -109,7 +111,7 @@
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
 		if (!taskId) {
-			errors = { task: 'Pick a task.' };
+			errors = { task: t.errors.pickTask };
 			return;
 		}
 		const body = { taskId, day, start, endDay, end };
@@ -126,12 +128,12 @@
 	);
 </script>
 
-<Dialog bind:open title={editing ? 'Edit session' : 'Log time'}>
+<Dialog bind:open title={editing ? t.calendar.dialog.titleEdit : t.calendar.dialog.titleNew}>
 	<form class="session-form" onsubmit={submit} novalidate>
 		{#if errors.form}<p class="error" role="alert">{errors.form}</p>{/if}
 
 		<div class="field">
-			<span class="label">Task</span>
+			<span class="label">{t.common.task}</span>
 			<TaskPicker
 				{tasks}
 				bind:value={taskId}
@@ -143,11 +145,11 @@
 		</div>
 
 		<div class="when">
-			<span class="label">Start</span>
+			<span class="label">{t.common.start}</span>
 			<input
 				type="date"
 				name="day"
-				aria-label="Start date"
+				aria-label={t.calendar.dialog.startDate}
 				bind:value={day}
 				onchange={onStartChange}
 				aria-invalid={errors.day ? 'true' : undefined}
@@ -155,16 +157,16 @@
 			<input
 				type="time"
 				name="start"
-				aria-label="Start time"
+				aria-label={t.calendar.dialog.startTime}
 				bind:value={start}
 				oninput={onStartChange}
 				aria-invalid={errors.start ? 'true' : undefined}
 			/>
-			<span class="label">End</span>
+			<span class="label">{t.common.end}</span>
 			<input
 				type="date"
 				name="endDay"
-				aria-label="End date"
+				aria-label={t.calendar.dialog.endDate}
 				bind:value={endDay}
 				oninput={onEndChange}
 				aria-invalid={errors.end ? 'true' : undefined}
@@ -172,14 +174,14 @@
 			<input
 				type="time"
 				name="end"
-				aria-label="End time"
+				aria-label={t.calendar.dialog.endTime}
 				bind:value={end}
 				oninput={onEndChange}
 				aria-invalid={errors.end ? 'true' : undefined}
 			/>
 		</div>
 		<p class="span muted tabular" aria-live="polite">
-			{#if span !== null && span > 0}{formatHM(span * 60_000)}{:else}—{/if}
+			{#if span !== null && span > 0}{formatHM(span * 60_000, t.intl)}{:else}—{/if}
 		</p>
 
 		{#each fieldErrors as msg (msg)}
@@ -189,13 +191,14 @@
 		<div class="actions">
 			{#if editing}
 				<button type="button" class="delete" disabled={busy} onclick={remove}>
-					<Trash2 size={15} /> Delete
+					<Trash2 size={15} />
+					{t.common.delete}
 				</button>
 			{/if}
 			<span class="spacer"></span>
-			<Button variant="secondary" onclick={() => (open = false)}>Cancel</Button>
+			<Button variant="secondary" onclick={() => (open = false)}>{t.common.cancel}</Button>
 			<Button variant="primary" type="submit" disabled={busy}>
-				{editing ? 'Save' : 'Log time'}
+				{editing ? t.common.save : t.calendar.dialog.submit}
 			</Button>
 		</div>
 	</form>

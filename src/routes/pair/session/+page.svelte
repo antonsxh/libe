@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import AuthShell from '#lib/components/auth/AuthShell.svelte';
 	import { safeNext } from '#lib/auth.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	/**
 	 * Session bootstrap for the Tauri shell: the shell opens
@@ -9,6 +10,7 @@
 	 * the server or logs; this page exchanges the token for the httpOnly cookie with a
 	 * same-origin request and replaces itself (so the token doesn't stay in history).
 	 */
+	const t = useI18n();
 	let error = $state<string | null>(null);
 
 	onMount(async () => {
@@ -17,7 +19,7 @@
 		const next = safeNext(params.get('next'));
 		history.replaceState(null, '', location.pathname);
 		if (!token) {
-			error = 'No device token was provided.';
+			error = t.auth.session.noToken;
 			return;
 		}
 		try {
@@ -36,19 +38,17 @@
 				return;
 			}
 			error =
-				res.status === 401
-					? 'This device was signed out. Pair it again.'
-					: `Could not start the session (${res.status}).`;
+				res.status === 401 ? t.auth.session.signedOut : t.auth.session.startFailed(res.status);
 		} catch {
-			error = 'Could not reach the server.';
+			error = t.auth.session.unreachable;
 		}
 	});
 </script>
 
-<svelte:head><title>Signing in · libe</title></svelte:head>
+<svelte:head><title>{t.auth.session.pageTitle}</title></svelte:head>
 
-<AuthShell title={error ? 'Could not sign in' : 'Signing in…'}>
+<AuthShell title={error ? t.auth.session.failed : t.auth.session.signingIn}>
 	{#if error}
-		<p class="notice" role="alert">{error} <a href="/pair">Pair this device</a></p>
+		<p class="notice" role="alert">{error} <a href="/pair">{t.auth.session.pairAgain}</a></p>
 	{/if}
 </AuthShell>
