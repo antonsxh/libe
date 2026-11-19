@@ -75,6 +75,8 @@ jobs:
         with:
           workspaces: src-tauri
           key: ${{ matrix.target }}
+          # Previews from branches would otherwise save ~2 GB of branch-scoped caches.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - run: bun install --frozen-lockfile
 

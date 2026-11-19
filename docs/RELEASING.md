@@ -10,7 +10,7 @@ candidates, stable promotes a nightly that people already ran, previews test the
 | ------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | `.github/workflows/ci.yml`      | pull requests, pushes to `main`            | `checks.yml` + `docker.yml` (build and smoke test, no push)                                                 |
 | `.github/workflows/release.yml` | hourly schedule, manual dispatch, `v*` tag | plan → checks + desktop + docker in parallel → tag image → GitHub release → (stable) version bump on `main` |
-| `.github/workflows/checks.yml`  | called by both                             | typecheck, lint, unit tests, build · e2e desktop · e2e iPhone/iPad · Tauri clippy + e2e (Xvfb)              |
+| `.github/workflows/checks.yml`  | called by both                             | typecheck, lint, unit tests, build · e2e desktop + iPhone/iPad (one job) · Tauri clippy + e2e (Xvfb)        |
 | `.github/workflows/docker.yml`  | called by both                             | native amd64 + arm64 image builds, smoke test against Postgres 17, optional push by digest                  |
 | `.github/workflows/desktop.yml` | called by `release.yml`                    | Tauri installers: Linux x64/arm64 (`.deb`, `.AppImage`), macOS arm64/x64 (`.dmg`), Windows x64 (NSIS)       |
 | `scripts/release.ts`            | used by the workflows                      | `plan` (channel, commit, version, tags; tests in `scripts/release.test.ts`), `set-version <v>`              |
