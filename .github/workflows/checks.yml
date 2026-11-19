@@ -1,0 +1,150 @@
+name: Checks
+
+# The full quality gate (AGENTS.md "Definition of done"), shared by ci.yml (pull requests,
+# pushes to main) and release.yml (every release waits for it). Keep both callers in mind
+# when changing a job here.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Commit to check (default: the triggering commit)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, lint, unit tests, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
+
+  e2e:
+    name: E2E ${{ matrix.suite }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: desktop
+            projects: --project=desktop
+          - suite: iPhone + iPad
+            projects: --project=mobile-iphone --project=mobile-ipad
+    services:
+      # The suite expects the dev Postgres (`bun run db:dev`): libe/libe on :54330, allowed to
+      # create its own `libe_e2e*` databases.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: libe
+          POSTGRES_PASSWORD: libe
+          POSTGRES_DB: libe
+        ports:
+          - 54330:5432
+        options: >-
+          --health-cmd "pg_isready -U libe -d libe"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - id: playwright
+        run: echo "version=$(bun -e 'console.log(require("@playwright/test/package.json").version)')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: bunx playwright install chromium
+
+      - name: Install Chromium system libraries
+        run: bunx playwright install-deps chromium
+
+      - run: bun run build
+
+      - name: Run e2e (${{ matrix.suite }})
+        run: bunx playwright test -c e2e/playwright.config.ts ${{ matrix.projects }}
+
+      - name: Upload report and traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-${{ strategy.job-index }}-output
+          path: e2e/.output/
+          retention-days: 7
+
+  tauri:
+    name: Desktop app (Tauri) e2e
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: libe
+          POSTGRES_PASSWORD: libe
+          POSTGRES_DB: libe
+        ports:
+          - 54330:5432
+        options: >-
+          --health-cmd "pg_isready -U libe -d libe"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install WebKitGTK, WebKitWebDriver and Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
+            webkit2gtk-driver xvfb
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+          cache-bin: true
+
+      - name: Install tauri-driver
+        run: command -v tauri-driver || cargo install tauri-driver --locked
+
+      - run: bun install --frozen-lockfile
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - run: bun run test:tauri

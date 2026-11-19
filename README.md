@@ -10,9 +10,16 @@ installable on iPhone/iPad as a home-screen web app.
 
 ```sh
 cp .env.example .env          # set LIBE_SETUP_SECRET (openssl rand -base64 24)
-docker compose up --build
+docker compose up -d          # pulls ghcr.io/antonsxh/libe:stable
 # → http://localhost:3000   (migrations run automatically on start)
 ```
+
+Images (linux/amd64 + arm64) are published by the release pipeline: `:stable` / `:latest`
+(newest stable release), `:nightly` (at most every 6 h when `main` changed), and exact
+versions (`:0.2.0`, `:0.2`, `:0.2.1-nightly.20261119.12`). Pick one with `LIBE_IMAGE` in
+`.env`; update with `docker compose pull && docker compose up -d`. `docker compose up --build`
+builds the checkout instead. Releases, channels and desktop installers:
+[docs/RELEASING.md](docs/RELEASING.md).
 
 Open the app, you land on **/setup**: enter `LIBE_SETUP_SECRET` and a name for this device.
 Every other device (browser, phone, desktop app) is then paired with a short code: on a paired
@@ -24,7 +31,7 @@ Paired devices are listed (and can be renamed or revoked) under **Settings**.
 the server's secret owns the server anyway. Unset `LIBE_SETUP_SECRET` to switch it off
 (`compose.yaml` requires it, so comment it out there too).
 
-Env overrides: `POSTGRES_PASSWORD`, `LIBE_PORT`, `LIBE_ORIGIN`, `TZ`, `LIBE_SETUP_SECRET`.
+Env overrides: `POSTGRES_PASSWORD`, `LIBE_PORT`, `LIBE_ORIGIN`, `TZ`, `LIBE_SETUP_SECRET`, `LIBE_IMAGE`.
 
 ### HTTPS (needed for iPhone/iPad, service worker and secure cookies)
 
@@ -32,7 +39,7 @@ The easiest way is the bundled Caddy overlay, which gets a Let's Encrypt certifi
 
 ```sh
 # .env: LIBE_DOMAIN=libe.example.com  (DNS → this host, ports 80/443 open)
-docker compose -f compose.yaml -f compose.caddy.yaml up -d --build
+docker compose -f compose.yaml -f compose.caddy.yaml up -d
 ```
 
 Behind your own reverse proxy instead: set `LIBE_ORIGIN=https://libe.example.com` (→ the
@@ -58,7 +65,9 @@ come back to it, and shows an offline page when the server can't be reached.
 ## Desktop app (Tauri 2)
 
 A thin native window around your server (macOS, Windows, Linux) that keeps its device token in
-the OS keychain. Build instructions, pairing and limitations: [docs/TAURI.md](docs/TAURI.md).
+the OS keychain. Installers (unsigned) are attached to every
+[GitHub release](https://github.com/antonsxh/libe/releases). Build instructions, pairing and
+limitations: [docs/TAURI.md](docs/TAURI.md).
 
 ## Develop
 

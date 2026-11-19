@@ -5,7 +5,10 @@ const SETUP_SECRET_MIN = 12;
 
 export const variables = defineEnvVars({
 	DATABASE_URL: {
-		description: 'Postgres connection string, e.g. postgres://libe:libe@localhost:5432/libe'
+		description: 'Postgres connection string, e.g. postgres://libe:libe@localhost:5432/libe',
+		// Optional here because `vite build` evaluates the env without a database (Docker/CI);
+		// `#lib/server/db/index.ts` refuses to start the server without it.
+		schema: (value) => value?.trim() || undefined
 	},
 	LIBE_SETUP_SECRET: {
 		description:

@@ -19,6 +19,10 @@ services:
       retries: 10
 
   app:
+    # Prebuilt image from GitHub Packages: `stable` (default), `nightly` or an exact version such
+    # as `0.2.0` (LIBE_IMAGE in .env). Update with `docker compose pull && docker compose up -d`.
+    # `docker compose up --build` builds this checkout instead (and stores it under that name).
+    image: ${LIBE_IMAGE:-ghcr.io/antonsxh/libe:stable}
     build: .
     restart: unless-stopped
     depends_on:
