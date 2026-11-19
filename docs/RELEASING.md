@@ -19,6 +19,19 @@ Nothing is published unless **every** job passed: checks, all desktop targets an
 smoke tests. The image is first pushed untagged (by digest); the channel tags are only set
 afterwards, right before the GitHub release is created.
 
+**Checks are not repeated for a commit that already passed them** (`plan` outputs `verified`,
+logic in `checksDecision`, `scripts/release.ts`):
+
+| Release            | Checks                                                                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| nightly (schedule) | reuses the passed `ci.yml` push run of the commit. CI still running → no release, the next hourly check retries. CI failed → no nightly. No CI run → runs the checks. |
+| nightly (dispatch) | reuses a passed CI run; CI failed → the run fails (fix `main`, or re-run CI after a flake); running/none → runs the checks itself.                                    |
+| stable (dispatch)  | skipped: the promoted nightly only shipped after every check passed for that commit.                                                                                  |
+| stable (tag)       | reuses a passed CI run of the tagged commit, otherwise runs the checks.                                                                                               |
+| preview            | always runs the checks.                                                                                                                                               |
+
+Desktop builds and the image builds + smoke tests always run.
+
 ## Channels
 
 | Channel | How it starts                                                                                                                           | Version                     | GitHub release                       | Image tags                                                 |

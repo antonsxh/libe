@@ -14,6 +14,10 @@
  *   stable   manual dispatch (promotes the commit of the latest nightly; version defaults to the
  *            one that nightly previewed) or a pushed `vX.Y.Z` tag (builds exactly that commit).
  *
+ * Checks: `plan` outputs `verified=true` when the commit already passed `ci.yml` (or, for
+ * stable, shipped as a nightly), and release.yml then skips its own run of checks.yml. A
+ * scheduled nightly waits for CI and never ships a commit whose CI failed (see `checksDecision`).
+ *
  * The pure functions are exported for `scripts/release.test.ts`; everything that talks to
  * GitHub goes through the `gh` CLI (GH_TOKEN) and lives below them.
  */
@@ -168,6 +172,67 @@ export function nightlyGate(
 	return { release: true, reason: `New commits since ${last.tag}, and it is older than 6 h.` };
 }
 
+// ── Checks already run by CI ─────────────────────────────────────────────
+
+/** A `ci.yml` workflow run (GitHub API `status` / `conclusion`). */
+export type CiRun = { status: string; conclusion: string | null };
+export type CiState = 'passed' | 'running' | 'failed' | 'none';
+
+/**
+ * State of the push-to-main CI runs for one commit. Any successful run (e.g. a re-run after a
+ * flake) counts; cancelled/skipped runs count as no run.
+ */
+export function ciState(runs: CiRun[]): CiState {
+	if (runs.some((r) => r.status === 'completed' && r.conclusion === 'success')) return 'passed';
+	if (runs.some((r) => r.status !== 'completed')) return 'running';
+	const failed = ['failure', 'timed_out', 'startup_failure', 'action_required'];
+	if (runs.some((r) => failed.includes(r.conclusion ?? ''))) return 'failed';
+	return 'none';
+}
+
+export type ChecksDecision = { release: boolean; verified: boolean; reason: string };
+
+/**
+ * Whether this release runs checks.yml itself (`verified: false`) or relies on a run that
+ * already passed for the same commit (`verified: true`), and whether it releases at all:
+ *
+ *   preview            always runs the checks (any branch, nothing to rely on)
+ *   stable (dispatch)  verified: it promotes a nightly, which only shipped after every check
+ *   nightly, tag       verified when `ci.yml` passed on the commit; otherwise runs the checks —
+ *                      except a scheduled nightly, which waits while CI runs (the next hourly
+ *                      check retries) and skips a commit whose CI failed. A dispatched nightly
+ *                      refuses a red commit (re-run CI first if it was a flake).
+ */
+export function checksDecision(channel: Channel, event: string, ci: () => CiState): ChecksDecision {
+	if (channel === 'preview')
+		return { release: true, verified: false, reason: 'Previews always run the checks.' };
+	if (channel === 'stable' && event === 'workflow_dispatch')
+		return {
+			release: true,
+			verified: true,
+			reason: 'Promotes a nightly, which passed every check.'
+		};
+	const state = ci();
+	if (state === 'passed')
+		return { release: true, verified: true, reason: 'CI passed on this commit; checks skipped.' };
+	if (channel === 'nightly' && state === 'failed') {
+		if (event === 'schedule')
+			return { release: false, verified: false, reason: 'CI failed on this commit; no nightly.' };
+		throw new Error('CI failed on this commit. Fix main (or re-run CI if it was a flake) first.');
+	}
+	if (channel === 'nightly' && state === 'running' && event === 'schedule')
+		return {
+			release: false,
+			verified: false,
+			reason: 'CI is still running on this commit; the next hourly check retries.'
+		};
+	return {
+		release: true,
+		verified: false,
+		reason: `No passed CI run for this commit (${state}); running the checks.`
+	};
+}
+
 // ── Version files ─────────────────────────────────────────────────────────
 
 export const VERSION_FILES = [
@@ -301,6 +366,17 @@ function compareStatus(repo: string, base: string, head: string): string {
 	return gh(['api', `repos/${repo}/compare/${base}...${head}`, '--jq', '.status']);
 }
 
+/** `ci.yml` runs triggered by pushes (i.e. to the default branch) of one commit. */
+function ciRuns(repo: string, sha: string): CiRun[] {
+	const out = gh([
+		'api',
+		`repos/${repo}/actions/workflows/ci.yml/runs?head_sha=${sha}&event=push&per_page=20`,
+		'--jq',
+		'[.workflow_runs[] | {status, conclusion}]'
+	]);
+	return JSON.parse(out || '[]');
+}
+
 function assertOnDefaultBranch(repo: string, sha: string, branch: string) {
 	const status = compareStatus(repo, sha, branch);
 	if (status !== 'ahead' && status !== 'identical')
@@ -395,11 +471,16 @@ function plan() {
 		version = prereleaseVersion(nextPatch(pkg.version), channel, new Date(), run);
 	}
 
+	const checks = checksDecision(channel, event, () => ciState(ciRuns(repo, ref)));
+	notice(checks.reason);
+	if (!checks.release) return output({ release: 'false' });
+
 	const tag = `v${version}`;
 	const shortSha = ref.slice(0, 12);
 	const plain = channel === 'stable' && isPlainRelease(version);
 	output({
 		release: 'true',
+		verified: String(checks.verified),
 		channel,
 		ref,
 		version,
