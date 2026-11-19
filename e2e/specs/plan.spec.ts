@@ -42,19 +42,23 @@ test('week navigation: ‹ › and Today; ?week= takes any day of a week', async
 	expect(await days()).toEqual([0, 1, 2, 3, 4, 5, 6].map((i) => addDays(monday, i)));
 	await expect(page.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'date');
 
+	// Each click is a client-side navigation: wait for its URL and poll the rendered columns.
+	const firstDay = async () => (await days())[0];
 	await page.getByRole('link', { name: 'Next week' }).click();
 	await expect(page).toHaveURL(new RegExp(`week=${addDays(monday, 7)}`));
-	expect((await days())[0]).toBe(addDays(monday, 7));
+	await expect.poll(firstDay).toBe(addDays(monday, 7));
 	await expect(page.getByRole('link', { name: 'Today' })).not.toHaveAttribute(
 		'aria-current',
 		'date'
 	);
 	await page.getByRole('link', { name: 'Previous week' }).click();
+	await expect(page).toHaveURL(new RegExp(`week=${monday}`));
 	await page.getByRole('link', { name: 'Previous week' }).click();
-	expect((await days())[0]).toBe(addDays(monday, -7));
+	await expect(page).toHaveURL(new RegExp(`week=${addDays(monday, -7)}`));
+	await expect.poll(firstDay).toBe(addDays(monday, -7));
 	await page.getByRole('link', { name: 'Today' }).click();
 	await expect(page).toHaveURL(/\/plan\??$/);
-	expect((await days())[0]).toBe(monday);
+	await expect.poll(firstDay).toBe(monday);
 
 	// A Thursday shows its week; garbage falls back to the current week.
 	await gotoLive(page, '/plan?week=2026-12-31');
