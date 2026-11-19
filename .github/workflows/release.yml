@@ -12,6 +12,10 @@ name: Release
 #            the version files on main.
 #
 # Nothing is published unless every check, the desktop builds and the image smoke tests pass.
+# The checks run here only when no passed run exists for the commit: nightlies and tags reuse
+# ci.yml's run of the same commit, stable-by-dispatch the nightly it promotes (`verified`,
+# see checksDecision in scripts/release.ts). A scheduled nightly waits for CI and skips red
+# commits.
 
 on:
   push:
@@ -51,8 +55,12 @@ jobs:
     if: ${{ !github.event.repository.fork && (github.event_name != 'schedule' || vars.PAUSE_NIGHTLY != 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read # ci.yml runs of the commit
     outputs:
       release: ${{ steps.plan.outputs.release }}
+      verified: ${{ steps.plan.outputs.verified }}
       channel: ${{ steps.plan.outputs.channel }}
       ref: ${{ steps.plan.outputs.ref }}
       version: ${{ steps.plan.outputs.version }}
@@ -86,6 +94,7 @@ jobs:
             echo "### ${{ steps.plan.outputs.name }}"
             echo "- channel: \`${{ steps.plan.outputs.channel }}\`"
             echo "- commit: \`${{ steps.plan.outputs.ref }}\`"
+            echo "- checks: ${{ steps.plan.outputs.verified == 'true' && 'already passed (skipped here)' || 'run here' }}"
             echo "- notes since: \`${{ steps.plan.outputs.previous_tag || '(first release)' }}\`"
             echo "- image tags: \`${{ steps.plan.outputs.docker_tags }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -93,7 +102,7 @@ jobs:
   checks:
     name: Checks
     needs: plan
-    if: needs.plan.outputs.release == 'true'
+    if: needs.plan.outputs.release == 'true' && needs.plan.outputs.verified != 'true'
     uses: ./.github/workflows/checks.yml
     with:
       ref: ${{ needs.plan.outputs.ref }}
@@ -125,9 +134,15 @@ jobs:
       push: true
 
   # Only after every check passed: one multi-arch manifest carrying the channel's tags.
+  # A skipped `checks` job counts only when plan verified the commit. The explicit `if`s here
+  # and below are needed because a skipped job skips everything after it by default.
   image:
     name: Tag image
     needs: [plan, checks, desktop, docker]
+    if: >-
+      !cancelled() && needs.desktop.result == 'success' && needs.docker.result == 'success' &&
+      (needs.checks.result == 'success' ||
+       (needs.checks.result == 'skipped' && needs.plan.outputs.verified == 'true'))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -166,6 +181,7 @@ jobs:
   release:
     name: Publish GitHub release
     needs: [plan, image]
+    if: ${{ !cancelled() && needs.image.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -272,7 +288,7 @@ jobs:
   finalize:
     name: Bump version on main
     needs: [plan, release]
-    if: needs.plan.outputs.channel == 'stable' && needs.plan.outputs.latest == 'true'
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.plan.outputs.channel == 'stable' && needs.plan.outputs.latest == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

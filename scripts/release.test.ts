@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import {
 	NIGHTLY_GAP_MS,
 	channelOfTag,
+	checksDecision,
+	ciState,
 	compareVersions,
 	dockerTags,
 	nextPatch,
@@ -235,5 +237,78 @@ describe('updaterManifest', () => {
 	test('ignores files of other versions', () => {
 		const m = build([...files, 'libe-desktop-0.1.0-linux-x64.AppImage']);
 		expect(m.platforms['linux-x86_64-appimage'].url).toContain(version);
+	});
+});
+
+describe('ciState', () => {
+	const run = (status: string, conclusion: string | null = null) => ({ status, conclusion });
+
+	test('any successful run counts, even next to a failed attempt', () => {
+		expect(ciState([run('completed', 'failure'), run('completed', 'success')])).toBe('passed');
+	});
+
+	test('running beats failed; cancelled/skipped/no runs are none', () => {
+		expect(ciState([run('completed', 'failure'), run('in_progress')])).toBe('running');
+		expect(ciState([run('queued')])).toBe('running');
+		expect(ciState([run('completed', 'timed_out')])).toBe('failed');
+		expect(ciState([run('completed', 'cancelled'), run('completed', 'skipped')])).toBe('none');
+		expect(ciState([])).toBe('none');
+	});
+});
+
+describe('checksDecision', () => {
+	const never = () => {
+		throw new Error('CI must not be queried');
+	};
+
+	test('previews always run the checks; stable dispatch relies on its nightly', () => {
+		expect(checksDecision('preview', 'workflow_dispatch', never)).toMatchObject({
+			release: true,
+			verified: false
+		});
+		expect(checksDecision('stable', 'workflow_dispatch', never)).toMatchObject({
+			release: true,
+			verified: true
+		});
+	});
+
+	test('a passed CI run skips the checks for nightlies and tags', () => {
+		for (const [channel, event] of [
+			['nightly', 'schedule'],
+			['nightly', 'workflow_dispatch'],
+			['stable', 'push']
+		] as const)
+			expect(checksDecision(channel, event, () => 'passed')).toMatchObject({
+				release: true,
+				verified: true
+			});
+	});
+
+	test('a scheduled nightly waits for running CI and skips a red commit', () => {
+		expect(checksDecision('nightly', 'schedule', () => 'running').release).toBe(false);
+		expect(checksDecision('nightly', 'schedule', () => 'failed').release).toBe(false);
+		expect(checksDecision('nightly', 'schedule', () => 'none')).toMatchObject({
+			release: true,
+			verified: false
+		});
+	});
+
+	test('a dispatched nightly refuses a red commit, runs the checks otherwise', () => {
+		expect(() => checksDecision('nightly', 'workflow_dispatch', () => 'failed')).toThrow(
+			/CI failed/
+		);
+		for (const state of ['running', 'none'] as const)
+			expect(checksDecision('nightly', 'workflow_dispatch', () => state)).toMatchObject({
+				release: true,
+				verified: false
+			});
+	});
+
+	test('a tag without passed CI runs the checks itself', () => {
+		for (const state of ['running', 'failed', 'none'] as const)
+			expect(checksDecision('stable', 'push', () => state)).toMatchObject({
+				release: true,
+				verified: false
+			});
 	});
 });

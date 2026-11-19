@@ -232,6 +232,10 @@ promotion of the latest nightly, or a `vX.Y.Z` tag): GitHub release with desktop
   (`~/apt-archives`), the e2e job installs no system packages (the runner image has Chromium's
   libraries). Rust and Docker layer caches are saved from `main` only (10 GB repo quota);
   PRs and releases restore them. Desktop and iPhone/iPad e2e run in one job.
+- Releases skip `checks.yml` when the commit already passed it (`ci.yml` push run, or the
+  nightly a stable promotes); scheduled nightlies wait for CI and never ship a red commit
+  (`checksDecision` in `scripts/release.ts`). Jobs after the optional `checks` need explicit
+  `if: !cancelled() && …` conditions, or a skipped job skips the whole release.
 - Desktop auto-update: release builds sign updater payloads with the secret
   `TAURI_SIGNING_PRIVATE_KEY` (public key in `tauri.conf.json`); the release job writes
   `latest.json` (`release.ts updater-manifest`) and copies it to the `update-feed` release as
