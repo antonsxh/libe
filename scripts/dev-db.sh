@@ -18,7 +18,6 @@ PKG="$HOME_DIR/node_modules/@embedded-postgres/linux-x64"
 BIN="$PKG/native/bin"
 DATA="$HOME_DIR/data"
 LOG="$HOME_DIR/postgres.log"
-export PATH="$HOME/.bun/bin:$PATH"
 
 install() {
 	[[ -x "$BIN/postgres" ]] && return

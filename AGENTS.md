@@ -21,7 +21,7 @@ but use the name **libe** and our own logo — never "Quest" branding).
 
 ## Commands
 
-Bun lives in `~/.bun/bin` — run `export PATH=$HOME/.bun/bin:$PATH` first if `bun` is not found.
+Bun is on the `PATH` (CI uses the version pinned by `packageManager` in `package.json`).
 
 | Command                   | What                                                        |
 | ------------------------- | ----------------------------------------------------------- |
