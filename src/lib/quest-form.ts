@@ -4,6 +4,7 @@
  */
 import { isQuestColor, type QuestColor } from '#lib/quest-colors.ts';
 import { DEFAULT_QUEST_ICON, isSingleEmoji } from '#lib/emoji.ts';
+import type { ErrorCode } from '#lib/i18n/index.ts';
 
 export const QUEST_NAME_MAX = 80;
 export const QUEST_DESC_MAX = 280;
@@ -39,6 +40,7 @@ export interface QuestFormResult {
 	ok?: boolean;
 	intent?: string;
 	questId?: string;
+	/** Translated messages (the action turns the validation codes into text). */
 	errors?: Partial<Record<QuestFormField, string>>;
 	name?: string;
 	description?: string;
@@ -58,34 +60,34 @@ export function parseQuestForm(fd: FormData): QuestFormFields {
 	};
 }
 
+export type QuestFormErrors = Partial<Record<QuestFormField, ErrorCode>>;
+
 export type QuestFormValidation =
-	{ ok: true; draft: QuestDraft } | { ok: false; errors: Partial<Record<QuestFormField, string>> };
+	{ ok: true; draft: QuestDraft } | { ok: false; errors: QuestFormErrors };
 
 /** Validate raw form fields; an empty icon falls back to {@link DEFAULT_QUEST_ICON}. */
 export function validateQuestForm(fields: QuestFormFields): QuestFormValidation {
-	const errors: Partial<Record<QuestFormField, string>> = {};
+	const errors: QuestFormErrors = {};
 
 	const name = fields.name.trim();
-	if (!name) errors.name = 'Give the quest a name.';
-	else if (name.length > QUEST_NAME_MAX)
-		errors.name = `Keep the name to at most ${QUEST_NAME_MAX} characters.`;
+	if (!name) errors.name = 'questNameRequired';
+	else if (name.length > QUEST_NAME_MAX) errors.name = 'questNameTooLong';
 
 	const description = fields.description.trim();
-	if (description.length > QUEST_DESC_MAX)
-		errors.description = `Keep the description to at most ${QUEST_DESC_MAX} characters.`;
+	if (description.length > QUEST_DESC_MAX) errors.description = 'questDescriptionTooLong';
 
 	const icon = fields.icon.trim() || DEFAULT_QUEST_ICON;
-	if (!isSingleEmoji(icon)) errors.icon = 'Use exactly one emoji.';
+	if (!isSingleEmoji(icon)) errors.icon = 'questIconInvalid';
 
 	const color = fields.color;
-	if (!isQuestColor(color)) errors.color = 'Pick one of the colours.';
+	if (!isQuestColor(color)) errors.color = 'questColorInvalid';
 
 	let weeklyBudgetH: number | null = null;
 	const rawBudget = fields.weeklyBudgetH.trim();
 	if (rawBudget !== '') {
 		const n = Number(rawBudget);
 		if (!Number.isFinite(n) || n <= 0 || n > QUEST_BUDGET_MAX_H)
-			errors.weeklyBudgetH = `Budget must be more than 0 and at most ${QUEST_BUDGET_MAX_H} hours.`;
+			errors.weeklyBudgetH = 'questBudgetInvalid';
 		else weeklyBudgetH = n;
 	}
 
@@ -93,11 +95,18 @@ export function validateQuestForm(fields: QuestFormFields): QuestFormValidation 
 	return { ok: true, draft: { name, description, icon, color, weeklyBudgetH } };
 }
 
-/** Echo payload for `fail(400, …)` so the dialog can keep the user's input and show errors. */
+/**
+ * Echo payload for `fail(400, …)` so the dialog can keep the user's input and show errors
+ * (`errors` translated with the request's messages, `t.errors[code]`).
+ */
 export function questFormEcho(
 	intent: string,
 	fields: QuestFormFields,
-	errors: Partial<Record<QuestFormField, string>>
+	errors: QuestFormErrors,
+	messages: Record<ErrorCode, string>
 ) {
-	return { intent, ok: false as const, ...fields, errors };
+	const text: Partial<Record<QuestFormField, string>> = {};
+	for (const [field, code] of Object.entries(errors) as [QuestFormField, ErrorCode][])
+		text[field] = messages[code];
+	return { intent, ok: false as const, ...fields, errors: text };
 }

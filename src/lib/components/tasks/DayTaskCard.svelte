@@ -20,6 +20,8 @@
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
+	import { timerLabelText } from '#lib/timer.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
 		task,
@@ -57,6 +59,7 @@
 	const color = $derived(questColorVar(task.questColor));
 
 	const timer = useTimer();
+	const t = useI18n();
 	/** Live timer view when this task owns the active timer. */
 	const live = $derived(timer.view?.taskId === task.id ? timer.view : null);
 
@@ -92,7 +95,11 @@
 	<div class="meta">
 		<form class="inline" method="POST" action={formAction('toggle')} use:enhance>
 			<input type="hidden" name="taskId" value={task.id} />
-			<button type="submit" class="check" aria-label={done ? 'Mark as not done' : 'Mark as done'}>
+			<button
+				type="submit"
+				class="check"
+				aria-label={done ? t.common.markNotDone : t.common.markDone}
+			>
 				{#if done}<Check size={13} strokeWidth={3} />{/if}
 			</button>
 		</form>
@@ -106,7 +113,10 @@
 				class="live tabular"
 				class:paused={live.status !== 'running'}
 				href="/focus"
-				aria-label={`Timer ${live.display}, ${live.label.toLowerCase()} — open focus`}
+				aria-label={t.tasks.timerLive(
+					live.display,
+					timerLabelText(live.label, t).toLocaleLowerCase(t.intl)
+				)}
 			>
 				<span class="rec" aria-hidden="true"></span>{live.display}
 			</a>
@@ -114,7 +124,7 @@
 				<button
 					type="button"
 					class="pause"
-					aria-label={live.status === 'paused' ? 'Resume timer' : 'Pause timer'}
+					aria-label={live.status === 'paused' ? t.tasks.resumeTimer : t.tasks.pauseTimer}
 					disabled={timer.busy}
 					onclick={() => timer.command(live.status === 'paused' ? 'resume' : 'pause')}
 				>
@@ -135,7 +145,7 @@
 				<a
 					class="play hit-target"
 					href={`/focus?task=${task.id}`}
-					aria-label="Start focus timer for this task"
+					aria-label={t.tasks.startFocus}
 					onclick={play}
 				>
 					<Play size={14} />
@@ -145,20 +155,20 @@
 			<span class="ops">
 				<form class="inline" method="POST" action={formAction('moveUp')} use:enhance>
 					<input type="hidden" name="taskId" value={task.id} />
-					<button type="submit" class="op" aria-label="Move up" disabled={first}>
+					<button type="submit" class="op" aria-label={t.common.moveUp} disabled={first}>
 						<ArrowUp size={15} />
 					</button>
 				</form>
 				<form class="inline" method="POST" action={formAction('moveDown')} use:enhance>
 					<input type="hidden" name="taskId" value={task.id} />
-					<button type="submit" class="op" aria-label="Move down" disabled={last}>
+					<button type="submit" class="op" aria-label={t.common.moveDown} disabled={last}>
 						<ArrowDown size={15} />
 					</button>
 				</form>
 			</span>
 
 			<span class="menu-slot">
-				<Menu label={`Actions for ${task.title}`}>
+				<Menu label={t.common.actionsFor(task.title)}>
 					{#snippet children(close)}
 						{#if variant === 'home' && ontimeblock}
 							<button
@@ -170,19 +180,22 @@
 									ontimeblock(task);
 								}}
 							>
-								<CalendarPlus size={14} /> Time-block…
+								<CalendarPlus size={14} />
+								{t.tasks.timeBlock}
 							</button>
 						{:else if variant === 'plan'}
 							<form method="POST" action={formAction('prevDay')} use:enhance={() => close()}>
 								<input type="hidden" name="taskId" value={task.id} />
 								<button type="submit" class="item" role="menuitem">
-									<ArrowLeft size={14} /> Move to previous day
+									<ArrowLeft size={14} />
+									{t.tasks.movePrevDay}
 								</button>
 							</form>
 							<form method="POST" action={formAction('nextDay')} use:enhance={() => close()}>
 								<input type="hidden" name="taskId" value={task.id} />
 								<button type="submit" class="item" role="menuitem">
-									<ArrowRight size={14} /> Move to next day
+									<ArrowRight size={14} />
+									{t.tasks.moveNextDay}
 								</button>
 							</form>
 							{#if task.day}
@@ -195,7 +208,7 @@
 								>
 									<input type="hidden" name="taskId" value={task.id} />
 									<input type="hidden" name="beforeId" value="" />
-									<span class="days-label">Move to day</span>
+									<span class="days-label">{t.tasks.moveToDay}</span>
 									<span class="day-grid">
 										{#each weekDays(task.day) as d (d)}
 											<button
@@ -205,9 +218,15 @@
 												class="day"
 												role="menuitem"
 												disabled={d === task.day}
-												aria-label={`Move to ${formatDayLabel(d, { weekday: 'long', month: 'short', day: 'numeric' })}`}
+												aria-label={t.tasks.moveToDate(
+													formatDayLabel(
+														d,
+														{ weekday: 'long', month: 'short', day: 'numeric' },
+														t.intl
+													)
+												)}
 											>
-												<span>{formatDayLabel(d, { weekday: 'narrow' })}</span>
+												<span>{formatDayLabel(d, { weekday: 'narrow' }, t.intl)}</span>
 												<span class="tabular">{Number(d.slice(8))}</span>
 											</button>
 										{/each}
@@ -224,22 +243,24 @@
 								timer.logTarget = { id: task.id, title: task.title };
 							}}
 						>
-							<Clock size={14} /> Log time…
+							<Clock size={14} />
+							{t.common.logTimeMenu}
 						</button>
 						<form method="POST" action={formAction('toBacklog')} use:enhance={() => close()}>
 							<input type="hidden" name="taskId" value={task.id} />
-							<button type="submit" class="item" role="menuitem">Move to backlog</button>
+							<button type="submit" class="item" role="menuitem">{t.tasks.moveToBacklog}</button>
 						</form>
 						{#if variant === 'home'}
 							<form method="POST" action={formAction('toTomorrow')} use:enhance={() => close()}>
 								<input type="hidden" name="taskId" value={task.id} />
-								<button type="submit" class="item" role="menuitem">Move to tomorrow</button>
+								<button type="submit" class="item" role="menuitem">{t.tasks.moveToTomorrow}</button>
 							</form>
 						{/if}
 						<form method="POST" action={formAction('deleteTask')} use:enhance={() => close()}>
 							<input type="hidden" name="taskId" value={task.id} />
 							<button type="submit" class="item danger" role="menuitem">
-								<Trash2 size={14} /> Delete
+								<Trash2 size={14} />
+								{t.common.delete}
 							</button>
 						</form>
 					{/snippet}

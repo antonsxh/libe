@@ -9,6 +9,7 @@
 		type QuestOption
 	} from '#lib/components/tasks/QuestPicker.svelte';
 	import type { TaskFormResult } from '#lib/task-form.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
 		action,
@@ -42,6 +43,7 @@
 		form?: TaskFormResult | null;
 	} = $props();
 
+	const t = useI18n();
 	let el: HTMLFormElement | undefined = $state();
 
 	/** A failed submit of *this* form (same action and, on the plan board, same day). */
@@ -105,8 +107,8 @@
 			min="1"
 			max="1440"
 			step="1"
-			placeholder="min"
-			aria-label="Duration in minutes (optional)"
+			placeholder={t.common.durationPlaceholder}
+			aria-label={t.common.durationOptional}
 			value={echo?.duration ?? ''}
 		/>
 	{/if}
@@ -119,11 +121,11 @@
 			class:icon-only={compact}
 			name="pos"
 			value="bottom"
-			title="Add at the bottom"
-			aria-label={compact ? 'Add at the bottom' : undefined}
+			title={t.tasks.addBottom}
+			aria-label={compact ? t.tasks.addBottom : undefined}
 		>
 			<ArrowDownToLine size={14} />
-			{#if !compact}Bottom{/if}
+			{#if !compact}{t.tasks.bottom}{/if}
 		</button>
 		<button
 			type="submit"
@@ -131,16 +133,16 @@
 			class:icon-only={compact}
 			name="pos"
 			value="top"
-			title="Add at the top"
-			aria-label={compact ? 'Add at the top' : undefined}
+			title={t.tasks.addTop}
+			aria-label={compact ? t.tasks.addTop : undefined}
 		>
 			<ArrowUpToLine size={14} />
-			{#if !compact}Top{/if}
+			{#if !compact}{t.tasks.top}{/if}
 		</button>
 	{:else}
-		<Button size="sm" type="submit" icon={compact} aria-label={compact ? 'Add' : undefined}>
+		<Button size="sm" type="submit" icon={compact} aria-label={compact ? t.common.add : undefined}>
 			<Plus size={16} />
-			{#if !compact}Add{/if}
+			{#if !compact}{t.common.add}{/if}
 		</Button>
 	{/if}
 </form>

@@ -3,11 +3,13 @@
 	import Button from '#lib/components/Button.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import { useTimer, type StartRequest } from '#lib/timer-store.svelte.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = { request: StartRequest & { navigate: boolean } };
 	let { request }: Props = $props();
 
 	const timer = useTimer();
+	const t = useI18n();
 	let open = $state(true);
 
 	// Escape / backdrop / ✕ close the native dialog → drop the parked request.
@@ -23,21 +25,22 @@
 	}
 </script>
 
-<Dialog bind:open title="Switch timer?">
+<Dialog bind:open title={t.focus.switchDialog.title}>
 	<p class="text">
 		{#if timer.timer}
-			<strong>{timer.timer.task.title}</strong> is running{#if timer.view}
+			<strong>{timer.timer.task.title}</strong>{t.focus.switchDialog.isRunning}{#if timer.view}
 				(<span class="tabular">{timer.view.display}</span>){/if}.
 		{:else}
-			Another timer is active.
+			{t.focus.switchDialog.anotherActive}
 		{/if}
-		Stop it — its time is kept — and start <strong>{request.task.title}</strong>?
+		{t.focus.switchDialog.promptBefore}<strong>{request.task.title}</strong>{t.focus.switchDialog
+			.promptAfter}
 	</p>
 	{#if timer.error}<p class="error" role="alert">{timer.error}</p>{/if}
 	<div class="actions">
-		<Button variant="secondary" onclick={() => (open = false)}>Cancel</Button>
+		<Button variant="secondary" onclick={() => (open = false)}>{t.common.cancel}</Button>
 		<Button variant="primary" onclick={confirm} disabled={timer.busy}>
-			Stop current and start
+			{t.focus.stopAndStart}
 		</Button>
 	</div>
 </Dialog>

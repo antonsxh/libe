@@ -2,6 +2,7 @@
 	import { formatDayLabel, formatHours } from '#lib/dates.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { formatHMin, type ReviewDay, type ReviewQuest } from '#lib/review.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
 		days: ReviewDay[];
@@ -9,14 +10,15 @@
 		quests: Record<string, ReviewQuest>;
 	};
 	let { days, quests }: Props = $props();
+	const t = useI18n();
 
 	/** Smallest full-scale value (minutes) so a 10-minute week doesn't fill the chart. */
 	const MIN_SCALE = 60;
 	const scale = $derived(Math.max(MIN_SCALE, ...days.map((d) => d.questMin)));
 
-	const weekday = (day: string) => formatDayLabel(day, { weekday: 'short' });
+	const weekday = (day: string) => formatDayLabel(day, { weekday: 'short' }, t.intl);
 	const longDay = (day: string) =>
-		formatDayLabel(day, { weekday: 'short', month: 'short', day: 'numeric' });
+		formatDayLabel(day, { weekday: 'short', month: 'short', day: 'numeric' }, t.intl);
 
 	/**
 	 * Touch screens have no hover (and iOS doesn't focus buttons on tap): a tap pins the
@@ -45,16 +47,16 @@
 
 	function ariaLabel(d: ReviewDay): string {
 		const parts = d.byQuest.map(
-			(q) => `${quests[q.questId]?.name ?? 'Quest'} ${formatHMin(q.min)}`
+			(q) => `${quests[q.questId]?.name ?? t.common.quest} ${formatHMin(q.min)}`
 		);
-		const quest = `${longDay(d.day)}: ${formatHMin(d.questMin)} quest work`;
-		const other = d.otherMin > 0 ? `, other ${formatHMin(d.otherMin)}` : '';
+		const quest = t.review.dayAria(longDay(d.day), formatHMin(d.questMin));
+		const other = d.otherMin > 0 ? t.review.dayAriaOther(formatHMin(d.otherMin)) : '';
 		return parts.length ? `${quest} (${parts.join(', ')})${other}` : `${quest}${other}`;
 	}
 </script>
 
 <section class="card chart" aria-labelledby="per-day-label">
-	<h2 class="label" id="per-day-label">Quest hours · per day</h2>
+	<h2 class="label" id="per-day-label">{t.review.perDay}</h2>
 	<ol class="bars">
 		{#each days as d, i (d.day)}
 			{@const stub = d.state === 'future' || d.questMin <= 0}
@@ -75,7 +77,7 @@
 					data-day={d.day}
 				>
 					<span class="value tabular" class:zero={d.questMin <= 0} data-testid="day-value">
-						{formatHours(d.questMin / 60)}
+						{formatHours(d.questMin / 60, t.intl)}
 					</span>
 					<span class="plot">
 						<span
@@ -97,17 +99,17 @@
 								{@const quest = quests[q.questId]}
 								<li>
 									<span class="dot" style:--q={questColorVar(quest?.color)}></span>
-									<span class="name">{quest?.name ?? 'Quest'}</span>
+									<span class="name">{quest?.name ?? t.common.quest}</span>
 									<span class="tabular">{formatHMin(q.min)}</span>
 								</li>
 							{/each}
 						</ul>
 					{:else}
-						<p class="none">No quest work</p>
+						<p class="none">{t.review.noQuestWork}</p>
 					{/if}
 					{#if d.otherMin > 0}
 						<p class="other">
-							<span>Other</span>
+							<span>{t.common.other}</span>
 							<span class="tabular">{formatHMin(d.otherMin)}</span>
 						</p>
 					{/if}

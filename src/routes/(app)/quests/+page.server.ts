@@ -11,6 +11,7 @@ import {
 	setQuestClosed,
 	updateQuest
 } from '#lib/server/quests.ts';
+import { i18n } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
@@ -23,25 +24,26 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions = {
-	create: async ({ request }) => {
+	create: async ({ request, locals }) => {
 		const fields = parseQuestForm(await request.formData());
 		const result = validateQuestForm(fields);
-		if (!result.ok) return fail(400, questFormEcho('create', fields, result.errors));
+		const { errors } = i18n(locals.locale);
+		if (!result.ok) return fail(400, questFormEcho('create', fields, result.errors, errors));
 		const quest = await createQuest(result.draft);
 		return { intent: 'create', ok: true, questId: quest.id };
 	},
 
-	update: async ({ request }) => {
+	update: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const questId = String(formData.get('questId') ?? '');
 		const fields = parseQuestForm(formData);
 		const result = validateQuestForm(fields);
+		const { errors } = i18n(locals.locale);
 		if (!isUuid(questId))
-			return fail(400, questFormEcho('update', fields, { name: 'Unknown quest.' }));
-		if (!result.ok) return fail(400, questFormEcho('update', fields, result.errors));
+			return fail(400, questFormEcho('update', fields, { name: 'questUnknown' }, errors));
+		if (!result.ok) return fail(400, questFormEcho('update', fields, result.errors, errors));
 		const quest = await updateQuest(questId, result.draft);
-		if (!quest)
-			return fail(404, questFormEcho('update', fields, { name: 'That quest no longer exists.' }));
+		if (!quest) return fail(404, questFormEcho('update', fields, { name: 'questGone' }, errors));
 		return { intent: 'update', ok: true, questId: quest.id };
 	},
 

@@ -3,6 +3,8 @@
  * Plain validation, no library. Generic enough for backlog, day and "other" lists.
  */
 
+import type { ErrorCode } from '#lib/i18n/index.ts';
+
 export const TASK_TITLE_MAX = 200;
 /** A task's planned duration may not exceed a day. */
 export const TASK_DURATION_MAX_MIN = 1440;
@@ -23,25 +25,21 @@ export interface TaskFormResult {
 
 export function validateTaskTitle(
 	raw: string
-): { ok: true; title: string } | { ok: false; error: string } {
+): { ok: true; title: string } | { ok: false; error: ErrorCode } {
 	const title = raw.trim();
-	if (!title) return { ok: false, error: 'Write what needs to be done.' };
-	if (title.length > TASK_TITLE_MAX)
-		return { ok: false, error: `Keep the title to at most ${TASK_TITLE_MAX} characters.` };
+	if (!title) return { ok: false, error: 'taskTitleRequired' };
+	if (title.length > TASK_TITLE_MAX) return { ok: false, error: 'taskTitleTooLong' };
 	return { ok: true, title };
 }
 
 /** Empty → null; otherwise a whole number of minutes, `0 < x ≤ 1440`. */
 export function parseTaskDuration(
 	raw: string
-): { ok: true; minutes: number | null } | { ok: false; error: string } {
+): { ok: true; minutes: number | null } | { ok: false; error: ErrorCode } {
 	const s = raw.trim();
 	if (s === '') return { ok: true, minutes: null };
 	const n = Number(s);
 	if (!Number.isInteger(n) || n <= 0 || n > TASK_DURATION_MAX_MIN)
-		return {
-			ok: false,
-			error: `Duration must be a whole number of minutes between 1 and ${TASK_DURATION_MAX_MIN}.`
-		};
+		return { ok: false, error: 'taskDurationInvalid' };
 	return { ok: true, minutes: n };
 }

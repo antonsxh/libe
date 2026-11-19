@@ -9,9 +9,11 @@ import {
 import { listWeekBlocks } from '#lib/server/blocks.ts';
 import { listPickTasks, listWeekSessions, serverTimeZone } from '#lib/server/calendar.ts';
 import { listOpenQuests } from '#lib/server/quests.ts';
+import { intlLocale } from '#lib/i18n/index.ts';
 import type { PageServerLoad } from './$types';
 
-export const load = (async ({ url }) => {
+export const load = (async ({ url, locals }) => {
+	const intl = intlLocale(locals.locale);
 	// `?week=YYYY-MM-DD` — any day of the desired week (normalised to its Monday);
 	// invalid or missing → the current week. `?plan=1` overlays the week's planned blocks.
 	const weekParam = url.searchParams.get('week');
@@ -32,12 +34,12 @@ export const load = (async ({ url }) => {
 		timeZone: serverTimeZone(),
 		/** Server clock at render time (first paint of the now line / live entry). */
 		now: Date.now(),
-		rangeLabel: weekRangeLabel(weekMonday),
+		rangeLabel: weekRangeLabel(weekMonday, intl),
 		days: weekDays(weekMonday).map((day) => ({
 			day,
-			weekday: formatDayLabel(day, { weekday: 'short' }),
+			weekday: formatDayLabel(day, { weekday: 'short' }, intl),
 			dayNum: Number(day.slice(8, 10)),
-			label: formatDayLabel(day, { weekday: 'short', month: 'short', day: 'numeric' }),
+			label: formatDayLabel(day, { weekday: 'short', month: 'short', day: 'numeric' }, intl),
 			isToday: day === today
 		})),
 		sessions,

@@ -6,6 +6,7 @@
 import { addDays, isISODay } from '#lib/dates.ts';
 import { parseClock } from '#lib/timeline.ts';
 import { MAX_TIMER_MIN } from '#lib/timer.ts';
+import type { ErrorCode } from '#lib/i18n/index.ts';
 
 const DAY_MS = 86_400_000;
 /** Manual logs may reach back this many days. */
@@ -69,7 +70,8 @@ export interface ManualLogInput {
 	durationMin: unknown;
 }
 
-export type ManualLogErrors = { day?: string; start?: string; duration?: string };
+/** Error codes per field (`t.errors[code]`). */
+export type ManualLogErrors = { day?: ErrorCode; start?: ErrorCode; duration?: ErrorCode };
 
 export type ManualLogResult =
 	| { ok: true; startedAt: Date; endedAt: Date; durationMin: number }
@@ -87,19 +89,16 @@ function checkSpan(
 	startedAt: Date,
 	endedAt: Date,
 	{ now, active }: SpanContext
-): { kind: 'future' | 'age' | 'active'; message: string } | null {
+): { kind: 'future' | 'age' | 'active'; code: ErrorCode } | null {
 	if (endedAt.getTime() > now.getTime() + FUTURE_SLACK_MS)
-		return { kind: 'future', message: 'That time is in the future.' };
+		return { kind: 'future', code: 'logInFuture' };
 	if (startedAt.getTime() < now.getTime() - MANUAL_LOG_MAX_AGE_DAYS * DAY_MS)
-		return { kind: 'age', message: 'Logs can reach back at most 365 days.' };
+		return { kind: 'age', code: 'logTooOld' };
 	if (
 		active &&
 		overlaps(startedAt.getTime(), endedAt.getTime(), active.start.getTime(), active.end.getTime())
 	)
-		return {
-			kind: 'active',
-			message: 'This overlaps the running timer — stop it first or pick another time.'
-		};
+		return { kind: 'active', code: 'logOverlapsTimer' };
 	return null;
 }
 
@@ -110,13 +109,13 @@ function checkSpan(
  */
 export function validateManualLog(input: ManualLogInput, ctx: SpanContext): ManualLogResult {
 	const errors: ManualLogErrors = {};
-	if (!isISODay(input.day)) errors.day = 'Pick a date.';
+	if (!isISODay(input.day)) errors.day = 'pickDate';
 	const startMin = parseClock(input.start);
-	if (startMin === null) errors.start = 'Pick a start time.';
+	if (startMin === null) errors.start = 'pickStartTime';
 	const rawDur = input.durationMin;
 	const dur = typeof rawDur === 'number' ? rawDur : Number(String(rawDur ?? '').trim() || NaN);
 	if (!Number.isInteger(dur) || dur < 1 || dur > MAX_TIMER_MIN)
-		errors.duration = `Duration must be a whole number from 1 to ${MAX_TIMER_MIN} minutes.`;
+		errors.duration = 'logDurationInvalid';
 	if (Object.keys(errors).length > 0 || startMin === null) return { ok: false, errors };
 
 	const startedAt = wallTimeToDate(input.day as string, startMin, ctx.timeZone);
@@ -125,7 +124,7 @@ export function validateManualLog(input: ManualLogInput, ctx: SpanContext): Manu
 	if (problem)
 		return {
 			ok: false,
-			errors: problem.kind === 'age' ? { day: problem.message } : { start: problem.message }
+			errors: problem.kind === 'age' ? { day: problem.code } : { start: problem.code }
 		};
 	return { ok: true, startedAt, endedAt, durationMin: dur };
 }
@@ -138,7 +137,7 @@ export interface SessionSpanInput {
 	end: unknown;
 }
 
-export type SessionSpanErrors = { day?: string; start?: string; end?: string };
+export type SessionSpanErrors = { day?: ErrorCode; start?: ErrorCode; end?: ErrorCode };
 
 export type SessionSpanResult =
 	| { ok: true; startedAt: Date; endedAt: Date; durationMin: number }
@@ -167,9 +166,9 @@ export function validateSessionSpan(
 	const errors: SessionSpanErrors = {};
 	const startMin = parseClock(input.start);
 	const endMin = parseClock(input.end);
-	if (!isISODay(input.day)) errors.day = 'Pick a start date.';
-	else if (startMin === null) errors.start = 'Pick a start time.';
-	if (!isISODay(input.endDay) || endMin === null) errors.end = 'Pick an end date and time.';
+	if (!isISODay(input.day)) errors.day = 'pickStartDate';
+	else if (startMin === null) errors.start = 'pickStartTime';
+	if (!isISODay(input.endDay) || endMin === null) errors.end = 'pickEnd';
 	if (Object.keys(errors).length > 0 || startMin === null || endMin === null)
 		return { ok: false, errors };
 
@@ -182,13 +181,12 @@ export function validateSessionSpan(
 		ctx.original?.endedAt
 	);
 	const spanMs = endedAt.getTime() - startedAt.getTime();
-	if (spanMs <= 0) return { ok: false, errors: { end: 'End must be after the start.' } };
-	if (spanMs > MAX_TIMER_MIN * 60_000)
-		return { ok: false, errors: { end: 'A session can be at most 24 hours long.' } };
+	if (spanMs <= 0) return { ok: false, errors: { end: 'endBeforeStart' } };
+	if (spanMs > MAX_TIMER_MIN * 60_000) return { ok: false, errors: { end: 'sessionTooLong' } };
 	const problem = checkSpan(startedAt, endedAt, ctx);
 	if (problem) {
 		const field = problem.kind === 'future' ? 'end' : problem.kind === 'age' ? 'day' : 'start';
-		return { ok: false, errors: { [field]: problem.message } };
+		return { ok: false, errors: { [field]: problem.code } };
 	}
 	return { ok: true, startedAt, endedAt, durationMin: Math.max(1, Math.round(spanMs / 60_000)) };
 }

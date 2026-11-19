@@ -17,6 +17,13 @@ token in the OS keychain and restores the session on start.
 | Updates           | Settings → **Desktop app** (on the server's Settings page, only inside the app): version, **Check for updates**, **Update track** Stable / Nightly, **Restart to update**. The app checks 10 s after start and every 4 h, downloads in the background and installs on restart or quit — see "Updates" below.                                                                                                           |
 | Window            | Title "libe", background `#0e0e10` (no white flash), 1280×860 default, min 380×560; size/position are remembered (`tauri-plugin-window-state`).                                                                                                                                                                                                                                                                        |
 
+**Language.** The pairing screen is English or German, picked from `navigator.languages` in
+`ui/main.js`. Rust reports errors and notices as `Problem { code, message, detail }`
+(`src/problem.rs`); the page translates the code and falls back to the English `message`.
+`pair` forwards the page's languages as `Accept-Language`, so the server's own pairing errors
+come back in that language. Update phases `failed` / `unavailable` carry a `code` too (see
+`UpdateErrorInfo` in `src/lib/desktop.ts`). The native menu stays English.
+
 Why not Tauri's cookie API? Tauri 2.12 has `WebviewWindow::set_cookie`, but the server-issued
 cookie carries exactly the server's attributes (`Secure` behind HTTPS, `SameSite`, 400-day
 expiry, sliding renewal) and works the same on every platform and webview, so the app lets the

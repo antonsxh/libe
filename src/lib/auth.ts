@@ -7,6 +7,8 @@
  * short-lived 6-digit code generated on an already paired device (`/pair`).
  */
 
+import type { ErrorCode, I18n } from '#lib/i18n/index.ts';
+
 export const DEVICE_COOKIE = 'libe_device';
 /** Cookie lifetime (browsers cap `Max-Age` at 400 days). */
 export const COOKIE_MAX_AGE_S = 400 * 24 * 60 * 60;
@@ -158,46 +160,84 @@ export function pairRedirect(target: '/pair' | '/setup', pathname: string, searc
 
 // ─── Device names ───────────────────────────────────────────────────────────
 
+export const DEVICE_MODELS = [
+	'iphone',
+	'ipad',
+	'androidPhone',
+	'androidTablet',
+	'chromebook',
+	'mac',
+	'windows',
+	'linux',
+	'browser'
+] as const;
+export type DeviceModel = (typeof DEVICE_MODELS)[number];
+
+/** English default device names (`Messages['deviceNames']` translates them). */
+export const DEVICE_MODEL_NAMES: Record<DeviceModel, string> = {
+	iphone: 'iPhone',
+	ipad: 'iPad',
+	androidPhone: 'Android phone',
+	androidTablet: 'Android tablet',
+	chromebook: 'Chromebook',
+	mac: 'Mac',
+	windows: 'Windows PC',
+	linux: 'Linux PC',
+	browser: 'Browser'
+};
+
 /**
- * Friendly default name from a user agent: "iPhone", "iPad", "Mac", "Windows PC", …
- * iPadOS Safari reports a Mac user agent; pass `touch: true` (client: `maxTouchPoints > 1`)
- * to tell it apart.
+ * The kind of device behind a user agent. iPadOS Safari reports a Mac user agent; pass
+ * `touch: true` (client: `maxTouchPoints > 1`) to tell it apart.
  */
-export function deviceNameFromUA(ua: string | null | undefined, opts: { touch?: boolean } = {}) {
+export function deviceModelFromUA(
+	ua: string | null | undefined,
+	opts: { touch?: boolean } = {}
+): DeviceModel {
 	const s = ua ?? '';
-	if (/iPhone|iPod/.test(s)) return 'iPhone';
-	if (/iPad/.test(s)) return 'iPad';
-	if (/Android/.test(s)) return /Mobile/.test(s) ? 'Android phone' : 'Android tablet';
-	if (/CrOS/.test(s)) return 'Chromebook';
-	if (/Macintosh|Mac OS X/.test(s)) return opts.touch ? 'iPad' : 'Mac';
-	if (/Windows/.test(s)) return 'Windows PC';
-	if (/Linux|X11/.test(s)) return 'Linux PC';
-	return 'Browser';
+	if (/iPhone|iPod/.test(s)) return 'iphone';
+	if (/iPad/.test(s)) return 'ipad';
+	if (/Android/.test(s)) return /Mobile/.test(s) ? 'androidPhone' : 'androidTablet';
+	if (/CrOS/.test(s)) return 'chromebook';
+	if (/Macintosh|Mac OS X/.test(s)) return opts.touch ? 'ipad' : 'mac';
+	if (/Windows/.test(s)) return 'windows';
+	if (/Linux|X11/.test(s)) return 'linux';
+	return 'browser';
 }
 
-export type NameResult = { ok: true; value: string } | { ok: false; error: string };
+/**
+ * Friendly default name from a user agent: "iPhone", "iPad", "Mac", "Windows PC", …
+ * (`names` = the translated names, `t.deviceNames`; English by default).
+ */
+export function deviceNameFromUA(
+	ua: string | null | undefined,
+	opts: { touch?: boolean; names?: Record<DeviceModel, string> } = {}
+) {
+	return (opts.names ?? DEVICE_MODEL_NAMES)[deviceModelFromUA(ua, opts)];
+}
+
+export type NameResult = { ok: true; value: string } | { ok: false; error: ErrorCode };
 
 /** Trimmed, single-spaced, 1–60 characters. */
 export function parseDeviceName(raw: unknown): NameResult {
 	const value = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim() : '';
-	if (!value) return { ok: false, error: 'Give this device a name.' };
-	if ([...value].length > DEVICE_NAME_MAX)
-		return { ok: false, error: `Keep the name under ${DEVICE_NAME_MAX} characters.` };
+	if (!value) return { ok: false, error: 'deviceNameRequired' };
+	if ([...value].length > DEVICE_NAME_MAX) return { ok: false, error: 'deviceNameTooLong' };
 	return { ok: true, value };
 }
 
-/** "just now", "3 min ago", "2 h ago", "yesterday", "5 days ago", then a date. */
-export function formatAgo(then: Date, now: Date): string {
+/** "just now", "3 min ago", "2 h ago", "yesterday", "5 days ago", then a date (in `t`'s language). */
+export function formatAgo(then: Date, now: Date, t: I18n): string {
 	const s = Math.max(0, Math.round((now.getTime() - then.getTime()) / 1000));
-	if (s < 60) return 'just now';
+	if (s < 60) return t.ago.justNow;
 	const min = Math.floor(s / 60);
-	if (min < 60) return `${min} min ago`;
+	if (min < 60) return t.ago.minutes(min);
 	const h = Math.floor(min / 60);
-	if (h < 24) return `${h} h ago`;
+	if (h < 24) return t.ago.hours(h);
 	const d = Math.floor(h / 24);
-	if (d === 1) return 'yesterday';
-	if (d < 30) return `${d} days ago`;
-	return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+	if (d === 1) return t.ago.yesterday;
+	if (d < 30) return t.ago.days(d);
+	return then.toLocaleDateString(t.intl, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // ─── Request bookkeeping ────────────────────────────────────────────────────

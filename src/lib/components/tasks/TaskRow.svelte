@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { ArrowDown, ArrowUp, Check, Trash2 } from '@lucide/svelte';
 	import type { Task } from '#lib/server/db/schema.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
 		task,
@@ -14,6 +15,7 @@
 		/** Disable "move down" for the last row of its list. */
 		last?: boolean;
 	} = $props();
+	const t = useI18n();
 </script>
 
 <li class="task card" class:done={task.doneAt !== null}>
@@ -22,7 +24,7 @@
 		<button
 			type="submit"
 			class="check"
-			aria-label={task.doneAt ? 'Mark as not done' : 'Mark as done'}
+			aria-label={task.doneAt ? t.common.markNotDone : t.common.markDone}
 		>
 			{#if task.doneAt !== null}<Check size={14} strokeWidth={3} />{/if}
 		</button>
@@ -31,25 +33,27 @@
 	<span class="title">{task.title}</span>
 
 	{#if task.durationMin !== null}
-		<span class="dur muted tabular">{task.durationMin} min</span>
+		<span class="dur muted tabular">{t.common.minutes(task.durationMin)}</span>
 	{/if}
 
 	<span class="ops">
 		<form class="inline" method="POST" action="?/moveUp" use:enhance>
 			<input type="hidden" name="taskId" value={task.id} />
-			<button type="submit" class="op" aria-label="Move up" disabled={first}>
+			<button type="submit" class="op" aria-label={t.common.moveUp} disabled={first}>
 				<ArrowUp size={15} />
 			</button>
 		</form>
 		<form class="inline" method="POST" action="?/moveDown" use:enhance>
 			<input type="hidden" name="taskId" value={task.id} />
-			<button type="submit" class="op" aria-label="Move down" disabled={last}>
+			<button type="submit" class="op" aria-label={t.common.moveDown} disabled={last}>
 				<ArrowDown size={15} />
 			</button>
 		</form>
 		<form class="inline" method="POST" action="?/delete" use:enhance>
 			<input type="hidden" name="taskId" value={task.id} />
-			<button type="submit" class="op danger" aria-label="Delete task"><Trash2 size={15} /></button>
+			<button type="submit" class="op danger" aria-label={t.common.deleteTask}>
+				<Trash2 size={15} />
+			</button>
 		</form>
 	</span>
 </li>

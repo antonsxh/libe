@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { i18n } from '#lib/i18n/index.ts';
 import {
 	breakAfter,
 	clockElapsedMs,
@@ -10,6 +11,7 @@ import {
 	parseTimerCommand,
 	parsePomodoroSettings,
 	pauseClock,
+	timerLabelText,
 	resumeClock,
 	rolloverPomodoro,
 	skipBreak,
@@ -18,10 +20,12 @@ import {
 	type ActiveTimer,
 	type PomodoroSettings,
 	type RunClock,
-	type SessionClock
+	type SessionClock,
+	type TimerView
 } from './timer.ts';
 
 const MIN = 60_000;
+const label = (v: TimerView) => timerLabelText(v.label, i18n('en'));
 const T0 = Date.UTC(2026, 10, 18, 9, 0, 0);
 const at = (min: number, sec = 0) => T0 + min * MIN + sec * 1000;
 
@@ -129,21 +133,21 @@ describe('focus-mode view', () => {
 	test('countdown rounds remaining up, then overtime with +', () => {
 		const v0 = timerView(timer(running()), settings(), T0 + 400);
 		expect(v0.display).toBe('25:00');
-		expect(v0.label).toBe('RUNNING');
+		expect(label(v0)).toBe('RUNNING');
 		const v1 = timerView(timer(running()), settings(), at(10, 30));
 		expect(v1.display).toBe('14:30');
 		expect(v1.progress).toBeCloseTo(10.5 / 25);
 		const v2 = timerView(timer(running()), settings(), at(27, 13));
 		expect(v2.overtime).toBe(true);
 		expect(v2.display).toBe('+02:13');
-		expect(v2.label).toBe('OVERTIME');
+		expect(label(v2)).toBe('OVERTIME');
 		expect(v2.progress).toBe(1);
 	});
 
 	test('paused shows PAUSED and the frozen remaining time', () => {
 		const s = unwrap(pauseClock(running(), at(5)));
 		const v = timerView(timer(s), settings(), at(9));
-		expect(v.label).toBe('PAUSED');
+		expect(label(v)).toBe('PAUSED');
 		expect(v.status).toBe('paused');
 		expect(v.display).toBe('20:00');
 	});
@@ -292,7 +296,8 @@ describe('pomodoro view', () => {
 
 	test('focus round label, dots and next change', () => {
 		const v = timerView(timer(focusRun({ round: 2 })), settings(), at(5));
-		expect(v.label).toBe('FOCUS · ROUND 2/4');
+		expect(label(v)).toBe('FOCUS · ROUND 2/4');
+		expect(timerLabelText(v.label, i18n('de'))).toBe('FOKUS · RUNDE 2/4');
 		expect(v.display).toBe('20:00');
 		expect(v.dots).toEqual(['done', 'current', 'todo', 'todo']);
 		expect(v.nextChangeAt).toBe(at(25));
@@ -301,7 +306,7 @@ describe('pomodoro view', () => {
 	test('projects into the break locally before the server rolls over', () => {
 		const v = timerView(timer(focusRun()), settings(), at(26));
 		expect(v.phase).toBe('short_break');
-		expect(v.label).toBe('SHORT BREAK');
+		expect(label(v)).toBe('SHORT BREAK');
 		expect(v.display).toBe('04:00');
 		expect(v.dots).toEqual(['done', 'todo', 'todo', 'todo']);
 		expect(v.isFocus).toBe(false);
@@ -312,10 +317,10 @@ describe('pomodoro view', () => {
 	test('waiting break and round numbers wrap per cycle', () => {
 		const v = timerView(timer(focusRun()), settings({ autoStart: false }), at(26));
 		expect(v.status).toBe('waiting');
-		expect(v.label).toBe('BREAK TIME');
+		expect(label(v)).toBe('BREAK TIME');
 		expect(v.display).toBe('05:00');
 		const r5 = timerView(timer(focusRun({ round: 5 })), settings(), at(1));
-		expect(r5.label).toBe('FOCUS · ROUND 1/4');
+		expect(label(r5)).toBe('FOCUS · ROUND 1/4');
 	});
 });
 

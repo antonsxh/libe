@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { i18n } from '#lib/i18n/index.ts';
 import {
 	PAIRING_MAX_ATTEMPTS,
 	bearerToken,
@@ -235,6 +236,9 @@ describe('device names', () => {
 		expect(deviceNameFromUA(UA.cros)).toBe('Chromebook');
 		expect(deviceNameFromUA('')).toBe('Browser');
 		expect(deviceNameFromUA(null)).toBe('Browser');
+		const names = i18n('de').deviceNames;
+		expect(deviceNameFromUA(UA.windows, { names })).toBe('Windows-PC');
+		expect(deviceNameFromUA(UA.ipadDesktop, { touch: true, names })).toBe('iPad');
 	});
 
 	test('parseDeviceName trims and limits', () => {
@@ -255,7 +259,7 @@ describe('device names', () => {
 
 	test('formatAgo', () => {
 		const now = new Date('2026-11-18T12:00:00Z');
-		const ago = (ms: number) => formatAgo(new Date(now.getTime() - ms), now);
+		const ago = (ms: number) => formatAgo(new Date(now.getTime() - ms), now, i18n('en'));
 		expect(ago(5_000)).toBe('just now');
 		expect(ago(-5_000)).toBe('just now');
 		expect(ago(3 * 60_000)).toBe('3 min ago');
@@ -263,6 +267,10 @@ describe('device names', () => {
 		expect(ago(30 * 3600_000)).toBe('yesterday');
 		expect(ago(5 * 86400_000)).toBe('5 days ago');
 		expect(ago(60 * 86400_000)).toBe('Sep 19, 2026');
+		const de = (ms: number) => formatAgo(new Date(now.getTime() - ms), now, i18n('de'));
+		expect(de(3 * 60_000)).toBe('vor 3\u202fMin.');
+		expect(de(30 * 3600_000)).toBe('gestern');
+		expect(de(60 * 86400_000)).toBe('19. Sept. 2026');
 	});
 });
 

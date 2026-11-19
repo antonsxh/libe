@@ -16,10 +16,12 @@
 	import { addDays, formatHours, formatMinutes, todayISO } from '#lib/dates.ts';
 	import { clockElapsedMs } from '#lib/timer.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const timer = useTimer();
+	const t = useI18n();
 
 	/**
 	 * Server clock for the now line and the live entry: refreshed every 5 s while a timer is
@@ -119,9 +121,9 @@
 	}
 </script>
 
-<svelte:head><title>Calendar · libe</title></svelte:head>
+<svelte:head><title>{t.calendar.title} · libe</title></svelte:head>
 
-<PageHeader title="Calendar">
+<PageHeader title={t.calendar.title}>
 	{#snippet titleActions()}
 		<div class="nav-wrap">
 			<WeekNav monday={data.weekMonday} rangeLabel={data.rangeLabel} {isCurrentWeek}>
@@ -129,12 +131,12 @@
 					class="pill-btn plan-toggle"
 					class:on={data.showPlan}
 					href={planHref}
-					aria-label={data.showPlan ? 'Hide plan' : 'Show plan'}
+					aria-label={data.showPlan ? t.calendar.hidePlan : t.calendar.showPlan}
 					data-sveltekit-reset="false"
 				>
 					<LayoutList size={15} />
 					<span class="box" aria-hidden="true"></span>
-					Show plan
+					{t.calendar.showPlan}
 				</a>
 			</WeekNav>
 		</div>
@@ -142,13 +144,15 @@
 	{#snippet actions()}
 		<div class="week-stats">
 			<p class="totals tabular">
-				<strong data-testid="week-total">{formatHM(week.totalMs)}</strong>
-				<span data-testid="quest-total">/ {formatHours(week.questMs / 3_600_000)} quest</span>
+				<strong data-testid="week-total">{formatHM(week.totalMs, t.intl)}</strong>
+				<span data-testid="quest-total">
+					{t.calendar.questTotal(formatHours(week.questMs / 3_600_000, t.intl))}
+				</span>
 			</p>
 			<div
 				class="bar"
 				role="progressbar"
-				aria-label="Quest hours vs. weekly quest budget"
+				aria-label={t.calendar.budgetBar}
 				aria-valuemin="0"
 				aria-valuemax="100"
 				aria-valuenow={Math.round(questPct)}

@@ -15,13 +15,20 @@
 	import QuestPill from '#lib/components/QuestPill.svelte';
 	import PomodoroSettingsDialog from '#lib/components/focus/PomodoroSettingsDialog.svelte';
 	import { questColorVar } from '#lib/quest-colors.ts';
-	import { DEFAULT_FOCUS_MIN, MAX_TIMER_MIN, type SimpleAction } from '#lib/timer.ts';
+	import {
+		DEFAULT_FOCUS_MIN,
+		MAX_TIMER_MIN,
+		timerLabelText,
+		type SimpleAction
+	} from '#lib/timer.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	const timer = useTimer();
+	const t = useI18n();
 	const view = $derived(timer.view);
 	const active = $derived(timer.timer);
 
@@ -68,9 +75,9 @@
 	}
 
 	const errorText = $derived(timer.error ?? data.timerError);
-	const questLabel = $derived(active ? (active.task.questName ?? 'Other') : null);
+	const questLabel = $derived(active ? (active.task.questName ?? t.common.other) : null);
 	const pageTitle = $derived(
-		view && active ? `${view.display} · ${active.task.title}` : 'Focus · libe'
+		view && active ? `${view.display} · ${active.task.title}` : `${t.focus.title} · libe`
 	);
 	const settings = $derived(timer.settings);
 </script>
@@ -96,20 +103,20 @@
 		<p class="crumb">
 			<span class="dot" aria-hidden="true"></span>
 			<span>
-				Focus{#if questLabel}&nbsp;·&nbsp;{questLabel}{/if}
+				{t.focus.title}{#if questLabel}&nbsp;·&nbsp;{questLabel}{/if}
 			</span>
 		</p>
 		<div class="top-actions">
 			<button
 				type="button"
 				class="icon-btn"
-				aria-label="Pomodoro settings"
-				title="Pomodoro settings"
+				aria-label={t.focus.pomodoroSettings}
+				title={t.focus.pomodoroSettings}
 				onclick={() => (settingsOpen = true)}
 			>
 				<Settings size={18} strokeWidth={1.75} />
 			</button>
-			<a class="icon-btn" href={backHref} aria-label="Back" title="Back">
+			<a class="icon-btn" href={backHref} aria-label={t.focus.back} title={t.focus.back}>
 				<ArrowLeft size={18} strokeWidth={1.75} />
 			</a>
 		</div>
@@ -117,11 +124,11 @@
 
 	<main class="center">
 		{#if active && view}
-			<section class="running" aria-label="Active timer">
+			<section class="running" aria-label={t.focus.activeTimer}>
 				{#if active.task.questName}
 					<QuestPill color={active.task.questColor} label={active.task.questName} outlined />
 				{:else}
-					<QuestPill color="slate" label="Other" outlined />
+					<QuestPill color="slate" label={t.common.other} outlined />
 				{/if}
 				<h1 class="task-title">{active.task.title}</h1>
 				<p
@@ -133,11 +140,13 @@
 				>
 					{view.display}
 				</p>
-				<p class="state" aria-live="polite">{view.label}</p>
+				<p class="state" aria-live="polite">{timerLabelText(view.label, t)}</p>
 				{#if view.dots.length > 0}
-					<ol class="dots" aria-label="Pomodoro cycle">
+					<ol class="dots" aria-label={t.focus.cycle}>
 						{#each view.dots as dot, i (i)}
-							<li class={dot}><span class="sr-only">Round {i + 1}: {dot}</span></li>
+							<li class={dot}>
+								<span class="sr-only">{t.focus.roundDot(i + 1, t.focus.dots[dot])}</span>
+							</li>
 						{/each}
 					</ol>
 				{/if}
@@ -145,22 +154,22 @@
 				<div class="controls">
 					{#if view.status === 'waiting'}
 						{#if view.phase === 'focus'}
-							{@render control('startPhase', 'Start focus', true)}
+							{@render control('startPhase', t.focus.startFocus, true)}
 						{:else}
-							{@render control('startPhase', 'Start break', true)}
-							{@render control('skip', 'Skip')}
+							{@render control('startPhase', t.focus.startBreak, true)}
+							{@render control('skip', t.focus.skip)}
 						{/if}
 					{:else if view.isFocus}
 						{@render control(
 							view.status === 'paused' ? 'resume' : 'pause',
-							view.status === 'paused' ? 'Resume' : 'Pause'
+							view.status === 'paused' ? t.focus.resume : t.focus.pause
 						)}
 					{:else}
-						{@render control('skip', 'Skip break')}
+						{@render control('skip', t.focus.skipBreak)}
 					{/if}
-					{@render control('complete', 'Complete')}
+					{@render control('complete', t.focus.complete)}
 					<span class="more">
-						<Menu label="More timer actions">
+						<Menu label={t.focus.moreActions}>
 							{#snippet children(close)}
 								<button
 									type="button"
@@ -171,7 +180,8 @@
 										timer.logTarget = { id: active.task.id, title: active.task.title };
 									}}
 								>
-									<Clock size={14} /> Log time…
+									<Clock size={14} />
+									{t.common.logTimeMenu}
 								</button>
 								<button
 									type="button"
@@ -182,7 +192,8 @@
 										void timer.command('stop');
 									}}
 								>
-									<Square size={14} /> Stop (keep task open)
+									<Square size={14} />
+									{t.focus.stopKeepOpen}
 								</button>
 								<button
 									type="button"
@@ -193,7 +204,8 @@
 										void timer.command('discard');
 									}}
 								>
-									<Trash2 size={14} /> Discard session
+									<Trash2 size={14} />
+									{t.focus.discard}
 								</button>
 							{/snippet}
 						</Menu>
@@ -202,7 +214,9 @@
 
 				{#if switchCandidate}
 					<p class="switch">
-						<span>Start <strong>{switchCandidate.title}</strong> instead?</span>
+						<span>
+							{t.focus.switchBefore}<strong>{switchCandidate.title}</strong>{t.focus.switchAfter}
+						</span>
 						<button
 							type="button"
 							class="link"
@@ -213,7 +227,7 @@
 									navigate: false
 								})}
 						>
-							Stop current and start
+							{t.focus.stopAndStart}
 						</button>
 					</p>
 				{/if}
@@ -223,26 +237,26 @@
 			<form class="picker" method="POST" action="/api/timer" onsubmit={start}>
 				<input type="hidden" name="action" value="start" />
 				<input type="hidden" name="redirectTo" value="/focus" />
-				<h1 class="pick-title">What are you focusing on?</h1>
+				<h1 class="pick-title">{t.focus.pickTitle}</h1>
 
-				<div class="modes" role="radiogroup" aria-label="Timer mode">
+				<div class="modes" role="radiogroup" aria-label={t.focus.timerMode}>
 					<label class:on={mode === 'focus'}>
 						<input type="radio" name="mode" value="focus" bind:group={mode} />
-						Focus
+						{t.focus.modeFocus}
 					</label>
 					<label class:on={mode === 'pomodoro'}>
 						<input type="radio" name="mode" value="pomodoro" bind:group={mode} />
-						Pomodoro
+						{t.focus.modePomodoro}
 					</label>
 				</div>
 
 				{#if allTasks.length === 0}
 					<p class="muted empty">
-						No open tasks for today or in the backlog. <a href="/">Add one on Home</a>.
+						{t.focus.noTasks} <a href="/">{t.focus.addOnHome}</a>.
 					</p>
 				{:else}
 					<fieldset class="tasks">
-						<legend class="sr-only">Task</legend>
+						<legend class="sr-only">{t.common.task}</legend>
 						{#each data.groups as group (group.key)}
 							<p class="label group">{group.label}</p>
 							{#each group.tasks as task (task.id)}
@@ -259,7 +273,7 @@
 										</span>
 									{/if}
 									{#if task.durationMin}<span class="t-dur muted tabular">
-											{task.durationMin} min
+											{t.common.minutes(task.durationMin)}
 										</span>{/if}
 								</label>
 							{/each}
@@ -269,25 +283,31 @@
 
 				{#if mode === 'focus'}
 					<label class="planned">
-						<span class="label">Planned minutes</span>
+						<span class="label">{t.focus.plannedMinutes}</span>
 						<input
 							type="number"
 							name="plannedMin"
 							min="1"
 							max={MAX_TIMER_MIN}
 							step="1"
-							placeholder="Open-ended"
+							placeholder={t.focus.openEnded}
 							bind:value={planned}
 						/>
-						<span class="muted hint">Counts down, then into overtime. Empty = stopwatch.</span>
+						<span class="muted hint">{t.focus.plannedHint}</span>
 					</label>
 				{:else}
 					<p class="pomo muted">
 						<span class="tabular">
-							{settings.focusMin} min focus · {settings.shortBreakMin} min break · {settings.longBreakMin}
-							min long break every {settings.longBreakEvery}
+							{t.focus.pomodoroSummary(
+								settings.focusMin,
+								settings.shortBreakMin,
+								settings.longBreakMin,
+								settings.longBreakEvery
+							)}
 						</span>
-						<button type="button" class="link" onclick={() => (settingsOpen = true)}>Change</button>
+						<button type="button" class="link" onclick={() => (settingsOpen = true)}>
+							{t.focus.change}
+						</button>
 					</p>
 				{/if}
 
@@ -295,7 +315,8 @@
 
 				<div class="pick-actions">
 					<button type="submit" class="ctl primary" disabled={!selected || timer.busy}>
-						<Play size={18} /> Start
+						<Play size={18} />
+						{t.focus.start}
 					</button>
 					{#if selected}
 						<button
@@ -303,7 +324,7 @@
 							class="link"
 							onclick={() => (timer.logTarget = { id: selected.id, title: selected.title })}
 						>
-							Log time afterwards…
+							{t.focus.logAfterwards}
 						</button>
 					{/if}
 				</div>

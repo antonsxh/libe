@@ -10,6 +10,7 @@
 	import Menu from '#lib/components/Menu.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
 	import { questColorVar } from '#lib/quest-colors.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
 		quests,
@@ -27,15 +28,16 @@
 		value?: string;
 	} = $props();
 
+	const t = useI18n();
 	const otherSelected = $derived(
 		otherOption && (value === 'other' || (value === '' && quests.length === 0))
 	);
 	const selected = $derived(quests.find((q) => q.id === value) ?? quests[0] ?? null);
-	const selectedName = $derived(otherSelected ? 'Other' : (selected?.name ?? ''));
+	const selectedName = $derived(otherSelected ? t.common.other : (selected?.name ?? ''));
 </script>
 
 {#if selected || otherSelected}
-	<Menu label={compact ? `Quest: ${selectedName} (change)` : 'Choose quest'}>
+	<Menu label={compact ? t.tasks.pickerCompact(selectedName) : t.tasks.chooseQuest}>
 		{#snippet trigger()}
 			<span class="picker" class:compact title={compact ? selectedName : undefined}>
 				{#if compact}
@@ -44,7 +46,7 @@
 						style:--q={otherSelected ? undefined : questColorVar(selected?.color)}
 					></span>
 				{:else if otherSelected}
-					<QuestPill color={null} label="Other" outlined />
+					<QuestPill color={null} label={t.common.other} outlined />
 				{:else if selected}
 					<QuestPill color={selected.color} label={selected.name} outlined />
 				{/if}
@@ -83,7 +85,7 @@
 					}}
 				>
 					<span class="dot"></span>
-					<span class="qname">Other</span>
+					<span class="qname">{t.common.other}</span>
 					{#if otherSelected}<span class="tick" aria-hidden="true">✓</span>{/if}
 				</button>
 			{/if}

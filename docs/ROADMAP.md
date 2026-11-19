@@ -21,7 +21,8 @@ sessions(id, task_id, state running|paused|completed, started_at, duration_min,
 pomodoro_runs(id, task_id, phase focus|short_break|long_break, round, phase_started_at NULL,
               phase_min, ended_at, created_at)                     -- M4, active run = ended_at NULL
 settings(id = 1, pomodoro_focus_min, pomodoro_short_break_min, pomodoro_long_break_min,
-         pomodoro_long_break_every, pomodoro_auto_start, updated_at)  -- M4, single row
+         pomodoro_long_break_every, pomodoro_auto_start, language auto|en|de, updated_at)
+                                                       -- M4, single row; language: 0003_ui_language
 devices(id, token_hash UNIQUE, name, kind browser|pwa|tauri, user_agent, paired_at, last_seen_at,
         cookie_renewed_at, revoked_at)                                    -- M7 (0002_devices)
 pairing_codes(id, code_hash, expires_at, used_at, attempts, created_by_device_id → devices,
@@ -556,3 +557,47 @@ Fix found by the suite:
 - Security: the paired server's pages get IPC for exactly the four `update_*` commands (runtime
   capability for that origin; the app manifest in `build.rs` makes every command
   permission-gated). The pairing commands stay local-only.
+
+## German UI language (after desktop auto-update)
+
+- The whole UI exists in **English** (default/fallback) and **German**. No i18n library: a
+  typed in-house module `src/lib/i18n/` — `en.ts` is the source of truth (nested messages,
+  functions for interpolation/plurals; its type is `Messages`), `de.ts` is typed `Messages`
+  so a missing or extra key fails `bun run check`; a unit test also deep-compares the key
+  structure and rejects empty strings. `index.ts`: locales, `i18n(locale)`, Intl tags
+  (`en-US`, `de-DE`), `Accept-Language` parsing/negotiation (pure, unit-tested).
+- **Setting**: `settings.language` = `auto | en | de` (migration `0003_ui_language`, default
+  `auto`), chosen in **Settings → Language** (English / Deutsch / System default, form action
+  `?/language`, validated on the server). It applies to every device; `auto` negotiates per
+  request (German when `de` is preferred over `en`). `hooks.server.ts` resolves
+  `locals.locale`; requests without a device (`/setup`, `/pair`, `/api/pair`) use
+  `Accept-Language` only. `<html lang>` comes from `%lang%` in `app.html`.
+- **Components**: `useI18n()` (`i18n/context.svelte.ts`, context created in the root layout
+  from the layout data — SSR-safe, like `useTimer()`); reads are reactive, so switching the
+  language re-renders without a reload.
+- **Server strings**: pure validators (`quest-form.ts`, `task-form.ts`, `manual-log.ts`,
+  `timer.ts`, `auth.ts`, pairing) return error **codes** (`ErrorCode` = keys of
+  `Messages['errors']`); form actions and `/api/**` translate them with
+  `i18n(locals.locale)` (`translateErrors` for field maps). `load` builds titles/labels in the
+  request's locale.
+- **Dates/numbers** go through `Intl` with `t.intl` (German: 24-hour times, `10,5 h`, ranges
+  like `9.–15. Nov.`); machine formatting (ISO days, wall-clock parts) stays on fixed
+  `en-US`/`en-CA` formatters. Weeks still start Monday.
+- **Offline page** (cached by the service worker) renders both languages and picks one from
+  `navigator.languages` on the client. The PWA manifest and seed data stay English.
+- **Desktop app**: the bundled pairing screen (`src-tauri/ui/`) picks German/English from
+  `navigator.languages`; Rust errors are `Problem { code, message, detail }`
+  (`src-tauri/src/problem.rs`) translated by `ui/main.js`, and the pairing request forwards the
+  page's languages as `Accept-Language`, so server errors arrive translated too. Update phases
+  `failed` / `unavailable` carry a `code` (+ `detail`/`version`/`track`) next to the English
+  text; Settings translates known codes and falls back to the text, because the remote page
+  may talk to an older app. Rejected `update_*` commands still return plain English strings
+  (a structured error would print `[object Object]` on older servers); Settings recognises
+  the known ones. The native menu (Reload, Change server / Unpair…, Quit) stays English.
+- German copy: informal „du“, glossary Quest, Backlog, Fokus, Planen (nav) / „Woche planen“,
+  Rückblick, Kalender, Einstellungen, Heute, Start (Home), Pomodoro, Aufgabe (task), Sitzung
+  (session), Zeit erfassen (log time), Zeitblock, koppeln / Kopplungscode (pair), Setup-Secret,
+  Update-Kanal (update track), Sonstiges (other).
+- e2e: `e2e/specs/i18n.spec.ts` (setting persists and applies, `auto` per browser locale,
+  translated validation errors, German phone layout). The config pins `locale: 'en-US'`;
+  the spec resets the setting to `auto` around every test.

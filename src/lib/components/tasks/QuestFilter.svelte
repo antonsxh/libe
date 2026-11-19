@@ -3,6 +3,7 @@
 	import { Funnel } from '@lucide/svelte';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
 		quests,
@@ -15,6 +16,7 @@
 		onchange: (ids: string[] | null) => void;
 	} = $props();
 
+	const t = useI18n();
 	let open = $state(false);
 	let trigger: HTMLButtonElement | undefined = $state();
 	let pop: HTMLDivElement | undefined = $state();
@@ -65,7 +67,7 @@
 		class="funnel"
 		class:active={selected !== null}
 		bind:this={trigger}
-		aria-label="Filter quest work by quest"
+		aria-label={t.tasks.filter}
 		aria-haspopup="dialog"
 		aria-expanded={open}
 		onclick={toggleOpen}
@@ -74,8 +76,8 @@
 	</button>
 
 	{#if open}
-		<div class="pop" role="dialog" aria-label="Quest filter" bind:this={pop}>
-			<p class="hint muted">Show tasks of</p>
+		<div class="pop" role="dialog" aria-label={t.tasks.filterDialog} bind:this={pop}>
+			<p class="hint muted">{t.tasks.filterHint}</p>
 			{#each quests as quest (quest.id)}
 				<label class="row">
 					<input
@@ -87,7 +89,7 @@
 					<span class="name">{quest.name}</span>
 				</label>
 			{:else}
-				<p class="hint muted">No open quests.</p>
+				<p class="hint muted">{t.tasks.noOpenQuests}</p>
 			{/each}
 		</div>
 	{/if}

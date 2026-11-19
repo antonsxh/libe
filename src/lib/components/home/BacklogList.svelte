@@ -8,6 +8,7 @@
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
 		tasks,
@@ -23,6 +24,7 @@
 		form?: TaskFormResult | undefined;
 	} = $props();
 
+	const t = useI18n();
 	let expanded = $state(true);
 	const count = $derived(tasks.length + otherTasks.length);
 </script>
@@ -32,21 +34,22 @@
 		{#if task.questName}
 			<QuestPill color={task.questColor} label={task.questName} />
 		{:else}
-			<QuestPill color="slate" label="Other" />
+			<QuestPill color="slate" label={t.common.other} />
 		{/if}
 		<span class="title">{task.title}</span>
 		{#if task.durationMin !== null}
-			<span class="dur muted tabular">{task.durationMin} min</span>
+			<span class="dur muted tabular">{t.common.minutes(task.durationMin)}</span>
 		{/if}
 		<form class="inline" method="POST" action={formAction('today')} use:enhance>
 			<input type="hidden" name="taskId" value={task.id} />
-			<button type="submit" class="op primary-op" aria-label="Schedule for today">
-				<ArrowRight size={14} /> Today
+			<button type="submit" class="op primary-op" aria-label={t.home.scheduleToday}>
+				<ArrowRight size={14} />
+				{t.common.today}
 			</button>
 		</form>
 		<form class="inline" method="POST" action={formAction('deleteTask')} use:enhance>
 			<input type="hidden" name="taskId" value={task.id} />
-			<button type="submit" class="op danger" aria-label="Delete task">
+			<button type="submit" class="op danger" aria-label={t.common.deleteTask}>
 				<Trash2 size={14} />
 			</button>
 		</form>
@@ -55,7 +58,7 @@
 
 <section class="section">
 	<div class="head">
-		<h2 class="label">Backlog</h2>
+		<h2 class="label">{t.common.backlog}</h2>
 		<button
 			type="button"
 			class="collapse"
@@ -63,12 +66,12 @@
 			onclick={() => (expanded = !expanded)}
 			aria-expanded={expanded}
 		>
-			{count} open {count === 1 ? 'task' : 'tasks'}
+			{t.home.openTasks(count)}
 			<ChevronDown size={15} />
 		</button>
 	</div>
 
-	<TaskAddForm action="addBacklog" placeholder="Add to backlog…" {quests} {form} />
+	<TaskAddForm action="addBacklog" placeholder={t.tasks.addToBacklog} {quests} {form} />
 
 	{#if expanded}
 		{#if count > 0}
@@ -78,7 +81,7 @@
 				{#each otherTasks as task (task.id)}{@render row(task)}{/each}
 			</ul>
 		{:else}
-			<p class="muted empty">Nothing waiting in the backlog.</p>
+			<p class="muted empty">{t.tasks.backlogEmpty}</p>
 		{/if}
 	{/if}
 </section>

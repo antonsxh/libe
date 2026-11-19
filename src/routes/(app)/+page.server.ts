@@ -25,10 +25,12 @@ import { homeTime } from '#lib/server/stats.ts';
 import { doneLast } from '#lib/ordering.ts';
 import { addDays, todayISO, formatDayLabel, minuteOfDay } from '#lib/dates.ts';
 import { parseClock, validateBlockSpan, type BlockFormResult } from '#lib/timeline.ts';
+import { i18n, intlLocale } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load = (async ({ url }) => {
+export const load = (async ({ url, locals }) => {
 	const day = todayISO();
+	const intl = intlLocale(locals.locale);
 
 	const [quests_, questTasksAll, otherTasksAll, backlog, otherBacklog, blocks, time] =
 		await Promise.all([
@@ -64,8 +66,8 @@ export const load = (async ({ url }) => {
 	const weekBudgetMin = quests_.reduce((sum, quest) => sum + (quest.weeklyBudgetH ?? 0) * 60, 0);
 
 	return {
-		title: formatDayLabel(day, { weekday: 'long', month: 'long', day: 'numeric' }),
-		dayLabel: formatDayLabel(day, { month: 'short', day: 'numeric' }),
+		title: formatDayLabel(day, { weekday: 'long', month: 'long', day: 'numeric' }, intl),
+		dayLabel: formatDayLabel(day, { month: 'short', day: 'numeric' }, intl),
 		day,
 		/** Server's minutes-of-day for the timeline "now" line (client refreshes it). */
 		now: minuteOfDay(),
@@ -126,8 +128,9 @@ export const actions = {
 	},
 
 	/** Create a time block for a task (dialog). */
-	block: async ({ request }) => {
+	block: async ({ request, locals }) => {
 		const form = await request.formData();
+		const t = i18n(locals.locale);
 		const echo = {
 			ok: false as const,
 			intent: 'block',
@@ -136,21 +139,21 @@ export const actions = {
 			duration: formStr(form, 'duration')
 		} satisfies BlockFormResult;
 		const taskId = echo.taskId;
-		if (!isUuid(taskId)) return fail(400, { ...echo, errors: { time: 'Task no longer exists.' } });
+		if (!isUuid(taskId)) return fail(400, { ...echo, errors: { time: t.errors.taskGone } });
 		const task = await getTask(taskId);
-		if (!task) return fail(400, { ...echo, errors: { time: 'Task no longer exists.' } });
+		if (!task) return fail(400, { ...echo, errors: { time: t.errors.taskGone } });
 		const start = parseClock(form.get('time'));
-		if (start === null)
-			return fail(400, { ...echo, errors: { time: 'Pick a start time between 00:00 and 23:59.' } });
+		if (start === null) return fail(400, { ...echo, errors: { time: t.errors.blockStartInvalid } });
 		const durationMin = Math.round(Number(form.get('duration')));
 		const span = validateBlockSpan(start, Number.isFinite(durationMin) ? durationMin : NaN);
-		if (!span.ok) return fail(400, { ...echo, errors: { time: span.error } });
+		if (!span.ok) return fail(400, { ...echo, errors: { time: t.errors[span.error] } });
 		await createBlock({ taskId, day: todayISO(), startMin: start, endMin: span.endMin });
 	},
 
 	/** Edit an existing block (dialog). */
-	blockUpdate: async ({ request }) => {
+	blockUpdate: async ({ request, locals }) => {
 		const form = await request.formData();
+		const t = i18n(locals.locale);
 		const echo = {
 			ok: false as const,
 			intent: 'blockUpdate',
@@ -160,13 +163,12 @@ export const actions = {
 		} satisfies BlockFormResult;
 		const blockId = echo.blockId;
 		if (!isUuid(blockId) || !(await getBlock(blockId)))
-			return fail(400, { ...echo, errors: { time: 'This block no longer exists.' } });
+			return fail(400, { ...echo, errors: { time: t.errors.blockGone } });
 		const start = parseClock(form.get('time'));
-		if (start === null)
-			return fail(400, { ...echo, errors: { time: 'Pick a start time between 00:00 and 23:59.' } });
+		if (start === null) return fail(400, { ...echo, errors: { time: t.errors.blockStartInvalid } });
 		const durationMin = Math.round(Number(form.get('duration')));
 		const span = validateBlockSpan(start, Number.isFinite(durationMin) ? durationMin : NaN);
-		if (!span.ok) return fail(400, { ...echo, errors: { time: span.error } });
+		if (!span.ok) return fail(400, { ...echo, errors: { time: t.errors[span.error] } });
 		await updateBlock(blockId, start, span.endMin);
 	},
 

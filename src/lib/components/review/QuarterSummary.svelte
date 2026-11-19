@@ -1,40 +1,48 @@
 <script lang="ts">
 	import Sparkline from '#lib/components/Sparkline.svelte';
-	import { formatDayLabel, formatHours } from '#lib/dates.ts';
+	import { dayRangeLabel, formatDayLabel, formatHours } from '#lib/dates.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { percent, type ReviewQuarter } from '#lib/review.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = { quarter: ReviewQuarter };
 	let { quarter }: Props = $props();
+	const t = useI18n();
+	const hours = (h: number) => formatHours(h, t.intl);
 
-	const weekLabel = (monday: string) => formatDayLabel(monday, { month: 'short', day: 'numeric' });
+	const weekLabel = (monday: string) =>
+		formatDayLabel(monday, { month: 'short', day: 'numeric' }, t.intl);
 	const weeksText = $derived(
-		`${Math.round(quarter.weeksElapsed * 10) / 10} week${quarter.weeksElapsed === 1 ? '' : 's'}`
+		t.review.weeks(
+			new Intl.NumberFormat(t.intl, { maximumFractionDigits: 1 }).format(quarter.weeksElapsed),
+			quarter.weeksElapsed
+		)
 	);
+	const rangeLabel = $derived(dayRangeLabel(quarter.start, quarter.end, t.intl));
 </script>
 
 <section class="quarter" aria-labelledby="quarter-label">
 	<header class="head">
-		<h2 class="label" id="quarter-label">This quarter</h2>
+		<h2 class="label" id="quarter-label">{t.review.thisQuarter}</h2>
 		<span class="period muted" data-testid="quarter-label">
-			{quarter.label} · {quarter.rangeLabel}
+			{quarter.label} · {rangeLabel}
 		</span>
 	</header>
 
 	<p class="summary">
 		<strong class="big tabular" data-testid="quarter-quest">
-			{formatHours(quarter.questMin / 60)}
+			{hours(quarter.questMin / 60)}
 		</strong>
 		<span class="muted">
-			quest work{#if quarter.budgetMin > 0}<span class="tabular">
-					{` / ${formatHours(quarter.budgetMin / 60)} target (${weeksText})`}
+			{t.review.questWork}{#if quarter.budgetMin > 0}<span class="tabular">
+					{t.review.quarterTarget(hours(quarter.budgetMin / 60), weeksText)}
 				</span>{/if}
 		</span>
 		<span class="sep" aria-hidden="true">·</span>
 		<strong class="mid tabular" data-testid="quarter-other">
-			{formatHours(quarter.otherMin / 60)}
+			{hours(quarter.otherMin / 60)}
 		</strong>
-		<span class="muted">other work</span>
+		<span class="muted">{t.review.otherWork}</span>
 	</p>
 
 	{#if quarter.quests.length}
@@ -51,15 +59,15 @@
 					<div class="top">
 						<span class="tile" aria-hidden="true">{r.quest.icon}</span>
 						<a class="name" href={`/quests/${r.quest.id}`}>{r.quest.name}</a>
-						{#if r.quest.closed}<span class="closed-tag">Closed</span>{/if}
+						{#if r.quest.closed}<span class="closed-tag">{t.review.closed}</span>{/if}
 					</div>
 					<div class="numbers">
 						<p class="hours">
 							<span class="value tabular" data-testid="quarter-hours">
-								{formatHours(r.quarterMin / 60)}
+								{hours(r.quarterMin / 60)}
 							</span>
 							{#if r.budgetMin}
-								<span class="budget muted tabular">/ {formatHours(r.budgetMin / 60)}</span>
+								<span class="budget muted tabular">/ {hours(r.budgetMin / 60)}</span>
 							{/if}
 						</p>
 						<Sparkline
@@ -70,8 +78,9 @@
 							height={38}
 						/>
 						<p class="sr-only">
-							Weekly hours: {r.weeklyMin
-								.map((m, i) => `${weekLabel(quarter.weeks[i])} ${formatHours(m / 60)}`)
+							{t.review.weeklyHours}
+							{r.weeklyMin
+								.map((m, i) => `${weekLabel(quarter.weeks[i])} ${hours(m / 60)}`)
 								.join(', ')}
 						</p>
 					</div>
@@ -79,17 +88,19 @@
 						<div
 							class="progress"
 							role="progressbar"
-							aria-label={`${r.quest.name}: quarter hours vs. target`}
+							aria-label={t.review.quarterVsTarget(r.quest.name)}
 							aria-valuemin="0"
 							aria-valuemax="100"
 							aria-valuenow={Math.min(100, pct)}
 						>
 							<span class="fill" style:--q={color} style:width={`${Math.min(100, pct)}%`}></span>
 						</div>
-						<p class="meta muted tabular">{pct}% of target</p>
+						<p class="meta muted tabular">{t.common.pctOfTarget(pct)}</p>
 					{:else}
 						<div class="progress" aria-hidden="true"></div>
-						<p class="meta faint">{r.quest.closed ? 'Closed quest' : 'No weekly budget'}</p>
+						<p class="meta faint">
+							{r.quest.closed ? t.common.closedQuest : t.common.noWeeklyBudget}
+						</p>
 					{/if}
 				</li>
 			{/each}

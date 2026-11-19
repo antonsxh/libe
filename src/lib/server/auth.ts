@@ -6,6 +6,7 @@ import { LIBE_SETUP_SECRET } from '$app/env/private';
 import { COOKIE_MAX_AGE_S, DEVICE_COOKIE, PAIR_RATE_LIMIT } from '#lib/auth.ts';
 import { RateLimiter } from '#lib/rate-limit.ts';
 import { secretsEqual } from './tokens.ts';
+import { i18n, type Locale } from '#lib/i18n/index.ts';
 
 /**
  * `Secure` follows the request protocol. Behind a TLS-terminating proxy the adapter derives
@@ -46,9 +47,9 @@ export function clientKey(event: Pick<RequestEvent, 'getClientAddress'>): string
 	}
 }
 
-export function retryMessage(retryAfterMs: number): string {
+export function retryMessage(retryAfterMs: number, locale: Locale): string {
 	const s = Math.max(1, Math.ceil(retryAfterMs / 1000));
-	return `Too many attempts. Try again in ${s} s.`;
+	return i18n(locale).auth.tooManyAttempts(s);
 }
 
 export const setupSecretConfigured = (): boolean => !!LIBE_SETUP_SECRET;

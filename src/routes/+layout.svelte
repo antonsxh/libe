@@ -3,15 +3,26 @@
 	import '#lib/styles/global.css';
 	import { dev } from '$app/env';
 	import { TimerStore, setTimerStore } from '#lib/timer-store.svelte.ts';
+	import { setI18n, useI18n } from '#lib/i18n/context.svelte.ts';
 	import SwitchTimerDialog from '#lib/components/focus/SwitchTimerDialog.svelte';
 	import LogTimeDialog from '#lib/components/focus/LogTimeDialog.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
 
+	// UI language: seeded from the layout data, follows it after `refreshAll` (language
+	// switch in Settings) — every `t.…` read re-renders, `<html lang>` follows.
+	// svelte-ignore state_referenced_locally
+	const language = setI18n(data.locale);
+	$effect(() => {
+		language.locale = data.locale;
+		document.documentElement.lang = data.locale;
+	});
+	const t = useI18n();
+
 	// One store per app instance (context, not a module singleton → SSR-safe).
 	// svelte-ignore state_referenced_locally — seeded once; later snapshots arrive via `apply`.
-	const timer = setTimerStore(new TimerStore(data.timer));
+	const timer = setTimerStore(new TimerStore(data.timer, t));
 
 	// Fresh layout data (refreshAll after mutations) → newer snapshot.
 	$effect(() => timer.apply(data.timer));

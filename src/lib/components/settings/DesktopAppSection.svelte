@@ -5,19 +5,21 @@
 	import { formatAgo } from '#lib/auth.ts';
 	import {
 		UPDATE_TRACKS,
+		commandErrorText,
 		desktopApp,
 		downloadPercent,
 		isBusy,
 		phaseText,
-		trackLabel,
 		trackOfVersion,
 		type DesktopApp,
 		type UpdateState,
 		type UpdateTrack
 	} from '#lib/desktop.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = { serverVersion: string };
 	let { serverVersion }: Props = $props();
+	const t = useI18n();
 
 	/** Only inside the desktop app; stays hidden in browsers, the PWA and during SSR. */
 	let app = $state<DesktopApp | null>(null);
@@ -37,7 +39,7 @@
 		try {
 			return await action();
 		} catch (e) {
-			error = String(e);
+			error = commandErrorText(e, t);
 		}
 	}
 
@@ -91,37 +93,35 @@
 	<section class="card section" aria-labelledby="desktop-title">
 		<header class="section-head">
 			<div>
-				<h2 id="desktop-title" class="label">Desktop app</h2>
+				<h2 id="desktop-title" class="label">{t.desktop.title}</h2>
 				<p class="muted desc">
 					<span class="tabular" data-testid="app-version">libe {update.version}</span>
-					· updates download in the background and install when you restart the app.
+					{t.desktop.desc}
 				</p>
 			</div>
 			<Button variant="secondary" onclick={check} disabled={busy}>
-				<RefreshCw size={16} /> Check for updates
+				<RefreshCw size={16} />
+				{t.desktop.check}
 			</Button>
 		</header>
 
 		<div class="row">
 			<div class="row-text">
-				<p class="row-title" id="track-title">Update track</p>
-				<p class="muted desc">
-					Stable gets tested releases, Nightly the newest build of libe. Switching installs the
-					newest build of that track, even when it is older than this one.
-				</p>
+				<p class="row-title" id="track-title">{t.desktop.track}</p>
+				<p class="muted desc">{t.desktop.trackDesc}</p>
 			</div>
 			<div class="tracks" role="radiogroup" aria-labelledby="track-title">
-				{#each UPDATE_TRACKS as track (track.value)}
-					<label class:on={update.track === track.value}>
+				{#each UPDATE_TRACKS as track (track)}
+					<label class:on={update.track === track}>
 						<input
 							type="radio"
 							name="update-track"
-							value={track.value}
-							checked={update.track === track.value}
+							value={track}
+							checked={update.track === track}
 							disabled={switching || phase.kind === 'installing'}
-							onchange={() => setTrack(track.value)}
+							onchange={() => setTrack(track)}
 						/>
-						{track.label}
+						{t.desktop.tracks[track]}
 					</label>
 				{/each}
 			</div>
@@ -129,16 +129,18 @@
 
 		<div class="status" role="status" data-phase={phase.kind}>
 			<p class:error={phase.kind === 'failed'}>
-				{phaseText(phase)}
+				{phaseText(phase, t)}
 				{#if update.checkedAt && (phase.kind === 'upToDate' || phase.kind === 'failed')}
-					<span class="muted">Checked {formatAgo(new Date(update.checkedAt), new Date(now))}.</span>
+					<span class="muted">
+						{t.desktop.checked(formatAgo(new Date(update.checkedAt), new Date(now), t))}
+					</span>
 				{/if}
 			</p>
 			{#if percent !== null}
 				<div
 					class="bar"
 					role="progressbar"
-					aria-label="Download progress"
+					aria-label={t.desktop.downloadProgress}
 					aria-valuenow={percent}
 					aria-valuemin={0}
 					aria-valuemax={100}
@@ -148,9 +150,9 @@
 			{/if}
 			{#if phase.kind === 'ready'}
 				<Button variant="primary" onclick={install} disabled={installing}>
-					{#if phase.needsPassword}<Download size={16} /> Install and restart{:else}<RotateCw
-							size={16}
-						/> Restart to update{/if}
+					{#if phase.needsPassword}<Download size={16} />
+						{t.desktop.installRestart}{:else}<RotateCw size={16} />
+						{t.desktop.restartToUpdate}{/if}
 				</Button>
 			{/if}
 			{#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -158,15 +160,16 @@
 
 		<p class="muted desc server" data-testid="server-version">
 			{#if serverTrack}
-				Your server runs libe {serverVersion} ({trackLabel(serverTrack)}).
+				{t.desktop.serverRuns(serverVersion, t.desktop.tracks[serverTrack])}
 				{#if serverTrack !== update.track}
-					It updates separately, with its Docker image: use the <code>:{update.track}</code> tag to
-					put it on {trackLabel(update.track)} too.
+					{t.desktop.otherTrackBefore}<code>:{update.track}</code>{t.desktop.otherTrackAfter(
+						t.desktop.tracks[update.track]
+					)}
 				{:else}
-					It updates separately, with its Docker image (<code>:{serverTrack}</code>).
+					{t.desktop.sameTrackBefore}<code>:{serverTrack}</code>{t.desktop.sameTrackAfter}
 				{/if}
 			{:else}
-				Your server runs a development build of libe ({serverVersion}).
+				{t.desktop.devServer(serverVersion)}
 			{/if}
 		</p>
 	</section>

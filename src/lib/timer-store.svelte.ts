@@ -19,6 +19,7 @@ import {
 	type TimerView,
 	type SimpleAction
 } from '#lib/timer.ts';
+import type { I18n } from '#lib/i18n/index.ts';
 
 export interface TaskRef {
 	id: string;
@@ -79,7 +80,11 @@ export class TimerStore {
 	#unloading = false;
 	#refreshQueued = false;
 
-	constructor(initial: TimerSnapshot) {
+	/** Messages of the current UI language (live view, see `useI18n`). */
+	#t: I18n;
+
+	constructor(initial: TimerSnapshot, t: I18n) {
+		this.#t = t;
 		this.snapshot = initial;
 		this.offset = initial.now - Date.now();
 	}
@@ -238,12 +243,12 @@ export class TimerStore {
 			});
 			if (res.status === 401) {
 				toPairing();
-				return { ok: false, code: 'unauthorized', error: 'This device is not paired.' };
+				return { ok: false, code: 'unauthorized', error: this.#t.errors.notPaired };
 			}
 			const data = (await res.json().catch(() => null)) as
 				{ ok: true; snapshot: TimerSnapshot } | { ok: false; code: string; error: string } | null;
 			if (!data) {
-				this.error = `Request failed (${res.status}).`;
+				this.error = this.#t.common.requestFailed(res.status);
 				return { ok: false, code: 'http', error: this.error };
 			}
 			if (data.ok) {
@@ -254,7 +259,7 @@ export class TimerStore {
 			if (data.code !== 'conflict') this.error = data.error;
 			return data;
 		} catch {
-			this.error = 'Network error — try again.';
+			this.error = this.#t.common.networkError;
 			return { ok: false, code: 'network', error: this.error };
 		} finally {
 			this.busy = false;

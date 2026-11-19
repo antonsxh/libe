@@ -231,13 +231,15 @@ export function slotMinute(y: number, hourPx: number, startHour: number, step = 
 	return Math.min(1440 - step, Math.floor(raw / step) * step);
 }
 
-/** Duration label: `0m`, `45m`, `8h 59m`, `2h`. */
-export function formatHM(ms: number): string {
+/** Duration label: `0m`, `45m`, `8h 59m`, `2h` (German: `45 min`, `8 h 59 min`, `2 h`). */
+export function formatHM(ms: number, locale = 'en-US'): string {
 	const total = Math.max(0, Math.round(ms / 60_000));
 	const h = Math.floor(total / 60);
 	const m = total % 60;
-	if (h === 0) return `${m}m`;
-	return m === 0 ? `${h}h` : `${h}h ${m}m`;
+	// Narrow no-break space between number and unit (German typography).
+	const [hu, mu] = locale.startsWith('en') ? ['h', 'm'] : ['\u202fh', '\u202fmin'];
+	if (h === 0) return `${m}${mu}`;
+	return m === 0 ? `${h}${hu}` : `${h}${hu} ${m}${mu}`;
 }
 
 /**
@@ -246,7 +248,8 @@ export function formatHM(ms: number): string {
  */
 export function sessionSpanLabel(
 	s: Pick<CalendarSession, 'startedAt' | 'endedAt'>,
-	timeZone?: string
+	timeZone?: string,
+	locale = 'en-US'
 ): string {
 	const day = (ms: number) =>
 		new Intl.DateTimeFormat('en-CA', {
@@ -258,6 +261,6 @@ export function sessionSpanLabel(
 	const a = day(s.startedAt);
 	const b = day(s.endedAt - 1);
 	if (a === b) return `${wallClock(s.startedAt, timeZone)} – ${wallClock(s.endedAt, timeZone)}`;
-	const wd = (d: string) => formatDayLabel(d, { weekday: 'short' });
+	const wd = (d: string) => formatDayLabel(d, { weekday: 'short' }, locale);
 	return `${wd(a)} ${wallClock(s.startedAt, timeZone)} – ${wd(b)} ${wallClock(s.endedAt, timeZone)}`;
 }

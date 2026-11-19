@@ -7,6 +7,7 @@
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { QuestStats } from '#lib/stats-core.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	let {
 		quest,
@@ -25,6 +26,7 @@
 		onedit: (quest: Quest) => void;
 	} = $props();
 
+	const t = useI18n();
 	let confirmingDelete = $state(false);
 
 	const weekly = $derived(stats?.weeklyH ?? []);
@@ -37,12 +39,10 @@
 			<a class="name" href={`/quests/${quest.id}`}>{quest.name}</a>
 		</span>
 		<span class="menu-slot">
-			<Menu label={`Actions for ${quest.name}`} onclose={() => (confirmingDelete = false)}>
+			<Menu label={t.common.actionsFor(quest.name)} onclose={() => (confirmingDelete = false)}>
 				{#snippet children(close)}
 					{#if confirmingDelete}
-						<p class="confirm">
-							Delete “{quest.name}”? Its tasks and all logged time are deleted too.
-						</p>
+						<p class="confirm">{t.quests.card.deleteConfirm(quest.name)}</p>
 						<div class="confirm-actions">
 							<button
 								type="button"
@@ -50,12 +50,13 @@
 								role="menuitem"
 								onclick={() => (confirmingDelete = false)}
 							>
-								Cancel
+								{t.common.cancel}
 							</button>
 							<form method="POST" action="?/delete" use:enhance={() => close()}>
 								<input type="hidden" name="questId" value={quest.id} />
 								<button type="submit" class="item danger" role="menuitem">
-									<Trash2 size={14} /> Delete
+									<Trash2 size={14} />
+									{t.common.delete}
 								</button>
 							</form>
 						</div>
@@ -69,19 +70,19 @@
 								onedit(quest);
 							}}
 						>
-							Edit
+							{t.common.edit}
 						</button>
 						{#if !closed}
 							<form method="POST" action="?/moveUp" use:enhance={() => close()}>
 								<input type="hidden" name="questId" value={quest.id} />
 								<button type="submit" class="item" role="menuitem" disabled={first}>
-									Move up
+									{t.common.moveUp}
 								</button>
 							</form>
 							<form method="POST" action="?/moveDown" use:enhance={() => close()}>
 								<input type="hidden" name="questId" value={quest.id} />
 								<button type="submit" class="item" role="menuitem" disabled={last}>
-									Move down
+									{t.common.moveDown}
 								</button>
 							</form>
 						{/if}
@@ -93,7 +94,7 @@
 							<input type="hidden" name="questId" value={quest.id} />
 							<button type="submit" class="item" role="menuitem">
 								{#if closed}<RotateCcw size={14} />{/if}
-								{closed ? 'Reopen quest' : 'Close quest'}
+								{closed ? t.quests.card.reopen : t.quests.card.close}
 							</button>
 						</form>
 						<button
@@ -102,7 +103,8 @@
 							role="menuitem"
 							onclick={() => (confirmingDelete = true)}
 						>
-							<Trash2 size={14} /> Delete quest
+							<Trash2 size={14} />
+							{t.quests.card.delete}
 						</button>
 					{/if}
 				{/snippet}
@@ -115,16 +117,18 @@
 	<div class="bottom">
 		<div class="week">
 			<span class="week-row">
-				<span class="big tabular">{formatHours(stats?.weekH ?? 0)}</span>
+				<span class="big tabular">{formatHours(stats?.weekH ?? 0, t.intl)}</span>
 				{#if quest.weeklyBudgetH !== null}
-					<span class="budget muted tabular">/ {formatHours(quest.weeklyBudgetH)}</span>
+					<span class="budget muted tabular">/ {formatHours(quest.weeklyBudgetH, t.intl)}</span>
 				{/if}
 			</span>
-			<span class="label">This week</span>
+			<span class="label">{t.common.thisWeek}</span>
 		</div>
 		<div class="spark-wrap">
 			<Sparkline values={weekly} color={questColorVar(quest.color)} width={110} height={34} />
-			<span class="quarter muted tabular">{formatHours(stats?.quarterH ?? 0)} this quarter</span>
+			<span class="quarter muted tabular">
+				{t.quests.card.thisQuarter(formatHours(stats?.quarterH ?? 0, t.intl))}
+			</span>
 		</div>
 	</div>
 </article>

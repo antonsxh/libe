@@ -92,13 +92,44 @@ pub enum Phase {
     Installing {
         version: String,
     },
+    /// `message`: English text. `info`: a stable code (+ parameters) that Settings
+    /// translates; servers that don't know the code show `message`.
     Failed {
         message: String,
+        #[serde(flatten)]
+        info: ErrorInfo,
     },
     /// This build can't update itself (development build, no feed entry for its kind of install).
     Unavailable {
         reason: String,
+        #[serde(flatten)]
+        info: ErrorInfo,
     },
+}
+
+/// Code and parameters of a `Failed` / `Unavailable` phase (`UpdateErrorInfo` in
+/// `src/lib/desktop.ts`). Added with the translated Settings page; older apps sent only
+/// the English text.
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct ErrorInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<&'static str>,
+    /// Technical detail (updater / OS error), not translated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub track: Option<&'static str>,
+}
+
+impl ErrorInfo {
+    fn code(code: &'static str) -> Self {
+        ErrorInfo {
+            code: Some(code),
+            ..Default::default()
+        }
+    }
 }
 
 /// What Settings shows (`update_state`).
@@ -334,6 +365,11 @@ async fn run_check(app: AppHandle, run: u64, track: Track) {
             run,
             Phase::Failed {
                 message: format!("Downloading libe {version} failed: {e}"),
+                info: ErrorInfo {
+                    detail: Some(e.to_string()),
+                    version: Some(version.clone()),
+                    ..ErrorInfo::code("downloadFailed")
+                },
             },
         ),
     }
@@ -344,6 +380,7 @@ async fn find_update(app: &AppHandle, track: Track) -> Result<Option<Update>, Ph
     let Some(base) = feed_base() else {
         return Err(Phase::Unavailable {
             reason: "Development builds don't update themselves.".into(),
+            info: ErrorInfo::code("devBuild"),
         });
     };
     let url = Url::parse(&format!(
@@ -353,6 +390,7 @@ async fn find_update(app: &AppHandle, track: Track) -> Result<Option<Update>, Ph
     ))
     .map_err(|e| Phase::Failed {
         message: e.to_string(),
+        info: ErrorInfo::default(),
     })?;
     let mut builder = app
         .updater_builder()
@@ -371,12 +409,21 @@ async fn find_update(app: &AppHandle, track: Track) -> Result<Option<Update>, Ph
     checked.map_err(|e| match e {
         UpdaterError::TargetNotFound(_) | UpdaterError::TargetsNotFound(_) => Phase::Unavailable {
             reason: "There are no automatic updates for this kind of install. Download new versions from the GitHub releases.".into(),
+            info: ErrorInfo::code("unsupportedInstall"),
         },
         UpdaterError::ReleaseNotFound => Phase::Failed {
             message: format!("No {} release is published yet.", track.as_str()),
+            info: ErrorInfo {
+                track: Some(track.as_str()),
+                ..ErrorInfo::code("noRelease")
+            },
         },
         e => Phase::Failed {
             message: format!("Couldn't check for updates: {e}"),
+            info: ErrorInfo {
+                detail: Some(e.to_string()),
+                ..ErrorInfo::code("checkFailed")
+            },
         },
     })
 }
@@ -465,6 +512,36 @@ mod tests {
 
     fn v(s: &str) -> semver::Version {
         semver::Version::parse(s).unwrap()
+    }
+
+    #[test]
+    fn coded_phases_keep_the_english_text() {
+        let phase = Phase::Failed {
+            message: "Downloading libe 1.2.3 failed: boom".into(),
+            info: ErrorInfo {
+                detail: Some("boom".into()),
+                version: Some("1.2.3".into()),
+                ..ErrorInfo::code("downloadFailed")
+            },
+        };
+        assert_eq!(
+            serde_json::to_value(phase).unwrap(),
+            serde_json::json!({
+                "kind": "failed",
+                "message": "Downloading libe 1.2.3 failed: boom",
+                "code": "downloadFailed",
+                "detail": "boom",
+                "version": "1.2.3"
+            })
+        );
+        let phase = Phase::Unavailable {
+            reason: "x".into(),
+            info: ErrorInfo::code("devBuild"),
+        };
+        assert_eq!(
+            serde_json::to_value(phase).unwrap(),
+            serde_json::json!({ "kind": "unavailable", "reason": "x", "code": "devBuild" })
+        );
     }
 
     #[test]

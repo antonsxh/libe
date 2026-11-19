@@ -4,9 +4,11 @@
 	import Button from '#lib/components/Button.svelte';
 	import AuthShell from '#lib/components/auth/AuthShell.svelte';
 	import { clientDeviceKind, clientDeviceName, isStandalone } from '#lib/pwa.ts';
+	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+	const t = useI18n();
 
 	let code = $derived(form?.code ?? data.code);
 	let name = $derived(form?.name ?? data.defaultName);
@@ -18,7 +20,7 @@
 	onMount(() => {
 		kind = clientDeviceKind();
 		standalone = isStandalone();
-		if (!form) name = clientDeviceName();
+		if (!form) name = clientDeviceName(t.deviceNames);
 		if (!data.pairedAs) codeInput?.focus();
 	});
 
@@ -42,16 +44,13 @@
 	};
 </script>
 
-<svelte:head><title>Pair this device · libe</title></svelte:head>
+<svelte:head><title>{t.auth.pair.pageTitle}</title></svelte:head>
 
-<AuthShell
-	title="Pair this device"
-	subtitle="Enter the code shown on a device that is already paired."
->
+<AuthShell title={t.auth.pair.title} subtitle={t.auth.pair.subtitle}>
 	{#if data.pairedAs}
 		<p class="notice">
-			This device is already paired as <strong>{data.pairedAs}</strong>.
-			<a href={data.next}>Continue to libe →</a>
+			{t.auth.alreadyPairedBefore}<strong>{data.pairedAs}</strong>{t.auth.alreadyPairedAfter}
+			<a href={data.next}>{t.auth.continue}</a>
 		</p>
 	{/if}
 
@@ -59,7 +58,7 @@
 		<input type="hidden" name="next" value={data.next} />
 		<input type="hidden" name="kind" value={kind} />
 		<label class="field">
-			<span class="label">Pairing code</span>
+			<span class="label">{t.auth.pair.code}</span>
 			<input
 				bind:this={codeInput}
 				class="code tabular"
@@ -74,33 +73,33 @@
 				aria-invalid={form?.error ? 'true' : undefined}
 				aria-describedby="code-hint"
 			/>
-			<span class="hint" id="code-hint">
-				On a paired device: avatar menu → <strong>Pair new device</strong>. Codes are valid for 10
-				minutes.
-			</span>
+			<!-- Static, trusted message markup (no user input). -->
+			<span class="hint" id="code-hint">{@html t.auth.pair.codeHintHtml}</span>
 		</label>
 		<label class="field">
-			<span class="label">Device name</span>
+			<span class="label">{t.auth.deviceName}</span>
 			<input name="name" bind:value={name} maxlength="60" autocomplete="off" required />
 		</label>
 		{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
 		<div class="submit">
 			<Button variant="primary" type="submit" disabled={busy}>
-				{busy ? 'Pairing…' : 'Pair device'}
+				{busy ? t.auth.pairing : t.auth.pair.submit}
 			</Button>
 		</div>
 	</form>
 
 	{#snippet footer()}
 		{#if standalone}
-			<p>The home-screen app keeps its own sign-in, separate from Safari — pair it here once.</p>
+			<p>{t.auth.pair.standalone}</p>
 		{/if}
 		{#if !data.hasDevices}
 			<p>
-				Nothing is paired yet. <a href="/setup">Set up the first device</a> with the setup secret.
+				{t.auth.pair.nothingPaired}
+				<a href="/setup">{t.auth.pair.setUpFirst}</a>
+				{t.auth.pair.withSecret}
 			</p>
 		{:else}
-			<p>Lost all your devices? <a href="/setup">Use the setup secret</a>.</p>
+			<p>{t.auth.pair.lostAll} <a href="/setup">{t.auth.pair.useSecret}</a>.</p>
 		{/if}
 	{/snippet}
 </AuthShell>
