@@ -3,6 +3,8 @@
  *
  *   bun scripts/release.ts plan                 decide channel, commit, version, tags → $GITHUB_OUTPUT
  *   bun scripts/release.ts set-version <ver>    write <ver> into package.json, tauri.conf.json, Cargo.toml/.lock
+ *   bun scripts/release.ts updater-manifest <dir>  Tauri update manifest for the installers in <dir>
+ *                                               (env VERSION, TAG, GH_REPO) → <dir>/latest.json
  *
  * Channels:
  *   nightly  scheduled (hourly check): only when main moved since the last nightly AND that one
@@ -15,7 +17,8 @@
  * The pure functions are exported for `scripts/release.test.ts`; everything that talks to
  * GitHub goes through the `gh` CLI (GH_TOKEN) and lives below them.
  */
-import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 export type Channel = 'stable' | 'nightly' | 'preview';
@@ -190,6 +193,77 @@ export function withVersion(file: (typeof VERSION_FILES)[number], text: string, 
 	return text.replace(re, `$1${version}$2`);
 }
 
+// ── Desktop update manifest ───────────────────────────────────────────────
+
+/**
+ * Release assets of `.github/workflows/desktop.yml` (`libe-desktop-<version>-<os>-<arch><ext>`)
+ * → the platform keys of tauri-plugin-updater (`{os}-{arch}-{bundle}`, see
+ * `src-tauri/src/updates.rs`). macOS and Windows ship one updatable bundle each, so they also
+ * get the plain `{os}-{arch}` key; Linux needs the bundle (an AppImage must not replace a
+ * `.deb` install or vice versa).
+ */
+const UPDATER_TARGETS: Record<string, { os: string; arch: string }> = {
+	'linux-x64': { os: 'linux', arch: 'x86_64' },
+	'linux-arm64': { os: 'linux', arch: 'aarch64' },
+	'macos-arm64': { os: 'darwin', arch: 'aarch64' },
+	'macos-x64': { os: 'darwin', arch: 'x86_64' },
+	'windows-x64': { os: 'windows', arch: 'x86_64' }
+};
+const UPDATER_BUNDLES: { ext: string; bundle: string; plainKey: boolean }[] = [
+	{ ext: '.AppImage', bundle: 'appimage', plainKey: false },
+	{ ext: '.deb', bundle: 'deb', plainKey: false },
+	{ ext: '.app.tar.gz', bundle: 'app', plainKey: true },
+	{ ext: '-setup.exe', bundle: 'nsis', plainKey: true }
+];
+
+export type UpdaterManifest = {
+	version: string;
+	notes: string;
+	pub_date: string;
+	platforms: Record<string, { signature: string; url: string }>;
+};
+
+/**
+ * Builds the update manifest (`latest.json`) from the asset names and their `.sig` files.
+ * Throws when an updatable installer has no signature, so a release never announces an
+ * update the app would reject.
+ */
+export function updaterManifest(opts: {
+	version: string;
+	/** Base URL of the release's assets: `https://github.com/<repo>/releases/download/<tag>`. */
+	baseUrl: string;
+	files: string[];
+	readSignature: (file: string) => string;
+	notes: string;
+	pubDate: Date;
+}): UpdaterManifest {
+	const prefix = `libe-desktop-${opts.version}-`;
+	const platforms: UpdaterManifest['platforms'] = {};
+	for (const file of opts.files) {
+		if (!file.startsWith(prefix) || file.endsWith('.sig')) continue;
+		const rest = file.slice(prefix.length);
+		const kind = UPDATER_BUNDLES.find((b) => rest.endsWith(b.ext));
+		if (!kind) continue;
+		const target = UPDATER_TARGETS[rest.slice(0, -kind.ext.length)];
+		if (!target) throw new Error(`Unknown desktop target in ${file}`);
+		if (!opts.files.includes(`${file}.sig`)) throw new Error(`Missing signature ${file}.sig`);
+		const entry = {
+			signature: opts.readSignature(`${file}.sig`).trim(),
+			url: `${opts.baseUrl}/${encodeURIComponent(file)}`
+		};
+		const key = `${target.os}-${target.arch}`;
+		platforms[`${key}-${kind.bundle}`] = entry;
+		if (kind.plainKey) platforms[key] = entry;
+	}
+	if (!Object.keys(platforms).length) throw new Error('No updatable desktop installers found.');
+	return {
+		version: opts.version,
+		notes: opts.notes,
+		pub_date: opts.pubDate.toISOString(),
+		platforms
+	};
+}
+
 // ── GitHub (gh CLI) ───────────────────────────────────────────────────────
 
 function gh(args: string[], { allowFail = false } = {}): string {
@@ -358,13 +432,31 @@ function setVersion(version: string) {
 	output({ changed: String(changed) });
 }
 
+/** Writes `<dir>/latest.json` for the installers in `<dir>`. Env: VERSION, TAG, GH_REPO. */
+function writeUpdaterManifest(dir: string) {
+	const version = env('VERSION');
+	const manifest = updaterManifest({
+		version,
+		baseUrl: `https://github.com/${env('GH_REPO')}/releases/download/${env('TAG')}`,
+		files: readdirSync(dir),
+		readSignature: (file) => readFileSync(join(dir, file), 'utf8'),
+		notes: `libe ${version}`,
+		pubDate: new Date()
+	});
+	writeFileSync(join(dir, 'latest.json'), JSON.stringify(manifest, null, '\t') + '\n');
+	console.log(Object.keys(manifest.platforms).join('\n'));
+}
+
 if (import.meta.main) {
 	const [command, arg] = process.argv.slice(2);
 	try {
 		if (command === 'plan') plan();
 		else if (command === 'set-version' && arg) setVersion(arg);
+		else if (command === 'updater-manifest' && arg) writeUpdaterManifest(arg);
 		else {
-			console.error('usage: bun scripts/release.ts plan | set-version <version>');
+			console.error(
+				'usage: bun scripts/release.ts plan | set-version <version> | updater-manifest <dir>'
+			);
 			process.exit(2);
 		}
 	} catch (err) {

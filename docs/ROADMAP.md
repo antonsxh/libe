@@ -535,3 +535,24 @@ Fix found by the suite:
   sent a bodyless `DELETE /api/pair/session`, which SvelteKit's CSRF check answers with 403
   (bodyless non-GET = form submission without a same-origin `Origin`). It now sends a JSON
   body; the local unpair always worked.
+
+## Desktop auto-update (after CI/releases)
+
+- The Tauri app updates itself (`tauri-plugin-updater`, `src-tauri/src/updates.rs`) on an
+  **update track** chosen in **Settings → Desktop app**: **Stable** or **Nightly** (modelled on
+  t3code's "Update track"). Default: the track the installed build came from.
+- Feed: every nightly and every stable release (`latest`) uploads its signed Tauri manifest as
+  `nightly.json` / `stable.json` to the GitHub release `update-feed`; the per-release manifest is
+  the asset `latest.json`. Installers' updater signatures (minisign, secret
+  `TAURI_SIGNING_PRIVATE_KEY`, `requireSignedVersion`) are verified before anything installs.
+- Behaviour: check 10 s after start and every 4 h, download in the background, install on
+  "Restart to update" or on quit (`.deb` installs only when asked — pkexec password). Switching
+  tracks installs the new track's newest build even when it is older (nightly → stable); the
+  app has no data a downgrade could break.
+- Decision: t3code also switches "every connected machine whose database the target release
+  supports". libe's only connected machine is the server, a Docker container that cannot swap
+  its own image, so Settings shows the server's version/track and which image tag
+  (`:stable` / `:nightly`) puts it on the same track instead of switching it.
+- Security: the paired server's pages get IPC for exactly the four `update_*` commands (runtime
+  capability for that origin; the app manifest in `build.rs` makes every command
+  permission-gated). The pairing commands stay local-only.

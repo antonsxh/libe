@@ -1,13 +1,18 @@
 /**
  * The Tauri 2 shell end to end (Linux/WebKitGTK): bundled pairing page, pairing over
  * `POST /api/pair` from Rust, session bootstrap into the webview, token reuse on restart,
- * revocation and the native "Change server / Unpair…" menu, and the unreachable-server view.
+ * revocation and the native "Change server / Unpair…" menu, the unreachable-server view, and
+ * the auto-updater driven from the server's Settings page (against a local, test-signed feed).
  *
  * Headless boxes have no Secret Service, so the debug build stores its credentials in
- * `LIBE_TAURI_CREDENTIALS_FILE` (honoured only in debug builds).
+ * `LIBE_TAURI_CREDENTIALS_FILE`; the updater reads `LIBE_UPDATER_FEED` / `LIBE_UPDATER_PUBKEY`
+ * (all honoured only in debug builds).
  */
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { homedir } from 'node:os';
 import { Builder, By, until, type WebDriver } from 'selenium-webdriver';
 import { test, expect } from '@playwright/test';
@@ -23,11 +28,69 @@ const BASE = server.base;
 const STATE = `${OUTPUT}/tauri-state/`;
 const CREDS = `${STATE}credentials.json`;
 const DRIVER_PORT = 4444;
+const FEED = `${STATE}feed/`;
+const TAURI_CLI = `${ROOT}node_modules/.bin/tauri`;
+/** What the fake update feed announces per track (the debug build is 0.0.0 → stable track). */
+const RELEASES = { stable: '9.9.9', nightly: '9.9.10-nightly.20261119.1' } as const;
 
 let driver: ChildProcess;
 let sql: Sql;
 let admin: string;
 let wd: WebDriver | null = null;
+let feed: Server;
+/** Serve a signature of another key for this track (a tampered update). */
+const tampered = new Set<string>();
+
+/** A test signing key and one signed payload per track, like the release pipeline makes. */
+function signedFeed(): string {
+	mkdirSync(FEED, { recursive: true });
+	const key = `${FEED}test.key`;
+	const other = `${FEED}other.key`;
+	for (const k of [key, other])
+		execFileSync(TAURI_CLI, ['signer', 'generate', '--ci', '-p', '', '-f', '-w', k], {
+			stdio: 'ignore'
+		});
+	for (const [track, version] of Object.entries(RELEASES)) {
+		const file = `${FEED}${track}.bin`;
+		writeFileSync(file, randomBytes(256 * 1024));
+		for (const [k, suffix] of [
+			[key, 'good'],
+			[other, 'bad']
+		]) {
+			execFileSync(
+				TAURI_CLI,
+				['signer', 'sign', '-k', readFileSync(k, 'utf8'), '-p', '', '--app-version', version, file],
+				{ stdio: 'ignore' }
+			);
+			writeFileSync(`${file}.${suffix}`, readFileSync(`${file}.sig`));
+		}
+	}
+	return readFileSync(`${key}.pub`, 'utf8').trim();
+}
+
+/** `/<track>.json` → Tauri update manifest; `/<track>.bin` → the payload. */
+async function startFeed(): Promise<string> {
+	feed = createServer((req, res) => {
+		const m = /^\/(stable|nightly)\.(json|bin)$/.exec(req.url ?? '');
+		if (!m) return void res.writeHead(404).end();
+		const track = m[1] as keyof typeof RELEASES;
+		if (m[2] === 'bin') return void res.end(readFileSync(`${FEED}${track}.bin`));
+		const base = `http://127.0.0.1:${(feed.address() as AddressInfo).port}`;
+		const sig = readFileSync(`${FEED}${track}.bin.${tampered.has(track) ? 'bad' : 'good'}`, 'utf8');
+		res.setHeader('content-type', 'application/json');
+		res.end(
+			JSON.stringify({
+				version: RELEASES[track],
+				notes: 'test',
+				pub_date: new Date().toISOString(),
+				// a `--no-bundle` build has no bundle type: plain `{os}-{arch}` key
+				platforms: { 'linux-x86_64': { signature: sig.trim(), url: `${base}/${track}.bin` } }
+			})
+		);
+	});
+	await new Promise<void>((r) => feed.listen(0, '127.0.0.1', r));
+	return `http://127.0.0.1:${(feed.address() as AddressInfo).port}`;
+}
 
 test.describe.configure({ mode: 'serial' });
 
@@ -42,6 +105,8 @@ test.beforeAll(async () => {
 	await server.start({ reset: true });
 	sql = connect(DB);
 	admin = await pairWithSecret(BASE, { name: 'Admin browser' });
+	const pubkey = signedFeed();
+	const feedUrl = await startFeed();
 	driver = spawn(`${homedir()}/.cargo/bin/tauri-driver`, ['--port', String(DRIVER_PORT)], {
 		env: {
 			...process.env,
@@ -50,6 +115,8 @@ test.beforeAll(async () => {
 			XDG_CONFIG_HOME: `${STATE}config`,
 			XDG_CACHE_HOME: `${STATE}cache`,
 			LIBE_TAURI_CREDENTIALS_FILE: CREDS,
+			LIBE_UPDATER_FEED: feedUrl,
+			LIBE_UPDATER_PUBKEY: pubkey,
 			WEBKIT_DISABLE_DMABUF_RENDERER: '1',
 			LIBGL_ALWAYS_SOFTWARE: '1'
 		},
@@ -68,6 +135,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
 	await wd?.quit().catch(() => {});
 	driver?.kill();
+	feed?.close();
 	await sql?.end();
 	await server.stop();
 });
@@ -185,4 +253,58 @@ test('with the server down the app says so, and Retry works once it is back', as
 	await server.start();
 	await d.findElement(By.id('retry')).click();
 	await onLibe(d);
+});
+
+/** The desktop app's section of the server's Settings page (only rendered inside the app). */
+async function desktopSettings(d: WebDriver) {
+	await d.get(`${BASE}/settings`);
+	await onLibe(d, '/settings');
+	await visible(d, 'desktop-title');
+}
+const phase = (d: WebDriver) =>
+	d.findElement(By.css('[data-phase]')).then((el) => el.getAttribute('data-phase'));
+async function waitForPhase(d: WebDriver, kind: string) {
+	const status = () => d.findElement(By.css('[data-phase]')).getText();
+	await d
+		.wait(async () => (await phase(d)) === kind, 30_000)
+		.catch(async () => {
+			throw new Error(`update phase ${kind} expected, got ${await phase(d)}: ${await status()}`);
+		});
+	return status();
+}
+const trackRadio = (d: WebDriver, track: 'stable' | 'nightly') =>
+	d.findElement(By.css(`input[name=update-track][value=${track}]`));
+
+test('Settings → Desktop app: the update is downloaded and verified; the track persists', async () => {
+	const d = wd!; // paired and on Home (previous test)
+	await desktopSettings(d);
+	expect(await d.findElement(By.css('[data-testid=app-version]')).getText()).toBe('libe 0.0.0');
+	expect(await trackRadio(d, 'stable').isSelected()).toBe(true);
+
+	await d.findElement(By.xpath('//button[contains(., "Check for updates")]')).click();
+	expect(await waitForPhase(d, 'ready')).toContain('libe 9.9.9 is ready');
+
+	// Switching to Nightly drops the stable download and fetches the nightly build.
+	await d.findElement(By.xpath('//label[contains(., "Nightly")]')).click();
+	expect(await waitForPhase(d, 'ready')).toContain(`libe ${RELEASES.nightly} is ready`);
+	const saved = `${STATE}config/app.libe.desktop/updates.json`;
+	expect(JSON.parse(readFileSync(saved, 'utf8'))).toEqual({ track: 'nightly' });
+
+	const restarted = await launch();
+	await onLibe(restarted);
+	await desktopSettings(restarted);
+	expect(await trackRadio(restarted, 'nightly').isSelected()).toBe(true);
+});
+
+test('an update whose signature does not verify is rejected', async () => {
+	const d = wd!;
+	tampered.add('stable');
+	try {
+		await desktopSettings(d);
+		await d.findElement(By.xpath('//label[contains(., "Stable")]')).click();
+		expect(await waitForPhase(d, 'failed')).toContain('Downloading libe 9.9.9 failed');
+		expect(await d.findElements(By.css('[data-phase] button'))).toHaveLength(0); // no install
+	} finally {
+		tampered.delete('stable');
+	}
 });

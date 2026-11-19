@@ -10,6 +10,7 @@ import {
 	prereleaseVersion,
 	previousTag,
 	stableVersion,
+	updaterManifest,
 	withVersion
 } from './release.ts';
 
@@ -173,5 +174,66 @@ describe('withVersion', () => {
 
 	test('refuses files without a version field', () => {
 		expect(() => withVersion('src-tauri/Cargo.lock', 'name = "x"', '0.1.0')).toThrow();
+	});
+});
+
+describe('updaterManifest', () => {
+	const version = '0.2.1-nightly.20261119.42';
+	const p = `libe-desktop-${version}-`;
+	const installers = [
+		`${p}linux-x64.AppImage`,
+		`${p}linux-x64.deb`,
+		`${p}linux-arm64.AppImage`,
+		`${p}linux-arm64.deb`,
+		`${p}macos-arm64.app.tar.gz`,
+		`${p}macos-arm64.dmg`,
+		`${p}macos-x64.app.tar.gz`,
+		`${p}windows-x64-setup.exe`
+	];
+	const signed = installers.filter((f) => !f.endsWith('.dmg'));
+	const files = [...installers, ...signed.map((f) => `${f}.sig`), 'SHA256SUMS'];
+	const base = 'https://github.com/o/libe/releases/download/v' + version;
+	const build = (list = files) =>
+		updaterManifest({
+			version,
+			baseUrl: base,
+			files: list,
+			readSignature: (f) => `sig:${f}\n`,
+			notes: 'n',
+			pubDate: new Date('2026-11-19T12:00:00Z')
+		});
+
+	test('maps every updatable installer to its platform keys', () => {
+		const m = build();
+		expect(m.version).toBe(version);
+		expect(m.pub_date).toBe('2026-11-19T12:00:00.000Z');
+		expect(Object.keys(m.platforms).sort()).toEqual([
+			'darwin-aarch64',
+			'darwin-aarch64-app',
+			'darwin-x86_64',
+			'darwin-x86_64-app',
+			'linux-aarch64-appimage',
+			'linux-aarch64-deb',
+			'linux-x86_64-appimage',
+			'linux-x86_64-deb',
+			'windows-x86_64',
+			'windows-x86_64-nsis'
+		]);
+		expect(m.platforms['linux-x86_64-deb']).toEqual({
+			signature: `sig:${p}linux-x64.deb.sig`,
+			url: `${base}/${p}linux-x64.deb`
+		});
+		expect(m.platforms['darwin-aarch64'].url).toBe(`${base}/${p}macos-arm64.app.tar.gz`);
+		expect(m.platforms['windows-x86_64-nsis'].url).toBe(`${base}/${p}windows-x64-setup.exe`);
+	});
+
+	test('refuses unsigned installers and empty releases', () => {
+		expect(() => build(files.filter((f) => f !== `${p}linux-x64.deb.sig`))).toThrow(/signature/);
+		expect(() => build(['SHA256SUMS'])).toThrow(/No updatable/);
+	});
+
+	test('ignores files of other versions', () => {
+		const m = build([...files, 'libe-desktop-0.1.0-linux-x64.AppImage']);
+		expect(m.platforms['linux-x86_64-appimage'].url).toContain(version);
 	});
 });

@@ -18,6 +18,7 @@
 	import Menu from '#lib/components/Menu.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import PomodoroSettingsDialog from '#lib/components/focus/PomodoroSettingsDialog.svelte';
+	import DesktopAppSection from '#lib/components/settings/DesktopAppSection.svelte';
 	import PairDeviceDialog from '#lib/components/settings/PairDeviceDialog.svelte';
 	import { formatAgo, type DeviceKind } from '#lib/auth.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
@@ -214,6 +215,8 @@
 			</Button>
 		</header>
 	</section>
+
+	<DesktopAppSection serverVersion={data.serverVersion} />
 </div>
 
 {#if pairOpen}

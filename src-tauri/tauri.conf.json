@@ -13,6 +13,13 @@
 			"csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
 		}
 	},
+	"plugins": {
+		"updater": {
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDAzQThBMEI2MkQ3RTkwOTQKUldTVWtINHR0cUNvQTlXTDlnenZGdEdBdVFMZTE1RG5TS1RJaGVkMHA3Y0cxN2xVWU9pRnA4UE0K",
+			"requireSignedVersion": true,
+			"windows": { "installMode": "passive" }
+		}
+	},
 	"bundle": {
 		"active": true,
 		"targets": "all",

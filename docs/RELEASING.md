@@ -6,14 +6,14 @@ candidates, stable promotes a nightly that people already ran, previews test the
 
 ## Workflows
 
-| File                            | Trigger                                    | What                                                                                                        |
-| ------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `.github/workflows/ci.yml`      | pull requests, pushes to `main`            | `checks.yml` + `docker.yml` (build and smoke test, no push)                                                 |
-| `.github/workflows/release.yml` | hourly schedule, manual dispatch, `v*` tag | plan → checks + desktop + docker in parallel → tag image → GitHub release → (stable) version bump on `main` |
-| `.github/workflows/checks.yml`  | called by both                             | typecheck, lint, unit tests, build · e2e desktop · e2e iPhone/iPad · Tauri clippy + e2e (Xvfb)              |
-| `.github/workflows/docker.yml`  | called by both                             | native amd64 + arm64 image builds, smoke test against Postgres 17, optional push by digest                  |
-| `.github/workflows/desktop.yml` | called by `release.yml`                    | Tauri installers: Linux x64/arm64 (`.deb`, `.AppImage`), macOS arm64/x64 (`.dmg`), Windows x64 (NSIS)       |
-| `scripts/release.ts`            | used by the workflows                      | `plan` (channel, commit, version, tags; tests in `scripts/release.test.ts`), `set-version <v>`              |
+| File                            | Trigger                                    | What                                                                                                                     |
+| ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `.github/workflows/ci.yml`      | pull requests, pushes to `main`            | `checks.yml` + `docker.yml` (build and smoke test, no push)                                                              |
+| `.github/workflows/release.yml` | hourly schedule, manual dispatch, `v*` tag | plan → checks + desktop + docker in parallel → tag image → GitHub release → (stable) version bump on `main`              |
+| `.github/workflows/checks.yml`  | called by both                             | typecheck, lint, unit tests, build · e2e desktop · e2e iPhone/iPad · Tauri clippy + e2e (Xvfb)                           |
+| `.github/workflows/docker.yml`  | called by both                             | native amd64 + arm64 image builds, smoke test against Postgres 17, optional push by digest                               |
+| `.github/workflows/desktop.yml` | called by `release.yml`                    | Tauri installers: Linux x64/arm64 (`.deb`, `.AppImage`), macOS arm64/x64 (`.dmg`), Windows x64 (NSIS)                    |
+| `scripts/release.ts`            | used by the workflows                      | `plan` (channel, commit, version, tags), `set-version <v>`, `updater-manifest <dir>`; tests in `scripts/release.test.ts` |
 
 Nothing is published unless **every** job passed: checks, all desktop targets and both image
 smoke tests. The image is first pushed untagged (by digest); the channel tags are only set
@@ -81,11 +81,25 @@ Packages → libe → Package settings → Change visibility (then `docker pull`
 Unsigned. macOS: the `.dmg` carries an ad-hoc signature (Apple Silicon refuses fully unsigned
 apps); open it once via right-click → Open, or `xattr -dr com.apple.quarantine /Applications/libe.app`.
 Windows SmartScreen: "More info" → "Run anyway". Signing would need an Apple Developer ID and a
-Windows code-signing certificate as repository secrets (not set up). There is no auto-updater:
-the app is a thin shell, the server (image) carries every feature.
+Windows code-signing certificate as repository secrets (not set up).
+
+### Auto-update feed
+
+Installed apps update themselves on their **update track** (Settings → Desktop app: Stable or
+Nightly; see docs/TAURI.md). The desktop builds also produce the updater payloads with minisign
+signatures (`*.AppImage.sig`, `*.deb.sig`, `*.app.tar.gz` + `.sig`, `*-setup.exe.sig`); the
+release job turns them into a Tauri manifest (`bun scripts/release.ts updater-manifest dist` →
+`latest.json`, attached to the release) and, for nightlies and `latest` stable releases, copies
+it to the release **`update-feed`** as `nightly.json` / `stable.json` (created on first use, a
+prerelease that is never "latest" — don't delete it). Previews and `-rc` releases never reach a
+feed. To stop offering a broken build, put the previous release's manifest back
+(`gh release download v0.2.0 --pattern latest.json && mv latest.json stable.json && gh release upload update-feed stable.json --clobber`);
+apps that already installed it only move on with the next, newer release.
 
 ## Secrets and permissions
 
-None to configure. Everything uses the workflow's `GITHUB_TOKEN` (`contents: write` for the
-release and the version bump, `packages: write` for GHCR). If `main` gets branch protection
+One secret: **`TAURI_SIGNING_PRIVATE_KEY`** (the updater signing key, see docs/TAURI.md;
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only if the key has one). Without it the desktop builds
+fail. Everything else uses the workflow's `GITHUB_TOKEN` (`contents: write` for the
+release, the update feed and the version bump, `packages: write` for GHCR). If `main` gets branch protection
 that blocks direct pushes, the `finalize` job needs an exception for `github-actions[bot]`.

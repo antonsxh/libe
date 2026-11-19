@@ -10,17 +10,23 @@
 //!   guard intercepts that, re-checks the token and either restores the cookie or returns to
 //!   the pairing screen. Unreachable server → the local page offers Retry / Change server.
 //! - Menu: Reload, Change server / Unpair.
+//! - Updates (`updates.rs`): background check + download on the chosen track (stable /
+//!   nightly). The server's Settings page drives it through the `update_*` commands, the only
+//!   IPC the remote origin gets (a runtime capability for exactly the paired server).
 
 mod server;
 mod store;
+mod updates;
 
 use serde::Serialize;
+use std::collections::HashSet;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use store::Credentials;
+use tauri::ipc::CapabilityBuilder;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::window::Color;
-use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, RunEvent, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use url::Url;
 
 const MAIN: &str = "main";
@@ -36,20 +42,46 @@ struct App {
     last_server: Mutex<Option<String>>,
     /// Loop guard for cookie recovery (see `recover`).
     recoveries: Mutex<Vec<Instant>>,
+    /// Server origins whose pages may call the `update_*` commands.
+    update_origins: Mutex<HashSet<String>>,
 }
 
 impl App {
     fn creds(&self) -> Option<Credentials> {
         self.creds.lock().unwrap().clone()
     }
-    fn set_creds(&self, creds: Option<Credentials>) {
+    fn set_creds(&self, app: &AppHandle, creds: Option<Credentials>) {
         if let Some(c) = &creds {
+            allow_updates_from(app, &self.update_origins, &c.server);
             *self.last_server.lock().unwrap() = Some(c.server.clone());
         }
         *self.creds.lock().unwrap() = creds;
     }
     fn set_notice(&self, notice: impl Into<String>) {
         *self.notice.lock().unwrap() = Some(notice.into());
+    }
+}
+
+/// Lets the paired server's pages (Settings → Desktop app) see and drive the updater — and
+/// nothing else. Capabilities can't be removed at runtime; an origin from an earlier pairing
+/// keeps the grant until restart, but the navigation guard never loads it again.
+fn allow_updates_from(app: &AppHandle, granted: &Mutex<HashSet<String>>, server: &str) {
+    let mut granted = granted.lock().unwrap();
+    if granted.contains(server) {
+        return;
+    }
+    let capability = CapabilityBuilder::new(format!("server-updates-{}", granted.len()))
+        .remote(format!("{server}/*"))
+        .window(MAIN)
+        .permission("allow-update-state")
+        .permission("allow-update-check")
+        .permission("allow-update-set-track")
+        .permission("allow-update-install");
+    match app.add_capability(capability) {
+        Ok(()) => {
+            granted.insert(server.to_string());
+        }
+        Err(e) => eprintln!("libe: could not grant update access to {server}: {e}"),
     }
 }
 
@@ -151,7 +183,7 @@ async fn resume(app: AppHandle, state: State<'_, App>) -> Result<Status, String>
         }
         server::Session::SignedOut => {
             store::clear()?;
-            state.set_creds(None);
+            state.set_creds(&app, None);
             Ok(pair(Some(SIGNED_OUT.into())))
         }
         server::Session::Unreachable(error) => Ok(Status::Unreachable {
@@ -183,7 +215,7 @@ async fn pair(
         server::revoke(&state.http, &creds.server, &creds.token).await;
         return Err(e);
     }
-    state.set_creds(Some(creds.clone()));
+    state.set_creds(&app, Some(creds.clone()));
     open_session(&app, &creds, "/")
 }
 
@@ -195,7 +227,7 @@ async fn unpair(app: AppHandle, state: State<'_, App>) -> Result<Status, String>
         server::revoke(&state.http, &creds.server, &creds.token).await;
     }
     store::clear()?;
-    state.set_creds(None);
+    state.set_creds(&app, None);
     if let Ok(window) = main_window(&app) {
         let _ = window.clear_all_browsing_data();
     }
@@ -204,6 +236,32 @@ async fn unpair(app: AppHandle, state: State<'_, App>) -> Result<Status, String>
         name: default_device_name(),
         notice: None,
     })
+}
+
+// ─── Updates (also called by the server's Settings page) ──────────────────────
+
+#[tauri::command]
+fn update_state(app: AppHandle) -> updates::UpdateState {
+    app.state::<updates::Updates>().state(&app)
+}
+
+/// Starts a check (and download); Settings polls `update_state` for the outcome.
+#[tauri::command]
+fn update_check(app: AppHandle) -> updates::UpdateState {
+    updates::check(&app, true);
+    app.state::<updates::Updates>().state(&app)
+}
+
+#[tauri::command]
+fn update_set_track(app: AppHandle, track: updates::Track) -> Result<updates::UpdateState, String> {
+    updates::set_track(&app, track)?;
+    Ok(app.state::<updates::Updates>().state(&app))
+}
+
+/// Installs the downloaded update and restarts into it.
+#[tauri::command]
+async fn update_install(app: AppHandle) -> Result<(), String> {
+    updates::install_and_restart(app).await
 }
 
 // ─── Navigation guard ────────────────────────────────────────────────────────
@@ -257,7 +315,7 @@ async fn recover(app: AppHandle, creds: Credentials, next: String) {
         }
         server::Session::SignedOut => {
             let _ = store::clear();
-            state.set_creds(None);
+            state.set_creds(&app, None);
             show_local(&app, Some(SIGNED_OUT.into()));
         }
         server::Session::Unreachable(error) => show_local(&app, Some(error)),
@@ -322,19 +380,34 @@ fn on_menu(app: &AppHandle, id: &str) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![resume, pair, unpair])
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            resume,
+            pair,
+            unpair,
+            update_state,
+            update_check,
+            update_set_track,
+            update_install
+        ])
         .setup(|app| {
             let (creds, notice) = match store::load() {
                 Ok(creds) => (creds, None),
                 Err(e) => (None, Some(e)),
             };
+            let update_origins = Mutex::new(HashSet::new());
+            if let Some(c) = &creds {
+                allow_updates_from(app.handle(), &update_origins, &c.server);
+            }
             app.manage(App {
                 http: server::client(),
                 last_server: Mutex::new(creds.as_ref().map(|c| c.server.clone())),
                 creds: Mutex::new(creds),
                 notice: Mutex::new(notice),
                 recoveries: Mutex::new(Vec::new()),
+                update_origins,
             });
+            updates::init(app.handle());
 
             let handle = app.handle().clone();
             app.set_menu(build_menu(&handle)?)?;
@@ -350,6 +423,11 @@ pub fn run() {
                 .build()?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running libe");
+        .build(tauri::generate_context!())
+        .expect("error while building libe")
+        .run(|app, event| {
+            if let RunEvent::Exit = event {
+                updates::install_on_exit(app);
+            }
+        });
 }
