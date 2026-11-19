@@ -193,6 +193,8 @@
 	.tasks {
 		list-style: none;
 		display: grid;
+		/* Rows never grow past the column (long titles ellipsize instead). */
+		grid-template-columns: minmax(0, 1fr);
 		gap: var(--space-2);
 		padding: 0;
 		margin: 0;

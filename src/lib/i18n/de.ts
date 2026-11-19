@@ -1,7 +1,7 @@
 /**
  * Deutsche UI-Texte — gleiche Schlüssel wie `en.ts` (Typ `Messages`; fehlende oder
  * zusätzliche Schlüssel brechen `bun run check`). Informelles „du“, typografische
- * Anführungszeichen „…“, Gedankenstrich –, Auslassungspunkte mit Leerzeichen („Speichern …“),
+ * Anführungszeichen „…“, Gedankenstrich –, Auslassungspunkte nach geschütztem Leerzeichen (U+00A0, „Speichern …“ – bricht nicht um),
  * schmales geschütztes Leerzeichen vor Einheiten (` `).
  */
 import { DEVICE_NAME_MAX } from '#lib/auth.ts';
@@ -33,7 +33,7 @@ export const de: Messages = {
 		end: 'Ende',
 		task: 'Aufgabe',
 		thisWeek: 'Diese Woche',
-		loading: 'Wird geladen …',
+		loading: 'Wird geladen …',
 		minutes: (n) => `${n}${nb}min`,
 		actionsFor: (name) => `Aktionen für ${name}`,
 		markDone: 'Als erledigt markieren',
@@ -41,7 +41,7 @@ export const de: Messages = {
 		moveUp: 'Nach oben',
 		moveDown: 'Nach unten',
 		deleteTask: 'Aufgabe löschen',
-		logTimeMenu: 'Zeit erfassen …',
+		logTimeMenu: 'Zeit erfassen …',
 		durationOptional: 'Dauer in Minuten (optional)',
 		durationPlaceholder: 'min',
 		showDone: 'Erledigte Aufgaben einblenden',
@@ -64,7 +64,7 @@ export const de: Messages = {
 		brandHome: 'libe – Start',
 		timerChip: (display, state, title) => `Timer ${display} (${state}): ${title} – Fokus öffnen`,
 		searchSoon: 'Suche (demnächst)',
-		search: 'Suchen oder springen …',
+		search: 'Suchen …',
 		account: 'Konto und Geräte',
 		signedInAs: 'Angemeldet als',
 		thisDevice: 'Dieses Gerät',
@@ -85,7 +85,7 @@ export const de: Messages = {
 		timerLive: (display, state) => `Timer ${display}, ${state} – Fokus öffnen`,
 		resumeTimer: 'Timer fortsetzen',
 		pauseTimer: 'Timer pausieren',
-		timeBlock: 'Zeitblock …',
+		timeBlock: 'Zeitblock …',
 		movePrevDay: 'Auf den Vortag verschieben',
 		moveNextDay: 'Auf den nächsten Tag verschieben',
 		moveToDay: 'Auf Tag verschieben',
@@ -103,8 +103,8 @@ export const de: Messages = {
 		addTop: 'Oben hinzufügen',
 		bottom: 'Unten',
 		top: 'Oben',
-		addToBacklog: 'Zum Backlog hinzufügen …',
-		addTask: 'Aufgabe hinzufügen …',
+		addToBacklog: 'Ins Backlog …',
+		addTask: 'Neue Aufgabe …',
 		backlogEmpty: 'Im Backlog wartet nichts.'
 	},
 	home: {
@@ -114,7 +114,7 @@ export const de: Messages = {
 		blockFailed:
 			'Der Zeitblock konnte nicht gespeichert werden – der Beginn muss vor dem Ende liegen, beides zwischen 00:00 und 24:00.',
 		questWork: 'Quest-Arbeit',
-		addQuestWork: 'Quest-Arbeit hinzufügen …',
+		addQuestWork: 'Neue Quest-Arbeit …',
 		timeline: 'Zeitleiste',
 		openTasks: (n) => `${n} ${plural(n, 'offene Aufgabe', 'offene Aufgaben')}`,
 		scheduleToday: 'Für heute einplanen',
@@ -131,7 +131,7 @@ export const de: Messages = {
 	},
 	plan: {
 		title: 'Woche planen',
-		addOther: 'Sonstige Aufgabe hinzufügen …',
+		addOther: 'Sonstige Aufgabe …',
 		todayMarker: '(heute)',
 		openBacklog: 'Offene Aufgaben im Backlog',
 		collapseBacklog: 'Backlog einklappen',
@@ -139,7 +139,7 @@ export const de: Messages = {
 	},
 	calendar: {
 		title: 'Kalender',
-		showPlan: 'Plan zeigen',
+		showPlan: 'Plan einblenden',
 		hidePlan: 'Plan ausblenden',
 		questTotal: (hours) => `/ ${hours} Quest`,
 		budgetBar: 'Quest-Stunden im Verhältnis zum Quest-Wochenbudget',
@@ -165,7 +165,7 @@ export const de: Messages = {
 			loggedTask: 'Erfasste Aufgabe',
 			otherDays: 'Andere Tage',
 			search: 'Aufgaben durchsuchen',
-			searchPlaceholder: 'Aufgaben suchen …',
+			searchPlaceholder: 'Aufgaben suchen …',
 			noMatches: 'Keine passenden Aufgaben.'
 		}
 	},
@@ -203,7 +203,7 @@ export const de: Messages = {
 			`${focus}${nb}min Fokus · ${short}${nb}min Pause · ${long}${nb}min lange Pause alle ${every}`,
 		change: 'Ändern',
 		start: 'Starten',
-		logAfterwards: 'Zeit nachtragen …',
+		logAfterwards: 'Zeit nachtragen …',
 		groups: {
 			selected: 'Ausgewählt',
 			todayQuest: 'Heute · Quest-Arbeit',
@@ -262,7 +262,7 @@ export const de: Messages = {
 			'Die wenigen Dinge, die wirklich zählen. Jede Stunde, die du erfasst, gehört zu einer davon.',
 		newQuest: 'Neue Quest',
 		editQuest: 'Quest bearbeiten',
-		summary: (n) => `in diesem Quartal erfasst, über ${n} ${plural(n, 'Quest', 'Quests')}`,
+		summary: (n) => `in diesem Quartal erfasst – verteilt auf ${n} ${plural(n, 'Quest', 'Quests')}`,
 		closedCount: (n) => `Abgeschlossen (${n})`,
 		allQuests: 'Alle Quests',
 		perWeek: (hours) => `${hours} / Woche`,
@@ -282,7 +282,7 @@ export const de: Messages = {
 			name: 'Name',
 			namePlaceholder: 'Meine Idee umsetzen',
 			description: 'Beschreibung',
-			descriptionPlaceholder: 'Die wenigen Dinge, die wirklich zählen …',
+			descriptionPlaceholder: 'Die wenigen Dinge, die wirklich zählen …',
 			icon: 'Icon',
 			suggested: 'Vorgeschlagene Emojis',
 			useIcon: (emoji) => `${emoji} als Icon verwenden`,
@@ -355,9 +355,9 @@ export const de: Messages = {
 		activeNow: 'Gerade aktiv',
 		lastSeen: (ago) => `Zuletzt aktiv: ${ago}`,
 		neverSeen: 'Nie aktiv',
-		rename: 'Umbenennen …',
+		rename: 'Umbenennen …',
 		signOut: 'Abmelden',
-		revokeMenu: 'Entfernen …',
+		revokeMenu: 'Entfernen …',
 		revoke: 'Entfernen',
 		signOutDevice: 'Dieses Gerät abmelden',
 		kinds: { browser: 'Browser', pwa: 'Home-Bildschirm-App', tauri: 'Desktop-App' },
@@ -386,7 +386,7 @@ export const de: Messages = {
 			codeAria: (digits) => `Kopplungscode ${digits}`,
 			validFor: (countdown) => `Gültig für ${countdown}`,
 			generatingAria: 'Code wird erzeugt',
-			generating: 'Wird erzeugt …',
+			generating: 'Wird erzeugt …',
 			expired: 'Code abgelaufen.',
 			noCode: 'Kein Code.',
 			qrAria: 'QR-Code, der die Kopplungsseite mit diesem Code öffnet',
@@ -418,15 +418,15 @@ export const de: Messages = {
 		devServer: (version) => `Dein Server läuft mit einem Entwicklungs-Build von libe (${version}).`,
 		phases: {
 			idle: 'Noch nicht geprüft.',
-			checking: 'Suche nach Updates …',
+			checking: 'Suche nach Updates …',
 			upToDate: 'Auf dem neuesten Stand.',
 			downloading: (version, pct) =>
-				`libe ${version} wird heruntergeladen …${pct === null ? '' : ` ${pct}${nb}%`}`,
+				`libe ${version} wird heruntergeladen …${pct === null ? '' : ` ${pct}${nb}%`}`,
 			readyPassword: (version) =>
 				`libe ${version} ist bereit zur Installation (fragt nach deinem Passwort).`,
 			ready: (version) =>
 				`libe ${version} ist bereit und wird installiert, wenn du die App neu startest oder beendest.`,
-			installing: (version) => `libe ${version} wird installiert …`
+			installing: (version) => `libe ${version} wird installiert …`
 		},
 		codes: {
 			devBuild: 'Entwicklungs-Builds aktualisieren sich nicht selbst.',
@@ -447,7 +447,7 @@ export const de: Messages = {
 		alreadyPairedAfter: '.',
 		continue: 'Weiter zu libe →',
 		deviceName: 'Gerätename',
-		pairing: 'Wird gekoppelt …',
+		pairing: 'Wird gekoppelt …',
 		tooManyAttempts: (seconds) => `Zu viele Versuche. Versuche es in ${seconds}${nb}s erneut.`,
 		setup: {
 			pageTitle: 'libe einrichten',
@@ -482,7 +482,7 @@ export const de: Messages = {
 		},
 		session: {
 			pageTitle: 'Anmeldung · libe',
-			signingIn: 'Anmeldung läuft …',
+			signingIn: 'Anmeldung läuft …',
 			failed: 'Anmeldung fehlgeschlagen',
 			noToken: 'Es wurde kein Geräte-Token übergeben.',
 			signedOut: 'Dieses Gerät wurde abgemeldet. Kopple es erneut.',
