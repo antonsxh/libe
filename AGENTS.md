@@ -144,7 +144,18 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   On touch screens inputs are ≥ 16 px and buttons get ≥ 44 px hit areas automatically
   (`global.css`); give icon-only links `class="hit-target"`; anything that needs hover or
   drag & drop needs a tap/menu equivalent. `Menu` popovers are portalled into `<body>`.
-- UI copy is English (matches the references). Code and comments in English.
+- **UI language (i18n)**: English (default) and German, no library. Every user-visible string
+  lives in `src/lib/i18n/en.ts` (source of truth, type `Messages`) **and** `de.ts` (typed
+  `Messages` — a missing key fails `bun run check`); add new strings to both (German: informal
+  „du“, real Umlauts, glossary in `docs/ROADMAP.md`). Components: `const t = useI18n()`
+  (`#lib/i18n/context.svelte.ts`) → `t.nav.home`, `t.intl`. Server: `i18n(locals.locale)`
+  (`locals.locale` from `hooks.server.ts`: `settings.language`, `auto` → `Accept-Language`).
+  Pure modules return error codes (`ErrorCode`) that the action/endpoint translates
+  (`t.errors[code]`, `translateErrors`) — never English text. Display dates/numbers via
+  `Intl` with `t.intl` (`formatDayLabel(day, opts, t.intl)`, `formatHours(h, t.intl)`); fixed
+  `en-US`/`en-CA` formatters are only for machine parsing. Desktop-app texts: `src-tauri/ui/main.js`
+  translates Rust `Problem` codes. e2e runs with `locale: 'en-US'` and asserts English; only
+  `i18n.spec.ts` switches language (and resets it to `auto`). Code and comments in English.
 
 ## Styling rules
 
@@ -163,7 +174,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 ## End-to-end tests
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
-feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile),
+feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
+i18n),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 

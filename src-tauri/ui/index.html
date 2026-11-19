@@ -27,32 +27,39 @@
 
 			<!-- Connecting / checking the stored device -->
 			<section class="card panel" id="view-busy" aria-live="polite">
-				<h1 id="busy-title">Connecting…</h1>
-				<p class="sub" id="busy-text">Checking this device with your libe server.</p>
+				<h1 id="busy-title" data-i18n="connecting">Connecting…</h1>
+				<p class="sub" id="busy-text" data-i18n="checking">
+					Checking this device with your libe server.
+				</p>
 				<span class="spinner" aria-hidden="true"></span>
 			</section>
 
 			<!-- Server unreachable -->
 			<section class="card panel" id="view-offline" hidden>
-				<h1>Can’t reach your server</h1>
+				<h1 data-i18n="offlineTitle">Can’t reach your server</h1>
 				<p class="sub" id="offline-text"></p>
 				<div class="actions">
-					<button type="button" class="btn primary" id="retry">Retry</button>
-					<button type="button" class="btn secondary" id="change">Change server / Unpair</button>
+					<button type="button" class="btn primary" id="retry" data-i18n="retry">Retry</button>
+					<button type="button" class="btn secondary" id="change" data-i18n="change">
+						Change server / Unpair
+					</button>
 				</div>
 			</section>
 
 			<!-- Pairing form -->
 			<section class="card panel" id="view-pair" hidden>
-				<h1>Pair this app</h1>
+				<h1 data-i18n="pairTitle">Pair this app</h1>
 				<p class="sub">
-					On a device that is already paired open libe → avatar menu →
-					<strong>Pair new device</strong>, then enter the code here.
+					<span data-i18n="introBefore"
+						>On a device that is already paired open libe → avatar menu →</span
+					>
+					<strong data-i18n="introMenu">Pair new device</strong
+					><span data-i18n="introAfter">, then enter the code here.</span>
 				</p>
 				<p class="notice" id="notice" role="status" hidden></p>
 				<form id="pair-form" novalidate>
 					<label class="field">
-						<span class="label">Server</span>
+						<span class="label" data-i18n="server">Server</span>
 						<input
 							name="server"
 							id="server"
@@ -65,7 +72,7 @@
 						/>
 					</label>
 					<label class="field">
-						<span class="label">Pairing code</span>
+						<span class="label" data-i18n="code">Pairing code</span>
 						<input
 							name="code"
 							id="code"
@@ -76,14 +83,16 @@
 							maxlength="7"
 							required
 						/>
-						<span class="hint">Codes are valid for 10 minutes.</span>
+						<span class="hint" data-i18n="codeHint">Codes are valid for 10 minutes.</span>
 					</label>
 					<label class="field">
-						<span class="label">Device name</span>
+						<span class="label" data-i18n="name">Device name</span>
 						<input name="name" id="name" maxlength="60" autocomplete="off" required />
 					</label>
 					<p class="error" id="error" role="alert" hidden></p>
-					<button type="submit" class="btn primary wide" id="submit">Pair device</button>
+					<button type="submit" class="btn primary wide" id="submit" data-i18n="submit">
+						Pair device
+					</button>
 				</form>
 			</section>
 		</main>

@@ -14,10 +14,12 @@
 //!   nightly). The server's Settings page drives it through the `update_*` commands, the only
 //!   IPC the remote origin gets (a runtime capability for exactly the paired server).
 
+mod problem;
 mod server;
 mod store;
 mod updates;
 
+use problem::Problem;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -37,7 +39,7 @@ struct App {
     http: reqwest::Client,
     creds: Mutex<Option<Credentials>>,
     /// Message for the pairing screen ("This device was signed out…").
-    notice: Mutex<Option<String>>,
+    notice: Mutex<Option<Problem>>,
     /// Pre-fills the server field after "Change server / Unpair".
     last_server: Mutex<Option<String>>,
     /// Loop guard for cookie recovery (see `recover`).
@@ -57,8 +59,8 @@ impl App {
         }
         *self.creds.lock().unwrap() = creds;
     }
-    fn set_notice(&self, notice: impl Into<String>) {
-        *self.notice.lock().unwrap() = Some(notice.into());
+    fn set_notice(&self, notice: Problem) {
+        *self.notice.lock().unwrap() = Some(notice);
     }
 }
 
@@ -92,17 +94,28 @@ enum Status {
     /// Pairing form.
     Pair {
         server: Option<String>,
+        /// English default device name; the page translates it by `platform`.
         name: String,
-        notice: Option<String>,
+        platform: &'static str,
+        notice: Option<Problem>,
     },
     /// Paired and valid: the webview is on its way to the server.
     Connecting { server: String },
     /// Paired, but the server can't be reached right now.
-    Unreachable { server: String, error: String },
+    Unreachable { server: String, error: Problem },
+}
+
+/// `macos` | `windows` | `linux` (the pairing page's default device name).
+fn platform() -> &'static str {
+    match std::env::consts::OS {
+        "macos" => "macos",
+        "windows" => "windows",
+        _ => "linux",
+    }
 }
 
 fn default_device_name() -> String {
-    match std::env::consts::OS {
+    match platform() {
         "macos" => "Mac app",
         "windows" => "Windows app",
         _ => "Linux app",
@@ -110,9 +123,18 @@ fn default_device_name() -> String {
     .into()
 }
 
-fn main_window(app: &AppHandle) -> Result<WebviewWindow, String> {
+fn pair_status(state: &App, notice: Option<Problem>) -> Status {
+    Status::Pair {
+        server: state.last_server.lock().unwrap().clone(),
+        name: default_device_name(),
+        platform: platform(),
+        notice,
+    }
+}
+
+fn main_window(app: &AppHandle) -> Result<WebviewWindow, Problem> {
     app.get_webview_window(MAIN)
-        .ok_or_else(|| "main window is gone".to_string())
+        .ok_or_else(|| Problem::internal("main window is gone"))
 }
 
 /// The bundled pairing page (`tauri://localhost` on macOS/Linux, `http://tauri.localhost`
@@ -133,22 +155,24 @@ fn local_url() -> Url {
 /// `{server}/pair/session#token=…&next=…` — the token travels in the fragment, which never
 /// reaches the server or its logs; the page exchanges it for the cookie and drops it from
 /// the history.
-fn session_url(creds: &Credentials, next: &str) -> Result<Url, String> {
+fn session_url(creds: &Credentials, next: &str) -> Result<Url, Problem> {
     let next: String = url::form_urlencoded::byte_serialize(next.as_bytes()).collect();
     Url::parse(&format!(
         "{}/pair/session#token={}&next={}",
         creds.server, creds.token, next
     ))
-    .map_err(|e| e.to_string())
+    .map_err(|e| Problem::internal(e.to_string()))
 }
 
-fn open_session(app: &AppHandle, creds: &Credentials, next: &str) -> Result<(), String> {
+fn open_session(app: &AppHandle, creds: &Credentials, next: &str) -> Result<(), Problem> {
     let url = session_url(creds, next)?;
-    main_window(app)?.navigate(url).map_err(|e| e.to_string())
+    main_window(app)?
+        .navigate(url)
+        .map_err(|e| Problem::internal(e.to_string()))
 }
 
 /// Back to the bundled pairing page (it calls `resume` on load and shows `notice`).
-fn show_local(app: &AppHandle, notice: Option<String>) {
+fn show_local(app: &AppHandle, notice: Option<Problem>) {
     if let Some(n) = notice {
         app.state::<App>().set_notice(n);
     }
@@ -157,22 +181,21 @@ fn show_local(app: &AppHandle, notice: Option<String>) {
     }
 }
 
-const SIGNED_OUT: &str =
-    "This device was signed out (revoked on another device). Pair it again with a new code.";
+fn signed_out() -> Problem {
+    Problem::new(
+        "signedOut",
+        "This device was signed out (revoked on another device). Pair it again with a new code.",
+    )
+}
 
 // ─── Commands (called by ui/main.js) ─────────────────────────────────────────
 
 /// Start-up: use the stored token if there is one, else show the pairing form.
 #[tauri::command]
-async fn resume(app: AppHandle, state: State<'_, App>) -> Result<Status, String> {
+async fn resume(app: AppHandle, state: State<'_, App>) -> Result<Status, Problem> {
     let notice = state.notice.lock().unwrap().take();
-    let pair = |notice: Option<String>| Status::Pair {
-        server: state.last_server.lock().unwrap().clone(),
-        name: default_device_name(),
-        notice,
-    };
     let Some(creds) = state.creds() else {
-        return Ok(pair(notice));
+        return Ok(pair_status(&state, notice));
     };
     match server::check(&state.http, &creds.server, &creds.token).await {
         server::Session::Valid => {
@@ -184,7 +207,7 @@ async fn resume(app: AppHandle, state: State<'_, App>) -> Result<Status, String>
         server::Session::SignedOut => {
             store::clear()?;
             state.set_creds(&app, None);
-            Ok(pair(Some(SIGNED_OUT.into())))
+            Ok(pair_status(&state, Some(signed_out())))
         }
         server::Session::Unreachable(error) => Ok(Status::Unreachable {
             server: creds.server,
@@ -194,6 +217,7 @@ async fn resume(app: AppHandle, state: State<'_, App>) -> Result<Status, String>
 }
 
 /// Pair with a code from another device, keep the token in the keychain, open libe.
+/// `language`: the page's `navigator.languages` (for the server's error messages).
 #[tauri::command]
 async fn pair(
     app: AppHandle,
@@ -201,14 +225,18 @@ async fn pair(
     server: String,
     code: String,
     name: String,
-) -> Result<(), String> {
+    language: Option<String>,
+) -> Result<(), Problem> {
     let server = server::normalize_server(&server)?;
     let code = server::normalize_code(&code)?;
     let name = name.split_whitespace().collect::<Vec<_>>().join(" ");
     if name.is_empty() || name.chars().count() > 60 {
-        return Err("Give this device a name (up to 60 characters).".into());
+        return Err(Problem::new(
+            "nameInvalid",
+            "Give this device a name (up to 60 characters).",
+        ));
     }
-    let token = server::pair(&state.http, &server, &code, &name).await?;
+    let token = server::pair(&state.http, &server, &code, &name, language.as_deref()).await?;
     let creds = Credentials { server, token };
     if let Err(e) = store::save(&creds) {
         // Without the keychain the token would be lost on restart: undo the pairing.
@@ -222,7 +250,7 @@ async fn pair(
 /// Forget this server: revoke the device there (best effort), clear the keychain entry and
 /// the webview's cookies/caches.
 #[tauri::command]
-async fn unpair(app: AppHandle, state: State<'_, App>) -> Result<Status, String> {
+async fn unpair(app: AppHandle, state: State<'_, App>) -> Result<Status, Problem> {
     if let Some(creds) = state.creds() {
         server::revoke(&state.http, &creds.server, &creds.token).await;
     }
@@ -231,11 +259,7 @@ async fn unpair(app: AppHandle, state: State<'_, App>) -> Result<Status, String>
     if let Ok(window) = main_window(&app) {
         let _ = window.clear_all_browsing_data();
     }
-    Ok(Status::Pair {
-        server: state.last_server.lock().unwrap().clone(),
-        name: default_device_name(),
-        notice: None,
-    })
+    Ok(pair_status(&state, None))
 }
 
 // ─── Updates (also called by the server's Settings page) ──────────────────────
@@ -307,7 +331,10 @@ async fn recover(app: AppHandle, creds: Credentials, next: String) {
             if looping {
                 show_local(
                     &app,
-                    Some("libe could not keep a session cookie. Check the server's ORIGIN / HTTPS setup.".into()),
+                    Some(Problem::new(
+                        "cookieLoop",
+                        "libe could not keep a session cookie. Check the server's ORIGIN / HTTPS setup.",
+                    )),
                 );
             } else if open_session(&app, &creds, &next).is_err() {
                 show_local(&app, None);
@@ -316,7 +343,7 @@ async fn recover(app: AppHandle, creds: Credentials, next: String) {
         server::Session::SignedOut => {
             let _ = store::clear();
             state.set_creds(&app, None);
-            show_local(&app, Some(SIGNED_OUT.into()));
+            show_local(&app, Some(signed_out()));
         }
         server::Session::Unreachable(error) => show_local(&app, Some(error)),
     }
