@@ -3,8 +3,6 @@
  * Refuses any name outside `libe_e2e*`, so it can never touch the dev database `libe`.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
@@ -12,9 +10,7 @@ import { PG_ADMIN_URL, ROOT, TIME_ZONE, dbUrl } from './env.ts';
 
 /** The Bun binary (the seed script and the server are Bun programs). */
 export function bunBin(): string {
-	if (process.versions.bun) return process.execPath;
-	const local = `${homedir()}/.bun/bin/bun`;
-	return existsSync(local) ? local : 'bun';
+	return process.versions.bun ? process.execPath : 'bun';
 }
 
 export async function resetDatabase(name: string, opts: { seed?: boolean } = {}): Promise<void> {
