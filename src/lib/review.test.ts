@@ -10,6 +10,8 @@ import {
 	quarterOf,
 	quarterWeeks,
 	reviewRange,
+	weekSummary,
+	weekSummaryText,
 	type ReviewQuest,
 	type SessionRow
 } from './review.ts';
@@ -325,5 +327,47 @@ describe('formatting', () => {
 		const de = i18n('de');
 		expect(comparisonLabel(7, de)).toBe('ggü. Vorwoche');
 		expect(comparisonLabel(3, de)).toBe('ggü. Mo–Mi der Vorwoche');
+	});
+});
+
+describe('weekSummary', () => {
+	const t = i18n('en');
+	const base = buildReview([], QUESTS, opts).week;
+	const text = (w: Partial<typeof base>) => weekSummaryText(weekSummary({ ...base, ...w }), t);
+	const prev = (days: number, totalMin: number) => ({
+		days,
+		questMin: 0,
+		totalMin,
+		dailyAvgMin: 0,
+		questShare: null
+	});
+
+	test('future week, nothing logged (yet)', () => {
+		expect(text({ daysElapsed: 0, previous: null })).toBe('It hasn’t started yet.');
+		expect(text({ daysElapsed: 3, totalMin: 0 })).toBe('Nothing logged yet.');
+		expect(text({ daysElapsed: 7, totalMin: 0 })).toBe('Nothing logged.');
+	});
+
+	test('total and the difference to the same days of the previous week', () => {
+		expect(text({ daysElapsed: 7, totalMin: 750, previous: prev(7, 624) })).toBe(
+			'12.5h logged — 2.1h more than last week.'
+		);
+		expect(text({ daysElapsed: 3, totalMin: 120, previous: prev(3, 180) })).toBe(
+			'2h logged — 1h less than the same days last week.'
+		);
+		expect(text({ daysElapsed: 7, totalMin: 600, previous: prev(7, 598) })).toBe(
+			'10h logged — about the same as last week.'
+		);
+		expect(text({ daysElapsed: 7, totalMin: 90, previous: null })).toBe('1.5h logged.');
+	});
+
+	test('German', () => {
+		const de = i18n('de');
+		expect(
+			weekSummaryText(
+				weekSummary({ ...base, daysElapsed: 7, totalMin: 750, previous: prev(7, 624) }),
+				de
+			)
+		).toBe('12,5 h erfasst – 2,1 h mehr als letzte Woche.');
 	});
 });

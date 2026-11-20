@@ -16,9 +16,24 @@
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { BlockWithTask } from '#lib/server/blocks.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
+	import { useTimer } from '#lib/timer-store.svelte.ts';
+	import { liveLoggedMin, runningSpan } from '#lib/daily-goal.ts';
 
 	let { data, form } = $props();
 	const t = useI18n();
+	const timer = useTimer();
+
+	/**
+	 * Minutes logged today: the root layout's server number (completed sessions) plus the
+	 * active session's running time — the same value as the avatar's goal ring.
+	 */
+	const todayMin = $derived(
+		data.todayLog
+			? Math.round(
+					liveLoggedMin(data.todayLog, runningSpan(timer.timer, timer.view), timer.serverNow)
+				)
+			: 0
+	);
 
 	/** The open "Time-block" dialog target (null = closed). */
 	let blockEditor = $state<BlockEditor | null>(null);
@@ -84,7 +99,12 @@
 	{#snippet actions()}
 		<div class="day-stats">
 			<p class="today tabular">
-				<strong>{formatHours(data.todayMin / 60, t.intl)}</strong> <span>{t.home.today}</span>
+				<strong>{formatHours(todayMin / 60, t.intl)}</strong>
+				<span>
+					{data.dailyGoalMin
+						? t.home.ofGoalToday(formatHours(data.dailyGoalMin / 60, t.intl))
+						: t.home.today}
+				</span>
 			</p>
 			<div class="week">
 				<div

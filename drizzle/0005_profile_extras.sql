@@ -1,0 +1,4 @@
+ALTER TABLE "settings" ADD COLUMN "avatar_emoji" text;--> statement-breakpoint
+ALTER TABLE "settings" ADD COLUMN "daily_goal_min" integer;--> statement-breakpoint
+ALTER TABLE "settings" ADD CONSTRAINT "settings_avatar_emoji_chk" CHECK ("settings"."avatar_emoji" IS NULL OR (char_length("settings"."avatar_emoji") BETWEEN 1 AND 16 AND "settings"."avatar_emoji" = btrim("settings"."avatar_emoji")));--> statement-breakpoint
+ALTER TABLE "settings" ADD CONSTRAINT "settings_daily_goal_chk" CHECK ("settings"."daily_goal_min" IS NULL OR ("settings"."daily_goal_min" BETWEEN 15 AND 960 AND "settings"."daily_goal_min" % 15 = 0));

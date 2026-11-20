@@ -24,8 +24,8 @@ import { i18n, negotiateLocale, resolveLocale } from '#lib/i18n/index.ts';
  * choice (`auto` → `Accept-Language`); requests without a device (pairing pages, public
  * assets) negotiate from `Accept-Language` only.
  *
- * Profile (`locals.profile`): read in the same query as the language, for paired devices
- * only — public pages never see the owner's name.
+ * Profile (`locals.profile`) and daily goal (`locals.dailyGoalMin`): read in the same query
+ * as the language, for paired devices only — public pages never see the owner's name.
  */
 export const handle: Handle = async ({ event, resolve }) => {
 	const { url, cookies, request } = event;
@@ -47,10 +47,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	const acceptLanguage = request.headers.get('accept-language');
 	event.locals.profile = null;
+	event.locals.dailyGoalMin = null;
 	if (event.locals.device) {
-		const { language, profile } = await getRequestSettings();
+		const { language, profile, dailyGoalMin } = await getRequestSettings();
 		event.locals.locale = resolveLocale(language, acceptLanguage);
 		event.locals.profile = profile;
+		event.locals.dailyGoalMin = dailyGoalMin;
 	} else {
 		event.locals.locale = negotiateLocale(acceptLanguage);
 	}

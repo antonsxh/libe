@@ -103,6 +103,10 @@
 	--avatar-sm: 28px; /* profile avatar (Avatar.svelte) */
 	--avatar-md: 40px; /* nav */
 	--avatar-lg: 64px; /* settings preview */
+	--avatar-ring-stroke: 2.5px; /* daily-goal ring around the avatar */
+	--avatar-ring-gap: 2px; /* space between avatar and ring */
+	--fs-avatar-emoji-lg: 2rem; /* emoji in the large avatar */
+	--emoji-pick-max: 44px; /* widest emoji suggestion tile (EmojiPicker) */
 
 	/* ── Radii ────────────────────────────────────────────── */
 	--radius-sm: 6px;
@@ -116,6 +120,7 @@
 	--ring: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
 	--ease: cubic-bezier(0.2, 0, 0, 1);
 	--dur: 140ms;
+	--dur-slow: 400ms; /* progress fills (goal ring) */
 
 	/* ── Time grids (day timeline, calendar) ──────────────── */
 	--grid-line: color-mix(in srgb, var(--border-strong) 30%, transparent); /* hour lines */
@@ -129,6 +134,12 @@
 	--chart-radius: 3px; /* bars, tracks */
 	--chart-track-h: 6px; /* horizontal hour bars */
 	--chart-stack-h: 36px; /* quest vs other stacked bar */
+
+	/* ── Daily goal (avatar ring) ──────────────────────────── */
+	--goal-ring: var(--accent);
+	--goal-track: color-mix(in srgb, var(--accent) 16%, transparent);
+	--goal-done: var(--success);
+	--goal-done-glow: 0 0 3px color-mix(in srgb, var(--success) 70%, transparent);
 
 	/* ── Hatching (planned blocks, calendar entries) ──────── */
 	--hatch-angle: 135deg;

@@ -2,10 +2,12 @@
  * Hours per quest, derived from completed sessions joined to their task's quest.
  * Pure bucketing lives in `#lib/stats-core.ts`; only the query is here.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq, gte, lt } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { sessions, tasks } from '#lib/server/db/schema.ts';
 import { todayISO } from '#lib/dates.ts';
+import { dayBounds } from '#lib/manual-log.ts';
+import type { TodayLog } from '#lib/daily-goal.ts';
 import {
 	aggregateQuestStats,
 	dayWeekMinutes,
@@ -50,8 +52,6 @@ export async function questHours(): Promise<HoursSummary> {
 }
 
 export interface HomeTime {
-	/** Hours logged today (completed sessions of every task kind). */
-	todayH: number;
 	/** Hours logged in the current Mon–Sun week (completed sessions of every task kind). */
 	weekH: number;
 	/** Logged milliseconds per task id (all completed sessions, keyed by task). */
@@ -59,8 +59,9 @@ export interface HomeTime {
 }
 
 /**
- * Totals for the Home header and task cards: hours today / this week and logged time
- * per task. Pure bucketing lives in `#lib/stats-core.ts`.
+ * Totals for the Home header and task cards: hours this week and logged time per task
+ * ("today" comes from {@link todayLog} via the root layout). Pure bucketing lives in
+ * `#lib/stats-core.ts`.
  */
 export async function homeTime(): Promise<HomeTime> {
 	const rows = await db
@@ -74,10 +75,38 @@ export async function homeTime(): Promise<HomeTime> {
 		.from(sessions)
 		.where(eq(sessions.state, 'completed'));
 
-	const { todayMin, weekMin } = dayWeekMinutes(rows, { today: todayISO() });
+	const { weekMin } = dayWeekMinutes(rows, { today: todayISO() });
 	return {
-		todayH: todayMin / 60,
 		weekH: weekMin / 60,
 		byTaskMs: Object.fromEntries(loggedMsByTask(rows))
 	};
+}
+
+/**
+ * Minutes logged today — Home's "today" stat and the daily-goal ring (root layout data, every
+ * page). Completed sessions of every task kind attributed to the day of their `started_at`
+ * in the server timezone (`dayWeekMinutes`, the same rule as the week total); only today's
+ * rows are read (`sessions_started_idx`). The active session is not included — clients add
+ * its running time from the timer snapshot (`liveLoggedMin`).
+ */
+export async function todayLog(): Promise<TodayLog> {
+	const day = todayISO();
+	const { start, end } = dayBounds(day);
+	const rows = await db
+		.select({
+			startedAt: sessions.startedAt,
+			endedAt: sessions.endedAt,
+			pausedMs: sessions.pausedMs,
+			durationMin: sessions.durationMin
+		})
+		.from(sessions)
+		.where(
+			and(
+				eq(sessions.state, 'completed'),
+				gte(sessions.startedAt, start),
+				lt(sessions.startedAt, end)
+			)
+		);
+	const { todayMin } = dayWeekMinutes(rows, { today: day });
+	return { day, loggedMin: todayMin, start: start.getTime(), end: end.getTime() };
 }

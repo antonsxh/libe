@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import Button from '#lib/components/Button.svelte';
 	import ColorSwatches from '#lib/components/ColorSwatches.svelte';
+	import EmojiPicker from '#lib/components/EmojiPicker.svelte';
 	import { SUGGESTED_EMOJIS } from '#lib/emoji.ts';
 	import { QUEST_DESC_MAX, QUEST_NAME_MAX, type QuestFormResult } from '#lib/quest-form.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
@@ -71,29 +72,16 @@
 	<div class="row">
 		<div class="field">
 			<span class="label" id="icon-label">{t.quests.form.icon}</span>
-			<div class="icon-row">
-				<input
-					class="icon-input"
-					name="icon"
-					type="text"
-					bind:value={icon}
-					placeholder="🚀"
-					aria-labelledby="icon-label"
-					autocomplete="off"
-				/>
-				<div class="emoji-grid" role="group" aria-label={t.quests.form.suggested}>
-					{#each SUGGESTED_EMOJIS as emoji (emoji)}
-						<button
-							type="button"
-							class="emoji-pick"
-							aria-label={t.quests.form.useIcon(emoji)}
-							onclick={() => (icon = emoji)}
-						>
-							{emoji}
-						</button>
-					{/each}
-				</div>
-			</div>
+			<EmojiPicker
+				name="icon"
+				bind:value={icon}
+				labelledby="icon-label"
+				suggestions={SUGGESTED_EMOJIS}
+				groupLabel={t.quests.form.suggested}
+				pickLabel={t.quests.form.useIcon}
+				placeholder="🚀"
+				invalid={Boolean(echo?.errors?.icon)}
+			/>
 			{#if echo?.errors?.icon}<span class="error">{echo.errors.icon}</span>{/if}
 		</div>
 
@@ -173,37 +161,6 @@
 		display: grid;
 		grid-template-columns: 1fr auto;
 		gap: var(--space-4);
-	}
-
-	.icon-row {
-		display: grid;
-		grid-template-columns: 64px 1fr;
-		gap: var(--space-2);
-		align-items: start;
-	}
-	.icon-input {
-		font-size: var(--fs-lg);
-		text-align: center;
-	}
-	.emoji-grid {
-		display: grid;
-		grid-template-columns: repeat(8, 1fr);
-		gap: var(--space-1);
-	}
-	.emoji-pick {
-		display: grid;
-		place-items: center;
-		aspect-ratio: 1;
-		padding: 0;
-		background: var(--surface-2);
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		font-size: var(--fs-md);
-		line-height: 1;
-		transition: border-color var(--dur) var(--ease);
-	}
-	.emoji-pick:hover {
-		border-color: var(--border-strong);
 	}
 
 	.budget {

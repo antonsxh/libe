@@ -6,7 +6,8 @@ import {
 	initials,
 	normalizeDisplayName,
 	parseAvatarColor,
-	toProfile
+	toProfile,
+	parseAvatarEmoji
 } from './profile.ts';
 
 describe('initials', () => {
@@ -95,16 +96,50 @@ describe('toProfile', () => {
 	test('defaults without a row, slate for an unknown colour', () => {
 		expect(toProfile(undefined)).toEqual({
 			displayName: null,
-			avatarColor: DEFAULT_AVATAR_COLOR
+			avatarColor: DEFAULT_AVATAR_COLOR,
+			avatarEmoji: null
 		});
 		expect(toProfile({ displayName: 'Anton', avatarColor: 'nope' })).toEqual({
 			displayName: 'Anton',
-			avatarColor: 'slate'
+			avatarColor: 'slate',
+			avatarEmoji: null
 		});
 		expect(toProfile({ displayName: '  ', avatarColor: 'blue' })).toEqual({
 			displayName: null,
-			avatarColor: 'blue'
+			avatarColor: 'blue',
+			avatarEmoji: null
 		});
+	});
+
+	test('keeps a stored single emoji, drops anything else', () => {
+		const row = { displayName: 'Anton', avatarColor: 'teal' };
+		expect(toProfile({ ...row, avatarEmoji: '🦊' }).avatarEmoji).toBe('🦊');
+		expect(toProfile({ ...row, avatarEmoji: '👩‍💻' }).avatarEmoji).toBe('👩‍💻');
+		expect(toProfile({ ...row, avatarEmoji: 'ab' }).avatarEmoji).toBeNull();
+		expect(toProfile({ ...row, avatarEmoji: '🦊🐻' }).avatarEmoji).toBeNull();
+		expect(toProfile({ ...row, avatarEmoji: null }).avatarEmoji).toBeNull();
+	});
+});
+
+describe('parseAvatarEmoji', () => {
+	test('style "emoji" with exactly one emoji (trimmed, ZWJ sequences and flags whole)', () => {
+		expect(parseAvatarEmoji('emoji', ' 🦊 ')).toEqual({ ok: true, value: '🦊' });
+		expect(parseAvatarEmoji('emoji', '👨‍👩‍👧')).toEqual({ ok: true, value: '👨‍👩‍👧' });
+		expect(parseAvatarEmoji('emoji', '🇩🇪')).toEqual({ ok: true, value: '🇩🇪' });
+	});
+
+	test('a blank emoji or the initials style means initials (null)', () => {
+		expect(parseAvatarEmoji('emoji', '   ')).toEqual({ ok: true, value: null });
+		expect(parseAvatarEmoji('initials', '🦊')).toEqual({ ok: true, value: null });
+		expect(parseAvatarEmoji(undefined, '🦊')).toEqual({ ok: true, value: null });
+		expect(parseAvatarEmoji('emoji', null)).toEqual({ ok: true, value: null });
+	});
+
+	test('rejects text and more than one emoji', () => {
+		const invalid = { ok: false, error: 'profileEmojiInvalid' } as const;
+		expect(parseAvatarEmoji('emoji', 'A')).toEqual(invalid);
+		expect(parseAvatarEmoji('emoji', '🦊🐻')).toEqual(invalid);
+		expect(parseAvatarEmoji('emoji', '🦊 x')).toEqual(invalid);
 	});
 });
 

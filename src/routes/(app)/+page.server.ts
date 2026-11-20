@@ -74,7 +74,6 @@ export const load = (async ({ url, locals }) => {
 		now: minuteOfDay(),
 		/** Part of the day for the greeting — server clock and `TZ`, like "today". */
 		greeting: greetingPart(Math.floor(minuteOfDay() / 60)),
-		todayMin: Math.round(time.todayH * 60),
 		weekMin: Math.round(time.weekH * 60),
 		weekBudgetMin,
 		byTaskMs: time.byTaskMs,
