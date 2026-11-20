@@ -16,7 +16,11 @@
 
 ## Screenshots
 
-<!-- For UI changes: before/after, desktop and phone width if the layout changed. Delete otherwise. -->
+<!--
+UI changes need before and after screenshots (desktop and phone width if the layout changed).
+Add a short video when the change is about motion or timing.
+Upload them here (drag them into this field) — do not commit them. Delete this section otherwise.
+-->
 
 ## Checklist
 

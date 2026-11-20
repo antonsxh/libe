@@ -90,8 +90,10 @@ Tests:
 ## Pull requests
 
 - Branch off `main`, keep a PR focused on one thing. Unrelated refactors belong in their own PR.
-- Fill in the PR template: what changed, why, and how you tested it. For UI changes, add
-  screenshots (desktop and phone width if the layout changed).
+- Fill in the PR template: what changed, why, and how you tested it.
+- **UI changes need before and after screenshots** (desktop and phone width if the layout
+  changed). Add a short video when the change is about motion or timing. Upload them to the PR
+  (drag them into the description or a comment). Do not commit them.
 - Write commit messages and the PR title in English, in the imperative/topic style used on
   `main`, e.g. `Calendar: keep the now line in view` or `Fix: …`.
 - PRs are **squash-merged**, so the PR title becomes the commit on `main`. Don't worry about a
