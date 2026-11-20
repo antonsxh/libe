@@ -58,7 +58,7 @@ Notes / decisions taken in M0:
 - `src/lib/server/db/{schema,index}.ts`, `drizzle/0000_init.sql`, `scripts/migrate.ts`
 - `Dockerfile` (bun build → bun runtime, migrates on start), `compose.yaml`, `.env.example`
 - Tokens `src/lib/styles/tokens.css`, globals `global.css`, `quest-colors.ts`, `dates.ts` (+ tests)
-- Shell: `AppNav` (Home · Plan · Calendar · Focus · Quests · Review, search trigger placeholder, avatar)
+- Shell: `AppNav` (Home · Plan · Calendar · Focus · Quests · Review, search trigger — a placeholder until the command palette, see below — avatar)
 - Primitives: `Button`, `QuestPill`, `PageHeader`, `ComingSoon`, `Logo`; `/styleguide` page
 - `GET /api/health` (DB ping, used by the Docker healthcheck)
 
@@ -601,3 +601,57 @@ Fix found by the suite:
 - e2e: `e2e/specs/i18n.spec.ts` (setting persists and applies, `auto` per browser locale,
   translated validation errors, German phone layout). The config pins `locale: 'en-US'`;
   the spec resets the setting to `auto` around every test.
+
+## Command palette (after German UI language)
+
+- **Open**: the nav's search button (every width; icon-only below 1180px, also in the phone top
+  bar) or **⌘K** (Apple) / **Ctrl+K** (elsewhere, `preventDefault` so the browser's own
+  shortcut doesn't fire) on every page with `AppNav` — also inside the Tauri webview, no new
+  command needed. The shortcut or Esc closes it; focus goes back to the trigger (or to the
+  element that had it when opened with the shortcut). Not available on `/focus` (no nav) or
+  while another modal dialog is open. ⌘ vs Ctrl is decided after mount
+  (`isApplePlatform`: User-Agent Client Hints, then `navigator.platform`/UA) — SSR shows
+  "Ctrl", so hydration no longer keeps a wrong guess.
+- **UI**: `src/lib/components/palette/CommandPalette.svelte` (rendered by `AppNav`), a native
+  modal `<dialog>` like `Dialog.svelte`: search input + grouped list (Pages, Actions, Quests,
+  Tasks), combobox pattern (`role=combobox` with `aria-expanded`/`aria-controls`/
+  `aria-activedescendant`, `listbox` with labelled `group`s and `option`s). ↑/↓ wrap,
+  Ctrl/⌘+Home/End jump, Enter runs, Shift+Enter starts focus on a task, hover sets the active
+  option, click/tap runs it. Desktop: centred, 600px, 12vh from the top. Phones: full width at
+  the top (`--safe-*`), height capped by the visual viewport (iOS keyboard) / `dvh`, the list
+  scrolls inside. Opened by tap, `showModal()` + `input.focus()` run synchronously in the click
+  handler — iOS only raises the keyboard for a focus inside the user gesture.
+- **Contents**: empty query → Pages (the six sections + Settings, nav labels) and Actions;
+  typing filters those client-side (`matchRank`: prefix > word start > substring) and asks the
+  server for Quests and Tasks. **Actions** exist only for an active timer and only reuse what
+  the app already offers: Pause / Resume (focus phases, as on the task card), Stop, and
+  "Log time…" for the timer's task (`timer.logTarget`, the root layout's dialog) — all through
+  `useTimer()`, never computed on the client.
+- **Search**: `GET /api/search?q=` (device auth like every `/api/**`; 401 JSON otherwise) →
+  `src/lib/server/search.ts`: `ILIKE` substring on task title and quest name with `%`, `_`,
+  `\` escaped; open quests only, not-done tasks only (a backlog task only while its quest is
+  open — closed quests' backlogs are hidden everywhere; scheduled tasks are found like Home/Plan
+  show them). Recurring tasks are found as their stored row. Up to 8 per group, ranked by
+  `rankTasks`/`rankQuests` in `#lib/palette.ts`: title prefix, other title match, quest-name
+  match; then today/upcoming before past days and the backlog; then title. `q` is trimmed,
+  whitespace-collapsed and cut to 100 chars; blank → empty groups. The response carries the
+  server's `today`, so day labels and targets follow the server TZ. Client: 120 ms debounce,
+  `AbortController` for stale requests, a spinner in place of the search icon, "No results" /
+  a quiet error line (no console errors). The service worker still never caches `/api/**`.
+- **Where a task leads** (`taskHref`): today **and backlog → Home** (Home lists today's tasks
+  and the whole backlog at every width; the Plan board scrolls its backlog column out of view
+  on phones); another day → `/plan?week=<monday>`, plus `&other=<day>` for tasks of kind
+  `other` so the day's collapsed "Other" zone is open. After navigating, the card/row
+  (`[data-task]`, now also on Home's backlog rows) is scrolled into view (also inside the
+  horizontally scrolling board) and briefly outlined. Quests → `/quests/<id>`.
+- **Start focus** per task: the ▶ button on each task option (tap/click) or Shift+Enter —
+  exactly the task card's ▶ (`timer.start(..., { navigate: true })`, the switch dialog when
+  another timer runs, then `/focus`).
+- Pure logic (query normalisation, LIKE escaping, matching, ranking, targets, ↑/↓ wrapping,
+  shortcut/platform detection) in `src/lib/palette.ts`, unit-tested in `palette.test.ts`.
+- e2e: `e2e/specs/palette.spec.ts` — task found with its quest and Enter opens its Plan week /
+  Home backlog, done tasks and closed quests not found, LIKE wildcards literal, ↑/↓ wrap +
+  Enter on a page + Esc returns focus, Pause/Resume/Log time/Stop change server state,
+  Shift+Enter starts focus, the touch flow (`@mobile-only`: tap → input focused, tap a result,
+  no horizontal scroll), 401 without a device. Checked against reintroduced bugs (`disabled`
+  trigger, unescaped `ILIKE`, the stale-`open` race of a quick second ⌘K).

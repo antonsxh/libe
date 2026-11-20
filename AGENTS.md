@@ -99,6 +99,11 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   Task-list pieces used by Home and Plan live in `components/tasks/` (`DayTaskCard`,
   `TaskAddForm`, `QuestPicker`, `QuestFilter`); their shared form actions (toggle, ↑/↓,
   backlog, delete, `addTaskAction` factory) in `src/lib/server/task-actions.ts`.
+- **Command palette** (⌘K / Ctrl+K, the nav search button): `components/palette/CommandPalette.svelte`
+  (rendered by `AppNav`); pages/actions are filtered on the client, quests/tasks come from
+  `GET /api/search?q=` (`server/search.ts`, escaped `ILIKE`); pure matching/ranking/targets/↑↓
+  logic in `#lib/palette.ts`. New palette actions reuse existing flows (`useTimer()`), never
+  local state. Open it synchronously from the tap (iOS keyboard).
 - Week navigation (‹ range › + "This week", `?week=`) is the shared `WeekNav.svelte`
   (Calendar, Review); extra controls go in its children snippet.
 - `Menu` popovers are `position: fixed` (placed from the trigger rect) so they escape
@@ -175,7 +180,7 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n),
+i18n, palette),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 
