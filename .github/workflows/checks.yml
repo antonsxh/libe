@@ -197,6 +197,9 @@ jobs:
           name: libe
           skipPush: true
 
+      - name: Nix formatting
+        run: nix fmt -- --check flake.nix nix/*.nix
+
       # Evaluates the outputs and builds `checks` (the package) for this system …
       - run: nix flake check -L
 

@@ -35,7 +35,8 @@
       # release version in their version files. Any other commit reports the committed version
       # (the last stable release) plus its git revision, e.g. `0.2.0+git.1a2b3c4`.
       committed = (lib.importJSON ./src-tauri/tauri.conf.json).version;
-      release = if builtins.pathExists ./nix/release.json then lib.importJSON ./nix/release.json else null;
+      release =
+        if builtins.pathExists ./nix/release.json then lib.importJSON ./nix/release.json else null;
       revision = self.shortRev or self.dirtyShortRev or "unknown";
       version =
         if release == null then

@@ -85,7 +85,7 @@ applies to the flake you build directly, never to its inputs.)
 
 Home Manager works the same way: `home.packages = [ libe.packages.${pkgs.stdenv.hostPlatform.system}.desktop ];`.
 
-The package installs `libe` into the `PATH`, a desktop entry (“libe”, category Productivity)
+The package installs `libe` into the `PATH`, a desktop entry (“libe”, category Office)
 and its icons. Start it, pair it with a code from a paired device (see TAURI.md, “Pairing”).
 
 ## Keychain (Secret Service)
