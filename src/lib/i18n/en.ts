@@ -514,6 +514,16 @@ export const en = {
 		sameTrackBefore: 'It updates separately, with its Docker image (',
 		sameTrackAfter: ').',
 		devServer: (version: string) => `Your server runs a development build of libe (${version}).`,
+		unpairTitle: 'Change server / Unpair',
+		unpairDesc:
+			'Signs this app out and forgets the server. It then shows its pairing screen, where you can pair it again — with this server or another one.',
+		unpair: 'Change server / Unpair…',
+		unpairConfirm: 'Sign this app out now?',
+		unpairConfirmButton: 'Unpair',
+		unpairing: 'Unpairing…',
+		unpairUnsupported:
+			'This version of the app can’t do that from here. Use its menu (libe → Change server / Unpair…) or update the app first.',
+		unpairFailed: (detail: string) => `Unpairing failed: ${detail}`,
 		phases: {
 			idle: 'Not checked yet.',
 			checking: 'Checking for updates…',

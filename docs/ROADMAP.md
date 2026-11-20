@@ -558,7 +558,8 @@ Fix found by the suite:
   (`:stable` / `:nightly`) puts it on the same track instead of switching it.
 - Security: the paired server's pages get IPC for exactly the four `update_*` commands (runtime
   capability for that origin; the app manifest in `build.rs` makes every command
-  permission-gated). The pairing commands stay local-only.
+  permission-gated). The pairing commands stay local-only. (Later also `app_unpair` and
+  `app_quit` — see "Desktop app without a menu bar".)
 
 ## German UI language (after desktop auto-update)
 
@@ -828,3 +829,32 @@ serverNow)` → `liveStreak(base, liveLoggedMin(…))`: a running session crossi
   marks the rest day; a running timer (shifted in the DB) crosses the goal → `active` and the
   7-day milestone without reload, still after completing + reload. Checked against
   reintroduced bugs (rest days ignored; running time not added).
+
+## Desktop app without a menu bar (after streaks)
+
+- On Linux and Windows the Tauri window stacked three bars: the OS title bar, a native menu
+  bar with a single "libe" menu, and libe's own nav. The menu is now built **only on macOS**
+  (`#[cfg(target_os = "macos")]` in `src-tauri/src/lib.rs`), where it lives in the global menu
+  bar and carries the Edit menu that ⌘C/⌘V need — unchanged there (⌘R, ⌘Q, Change server /
+  Unpair…). Copy/paste on Linux/Windows never needed a menu.
+- **Change server / Unpair…** moved to **Settings → Desktop app** on every platform (inline
+  confirmation, no `confirm()`): the new command `app_unpair` runs exactly the menu's flow
+  (revoke on the server, delete the keychain entry, clear browsing data, pairing page with the
+  server pre-filled). An older app rejects the command through Tauri's ACL ("… not allowed");
+  Settings recognises that (`unpairErrorText`) and points to the old app's menu instead.
+- **Ctrl+R / Ctrl+Q** on Linux/Windows: decision — a Rust-side initialization script
+  (`src-tauri/src/shortcuts.js`, `WebviewWindowBuilder::initialization_script`, compiled in on
+  non-macOS only) rather than a keydown handler in the server's pages. It runs on every page
+  of the webview — the bundled pairing page and the server's pages (old servers included) —
+  so no platform detection on the server and no double handling on macOS, where the menu's
+  accelerators keep the job. Ctrl+R calls `location.reload()`, Ctrl+Q the new command
+  `app_quit` (`app.exit(0)`, so a downloaded update still installs on quit).
+- The paired server's runtime capability grew from the four `update_*` commands to
+  `SERVER_COMMANDS` (+ `app_unpair`, `app_quit`; `allow_server_commands`). The pairing
+  commands stay local-only.
+- e2e (`e2e/tauri/tauri.spec.ts`): no menu bar (`outerHeight − innerHeight` = 0; 27 px with
+  the old GTK menu bar), Settings → Change server / Unpair… (Cancel keeps the pairing; Unpair →
+  pairing page, server pre-filled, credentials gone, device revoked), Ctrl+R reloads and Ctrl+Q
+  quits on libe's pages and on the pairing page. Checked against the previous app build (menu
+  bar present; the Settings button only shows the "use the menu" hint) and a build without the
+  script (shortcuts dead). Windows behaviour (WebView2's own Ctrl+R) is not verified here.

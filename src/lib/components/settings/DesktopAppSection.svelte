@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Download, RefreshCw, RotateCw } from '@lucide/svelte';
+	import { Download, LogOut, RefreshCw, RotateCw } from '@lucide/svelte';
 	import Button from '#lib/components/Button.svelte';
 	import { formatAgo } from '#lib/auth.ts';
 	import {
@@ -11,6 +11,7 @@
 		isBusy,
 		phaseText,
 		trackOfVersion,
+		unpairErrorText,
 		type DesktopApp,
 		type UpdateState,
 		type UpdateTrack
@@ -28,6 +29,10 @@
 	let switching = $state(false);
 	let installing = $state(false);
 	let now = $state(Date.now());
+	/** "Change server / Unpair…": the inline confirmation is open. */
+	let confirmUnpair = $state(false);
+	let unpairing = $state(false);
+	let unpairError = $state<string | null>(null);
 
 	const phase = $derived(update?.phase ?? { kind: 'idle' as const });
 	const percent = $derived(downloadPercent(phase));
@@ -73,6 +78,19 @@
 		await run(() => app!.install()); // restarts the app on success
 		installing = false;
 		await refresh();
+	}
+
+	async function unpair() {
+		if (!app) return;
+		unpairing = true;
+		unpairError = null;
+		try {
+			await app.unpair(); // the app leaves this page for its pairing screen
+		} catch (e) {
+			unpairError = unpairErrorText(e, t);
+			unpairing = false;
+			confirmUnpair = false;
+		}
 	}
 
 	onMount(() => {
@@ -172,6 +190,36 @@
 				{t.desktop.devServer(serverVersion)}
 			{/if}
 		</p>
+
+		<div class="row unpair">
+			<div class="row-text">
+				<p class="row-title" id="unpair-title">{t.desktop.unpairTitle}</p>
+				<p class="muted desc">{t.desktop.unpairDesc}</p>
+			</div>
+			{#if confirmUnpair}
+				<div class="confirm" role="group" aria-labelledby="unpair-title">
+					<p>{t.desktop.unpairConfirm}</p>
+					<Button variant="secondary" onclick={() => (confirmUnpair = false)} disabled={unpairing}>
+						{t.common.cancel}
+					</Button>
+					<Button variant="primary" onclick={unpair} disabled={unpairing}>
+						{unpairing ? t.desktop.unpairing : t.desktop.unpairConfirmButton}
+					</Button>
+				</div>
+			{:else}
+				<Button
+					variant="secondary"
+					onclick={() => {
+						unpairError = null;
+						confirmUnpair = true;
+					}}
+				>
+					<LogOut size={16} />
+					{t.desktop.unpair}
+				</Button>
+			{/if}
+			{#if unpairError}<p class="error unpair-error" role="alert">{unpairError}</p>{/if}
+		</div>
 	</section>
 {/if}
 
@@ -273,6 +321,17 @@
 	}
 	.server {
 		margin-top: var(--space-5);
+	}
+	.confirm {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-3);
+		font-size: var(--fs-sm);
+	}
+	.unpair-error {
+		flex-basis: 100%;
+		font-size: var(--fs-sm);
 	}
 	code {
 		font-family: var(--font-mono);
