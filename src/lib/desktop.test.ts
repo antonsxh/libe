@@ -77,6 +77,9 @@ describe('app errors in the UI language', () => {
 		expect(phaseTextIn({ kind: 'unavailable', reason: 'x', code: 'devBuild' }, de)).toBe(
 			'Entwicklungs-Builds aktualisieren sich nicht selbst.'
 		);
+		const nix = { kind: 'unavailable', reason: 'Installed with Nix.', code: 'nixManaged' } as const;
+		expect(phaseTextIn(nix, de)).toContain('nix flake update libe');
+		expect(phaseTextIn(nix, de)).not.toBe(phaseTextIn(nix, en));
 	});
 
 	test('older apps (no code) and unknown codes show the app’s own text', () => {
@@ -95,6 +98,9 @@ describe('app errors in the UI language', () => {
 		);
 		expect(commandErrorText('Installing the update failed: denied', de)).toBe(
 			'Die Installation des Updates ist fehlgeschlagen: denied'
+		);
+		expect(commandErrorText('Updates of this app are managed by Nix.', de)).toBe(
+			'Updates dieser App laufen über Nix.'
 		);
 		expect(commandErrorText('Something new', de)).toBe('Something new');
 		expect(commandErrorText(new Error('x'), en)).toBe('Error: x');

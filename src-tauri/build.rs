@@ -3,6 +3,15 @@
 // (capabilities/default.json), the paired server's pages only `update_*`, `app_unpair` and
 // `app_quit` (added at runtime in `lib.rs`, `SERVER_COMMANDS`).
 fn main() {
+    // `LIBE_DISTRIBUTION=nix` (nix/libe-desktop.nix) turns the self-updater off, see
+    // `updates::Distribution`. Refuse typos instead of silently building a self-updating app.
+    println!("cargo:rerun-if-env-changed=LIBE_DISTRIBUTION");
+    if let Ok(value) = std::env::var("LIBE_DISTRIBUTION") {
+        assert!(
+            value.is_empty() || value == "nix",
+            "LIBE_DISTRIBUTION must be unset or \"nix\", not {value:?}"
+        );
+    }
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "resume",

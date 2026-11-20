@@ -5,6 +5,10 @@
  *   bun scripts/release.ts set-version <ver>    write <ver> into package.json, tauri.conf.json, Cargo.toml/.lock
  *   bun scripts/release.ts updater-manifest <dir>  Tauri update manifest for the installers in <dir>
  *                                               (env VERSION, TAG, GH_REPO) → <dir>/latest.json
+ *   bun scripts/release.ts nix-commit           in a checkout of the released commit: the commit
+ *                                               NixOS users fetch (env VERSION, NIX_TRACK, TAG, REF)
+ *   bun scripts/release.ts nix-publish          push that commit to `channel/<track>` + `nix-v<version>`
+ *                                               unless the channel already has a newer release
  *
  * Channels:
  *   nightly  automatic (`isAutomaticNightly`): checked after every green CI run on main, on the
@@ -23,7 +27,14 @@
  * The pure functions are exported for `scripts/release.test.ts`; everything that talks to
  * GitHub goes through the `gh` CLI (GH_TOKEN) and lives below them.
  */
-import { appendFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+	appendFileSync,
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	writeFileSync
+} from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -340,6 +351,47 @@ export function updaterManifest(opts: {
 	};
 }
 
+// ── NixOS channels ────────────────────────────────────────────────────────
+
+/**
+ * The Nix channel a release moves (`channel/<track>`, see flake.nix and docs/NIXOS.md):
+ * nightlies and plain stable releases — the same releases that reach the desktop update feed.
+ * Previews and stable prereleases (`-rc.N`) move nothing.
+ */
+export function nixTrack(channel: Channel, version: string): 'stable' | 'nightly' | null {
+	if (channel === 'nightly') return 'nightly';
+	if (channel === 'stable' && isPlainRelease(version)) return 'stable';
+	return null;
+}
+
+export const nixBranch = (track: 'stable' | 'nightly') => `channel/${track}`;
+
+/** Immutable tag of a release's Nix commit (`nix-v0.2.1`), for flake inputs pinned to it. */
+export const nixTag = (version: string) => `nix-v${version}`;
+
+/** `nix/release.json` on a channel commit: marks it as a release build for flake.nix. */
+export type NixRelease = {
+	version: string;
+	channel: 'stable' | 'nightly';
+	tag: string;
+	commit: string;
+};
+
+export function nixReleaseJson(release: NixRelease): string {
+	return JSON.stringify(release, null, '\t') + '\n';
+}
+
+/**
+ * Whether `channel/<track>` may move from the release it points at (`current`, from its
+ * `nix/release.json`; null when the branch doesn't exist yet) to `next`. Never backwards: a
+ * re-run of an older release's failed Nix job must not undo a newer one.
+ */
+export function nixChannelMove(current: string | null, next: string): 'move' | 'same' | 'older' {
+	if (current === null) return 'move';
+	const order = compareVersions(next, current);
+	return order > 0 ? 'move' : order === 0 ? 'same' : 'older';
+}
+
 // ── GitHub (gh CLI) ───────────────────────────────────────────────────────
 
 function gh(args: string[], { allowFail = false } = {}): string {
@@ -505,7 +557,8 @@ function plan() {
 			) ?? '',
 		prerelease: String(!plain),
 		latest: String(plain),
-		docker_tags: dockerTags(image, channel, version).join(',')
+		docker_tags: dockerTags(image, channel, version).join(','),
+		nix_track: nixTrack(channel, version) ?? ''
 	});
 }
 
@@ -538,15 +591,108 @@ function writeUpdaterManifest(dir: string) {
 	console.log(Object.keys(manifest.platforms).join('\n'));
 }
 
+/** Output of a git command; `null` when it failed. */
+function tryGit(args: string[], env: Record<string, string> = {}): string | null {
+	const res = spawnSync('git', args, { encoding: 'utf8', env: { ...process.env, ...env } });
+	return res.status === 0 ? res.stdout.trim() : null;
+}
+
+function git(args: string[], env: Record<string, string> = {}): string {
+	const out = tryGit(args, env);
+	if (out === null) throw new Error(`git ${args.join(' ')} failed.`);
+	return out;
+}
+
+/**
+ * Run in a checkout of the released commit (REF). Commits the release version
+ * (`set-version`) and `nix/release.json` on top of it and outputs `commit`: the commit
+ * `channel/<track>` will point at. Deterministic (author, committer and dates derive from
+ * REF), so the build jobs and the job that pushes the branch each recreate the same commit.
+ * A released commit without `flake.nix` (from before the flake) outputs an empty `commit`.
+ */
+function nixCommit() {
+	const version = env('VERSION');
+	const track = env('NIX_TRACK') as NixRelease['channel'];
+	const ref = env('REF');
+	if (track !== 'stable' && track !== 'nightly') throw new Error(`Invalid NIX_TRACK ${track}`);
+	if (git(['rev-parse', 'HEAD']) !== git(['rev-parse', `${ref}^{commit}`]))
+		throw new Error(`Run nix-commit in a checkout of ${ref}.`);
+	if (!existsSync('flake.nix')) {
+		notice(`${ref} has no flake.nix (older than the Nix flake): no Nix build for this release.`);
+		return output({ commit: '' });
+	}
+	setVersion(version);
+	mkdirSync('nix', { recursive: true });
+	writeFileSync(
+		'nix/release.json',
+		nixReleaseJson({ version, channel: track, tag: env('TAG'), commit: ref })
+	);
+	const date = `${git(['show', '-s', '--format=%ct', ref])} +0000`;
+	const bot = {
+		GIT_AUTHOR_NAME: 'github-actions[bot]',
+		GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+		GIT_AUTHOR_DATE: date,
+		GIT_COMMITTER_NAME: 'github-actions[bot]',
+		GIT_COMMITTER_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+		GIT_COMMITTER_DATE: date
+	};
+	git(['add', '--', ...VERSION_FILES, 'nix/release.json']);
+	git(
+		[
+			'-c',
+			'commit.gpgsign=false',
+			'commit',
+			'--quiet',
+			'-m',
+			`release: v${version} for NixOS (${nixBranch(track)})`
+		],
+		bot
+	);
+	output({ commit: git(['rev-parse', 'HEAD']) });
+}
+
+/**
+ * Pushes HEAD (the commit from `nix-commit`, already built and in the binary cache) to
+ * `channel/<track>` and the tag `nix-v<version>` in one atomic push — unless the channel
+ * already points at a newer release (a re-run of an older release). Env: VERSION, NIX_TRACK.
+ */
+function nixPublish() {
+	const version = env('VERSION');
+	const track = env('NIX_TRACK') as NixRelease['channel'];
+	const branch = nixBranch(track);
+	let current: string | null = null;
+	if (tryGit(['ls-remote', '--exit-code', '--heads', 'origin', branch]) !== null) {
+		git(['fetch', '--quiet', 'origin', `refs/heads/${branch}`]);
+		const raw = tryGit(['show', 'FETCH_HEAD:nix/release.json']);
+		current = raw ? (JSON.parse(raw) as NixRelease).version : null;
+	}
+	const move = nixChannelMove(current, version);
+	if (move === 'older') {
+		notice(`${branch} already has v${current}, newer than v${version}: left as is.`);
+		return output({ moved: 'false' });
+	}
+	git([
+		'push',
+		'--atomic',
+		'origin',
+		`+HEAD:refs/heads/${branch}`,
+		`HEAD:refs/tags/${nixTag(version)}`
+	]);
+	notice(`${branch} → v${version} (${git(['rev-parse', 'HEAD'])}).`);
+	output({ moved: 'true' });
+}
+
 if (import.meta.main) {
 	const [command, arg] = process.argv.slice(2);
 	try {
 		if (command === 'plan') plan();
 		else if (command === 'set-version' && arg) setVersion(arg);
 		else if (command === 'updater-manifest' && arg) writeUpdaterManifest(arg);
+		else if (command === 'nix-commit') nixCommit();
+		else if (command === 'nix-publish') nixPublish();
 		else {
 			console.error(
-				'usage: bun scripts/release.ts plan | set-version <version> | updater-manifest <dir>'
+				'usage: bun scripts/release.ts plan | set-version <version> | updater-manifest <dir> | nix-commit | nix-publish'
 			);
 			process.exit(2);
 		}

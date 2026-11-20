@@ -1,4 +1,8 @@
 import { describe, expect, test } from 'bun:test';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
 	NIGHTLY_GAP_MS,
 	channelOfTag,
@@ -10,6 +14,11 @@ import {
 	nextPatch,
 	nightlyGate,
 	nightlyTargetVersion,
+	nixBranch,
+	nixChannelMove,
+	nixReleaseJson,
+	nixTag,
+	nixTrack,
 	prereleaseVersion,
 	previousTag,
 	stableVersion,
@@ -321,5 +330,104 @@ describe('isAutomaticNightly', () => {
 		for (const event of ['workflow_run', 'schedule']) expect(isAutomaticNightly(event)).toBe(true);
 		expect(isAutomaticNightly('workflow_dispatch')).toBe(false);
 		expect(isAutomaticNightly('push')).toBe(false);
+	});
+});
+
+describe('NixOS channels', () => {
+	test('nightlies and plain stable releases move a channel; previews and -rc never', () => {
+		expect(nixTrack('nightly', '0.2.1-nightly.20261119.42')).toBe('nightly');
+		expect(nixTrack('stable', '0.2.1')).toBe('stable');
+		expect(nixTrack('stable', '0.3.0-rc.1')).toBeNull();
+		expect(nixTrack('preview', '0.2.1-preview.20261119.43')).toBeNull();
+		expect(nixBranch('stable')).toBe('channel/stable');
+		expect(nixBranch('nightly')).toBe('channel/nightly');
+		expect(nixTag('0.2.1-nightly.20261119.42')).toBe('nix-v0.2.1-nightly.20261119.42');
+	});
+
+	test('a channel only moves forward', () => {
+		expect(nixChannelMove(null, '0.2.1')).toBe('move');
+		expect(nixChannelMove('0.2.0', '0.2.1')).toBe('move');
+		expect(nixChannelMove('0.2.1', '0.2.1')).toBe('same');
+		expect(nixChannelMove('0.2.2', '0.2.1')).toBe('older');
+		// run numbers compare numerically
+		expect(nixChannelMove('0.2.1-nightly.20261119.99', '0.2.1-nightly.20261119.100')).toBe('move');
+		expect(nixChannelMove('0.2.1-nightly.20261120.5', '0.2.1-nightly.20261119.100')).toBe('older');
+	});
+
+	test('nix-commit recreates the same channel commit in every job; nix-publish moves forward only', () => {
+		const root = mkdtempSync(join(tmpdir(), 'libe-nix-commit-'));
+		const script = join(import.meta.dir, 'release.ts');
+		const run = (cwd: string, cmd: string, args: string[], env: Record<string, string> = {}) => {
+			const res = spawnSync(cmd, args, {
+				cwd,
+				encoding: 'utf8',
+				env: { ...process.env, GITHUB_OUTPUT: '', GITHUB_ACTIONS: '', ...env }
+			});
+			if (res.status !== 0) throw new Error(`${cmd} ${args.join(' ')}: ${res.stderr}`);
+			return res.stdout.trim();
+		};
+		try {
+			const origin = join(root, 'origin');
+			mkdirSync(join(origin, 'src-tauri'), { recursive: true });
+			const files: Record<string, string> = {
+				'package.json': '{\n\t"name": "libe",\n\t"version": "0.2.0"\n}\n',
+				'src-tauri/tauri.conf.json': '{\n\t"productName": "libe",\n\t"version": "0.2.0"\n}\n',
+				'src-tauri/Cargo.toml': '[package]\nname = "libe"\nversion = "0.2.0"\n',
+				'src-tauri/Cargo.lock': '[[package]]\nname = "libe"\nversion = "0.2.0"\n',
+				'flake.nix': '{ outputs = _: { }; }\n'
+			};
+			for (const [file, text] of Object.entries(files)) writeFileSync(join(origin, file), text);
+			run(origin, 'git', ['init', '--quiet', '--initial-branch=main']);
+			run(origin, 'git', ['add', '-A']);
+			run(origin, 'git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'init']);
+			const ref = run(origin, 'git', ['rev-parse', 'HEAD']);
+			const env = {
+				VERSION: '0.2.1-nightly.20261119.42',
+				NIX_TRACK: 'nightly',
+				TAG: 'v0.2.1-nightly.20261119.42',
+				REF: ref
+			};
+			const commits = ['a', 'b'].map((name) => {
+				const dir = join(root, name);
+				run(root, 'git', ['clone', '--quiet', origin, dir]);
+				const out = run(dir, 'bun', [script, 'nix-commit'], env);
+				return { dir, commit: /^commit=(\w+)$/m.exec(out)?.[1] };
+			});
+			expect(commits[0].commit).toMatch(/^[0-9a-f]{40}$/);
+			expect(commits[1].commit).toBe(commits[0].commit!);
+			const dir = commits[0].dir;
+			expect(run(dir, 'git', ['rev-parse', 'HEAD^'])).toBe(ref);
+			expect(run(dir, 'git', ['status', '--porcelain'])).toBe('');
+			expect(readFileSync(join(dir, 'nix/release.json'), 'utf8')).toBe(
+				nixReleaseJson({
+					version: env.VERSION,
+					channel: 'nightly',
+					tag: env.TAG,
+					commit: ref
+				})
+			);
+			for (const file of ['package.json', 'src-tauri/tauri.conf.json', 'src-tauri/Cargo.lock'])
+				expect(readFileSync(join(dir, file), 'utf8')).toContain(env.VERSION);
+
+			// nix-publish: branch + tag in one push …
+			expect(run(dir, 'bun', [script, 'nix-publish'], env)).toContain('moved=true');
+			expect(run(origin, 'git', ['rev-parse', 'channel/nightly'])).toBe(commits[0].commit!);
+			expect(run(origin, 'git', ['rev-parse', `nix-v${env.VERSION}^{commit}`])).toBe(
+				commits[0].commit!
+			);
+			// … and never back to an older release (a re-run of an older release's job).
+			const older = {
+				...env,
+				VERSION: '0.2.1-nightly.20261119.41',
+				TAG: 'v0.2.1-nightly.20261119.41'
+			};
+			const c = join(root, 'c');
+			run(root, 'git', ['clone', '--quiet', origin, c]);
+			run(c, 'bun', [script, 'nix-commit'], older);
+			expect(run(c, 'bun', [script, 'nix-publish'], older)).toContain('moved=false');
+			expect(run(origin, 'git', ['rev-parse', 'channel/nightly'])).toBe(commits[0].commit!);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 });

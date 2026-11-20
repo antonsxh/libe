@@ -169,3 +169,49 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
 
       - run: bun run test:tauri
+
+      # After the debug build of test:tauri, whose dependencies it reuses.
+      - name: Unit tests
+        working-directory: src-tauri
+        run: cargo test --locked
+
+  # The NixOS package of the desktop app (flake.nix, docs/NIXOS.md), built exactly as releases
+  # build it. Reads the binary cache libe.cachix.org but never pushes (forks have no secret;
+  # release.yml pushes the releases). As part of this file it gates nightlies like every check.
+  nix:
+    name: Nix flake (desktop app)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      # Full history: the flake reads the commit (version `<last stable>+git.<rev>`).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: libe
+          skipPush: true
+
+      - name: Nix formatting
+        run: nix fmt -- --check flake.nix nix/*.nix
+
+      # Evaluates the outputs and builds `checks` (the package) for this system …
+      - run: nix flake check -L
+
+      # … and evaluates the aarch64 package (built natively by release.yml only).
+      - run: nix eval --raw .#packages.aarch64-linux.desktop.drvPath
+
+      - name: Inspect the package
+        run: |
+          nix build .#desktop -L
+          test -x result/bin/libe
+          test -f result/share/applications/libe.desktop
+          ls result/share/icons/hicolor/*/apps/libe.png
+          grep -aqF "+git.$(git rev-parse --short=7 HEAD)" result/bin/.libe-wrapped
+          grep -q GIO_EXTRA_MODULES result/bin/libe
+          nix path-info -Sh ./result # closure size

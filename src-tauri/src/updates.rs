@@ -16,8 +16,13 @@
 //! - The paired server's pages drive this from Settings via the `update_*` commands (the
 //!   only commands that origin may call, see `lib.rs`).
 //!
+//! - **Nix builds** (`LIBE_DISTRIBUTION=nix` at compile time, set by `nix/libe-desktop.nix`)
+//!   never check, download or switch tracks: they live in the read-only Nix store and update
+//!   with the flake input (`channel/stable` or `channel/nightly`). Settings explains that.
+//!
 //! Debug builds only check when `LIBE_UPDATER_FEED` (base URL holding `<track>.json`) is set;
-//! `LIBE_UPDATER_PUBKEY` replaces the public key there. Release builds ignore both.
+//! `LIBE_UPDATER_PUBKEY` replaces the public key there, and `LIBE_DISTRIBUTION` (runtime) the
+//! compile-time value. Release builds ignore all three at runtime.
 
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
@@ -33,6 +38,64 @@ const FEED: &str = "https://github.com/antonsxh/libe/releases/download/update-fe
 const FIRST_CHECK: Duration = Duration::from_secs(10);
 const CHECK_EVERY: Duration = Duration::from_secs(4 * 60 * 60);
 const SETTINGS_FILE: &str = "updates.json";
+
+/// How this build was installed (`LIBE_DISTRIBUTION` at compile time).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Distribution {
+    /// The installers of the GitHub releases, and development builds: the app updates itself.
+    Installer,
+    /// Built by the Nix flake: the store is read-only, updates come with the flake input.
+    Nix,
+}
+
+impl Distribution {
+    /// `"nix"` → Nix; unset (or anything else, which `build.rs` rejects) → Installer.
+    pub fn parse(raw: Option<&str>) -> Distribution {
+        match raw {
+            Some("nix") => Distribution::Nix,
+            _ => Distribution::Installer,
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn current() -> Distribution {
+        let runtime = std::env::var("LIBE_DISTRIBUTION").ok();
+        Self::parse(runtime.as_deref().or(option_env!("LIBE_DISTRIBUTION")))
+    }
+    #[cfg(not(debug_assertions))]
+    fn current() -> Distribution {
+        Self::parse(option_env!("LIBE_DISTRIBUTION"))
+    }
+
+    /// Whether the app checks, downloads and installs updates itself.
+    pub fn updates_itself(self) -> bool {
+        self == Distribution::Installer
+    }
+
+    /// Who updates this app instead of the app itself (`UpdateState::managed_by`).
+    pub fn manager(self) -> Option<&'static str> {
+        match self {
+            Distribution::Installer => None,
+            Distribution::Nix => Some("nix"),
+        }
+    }
+
+    /// The phase an externally managed build stays in forever (no checks, no downloads, no
+    /// track switching); `None` when the app updates itself.
+    pub fn fixed_phase(self) -> Option<Phase> {
+        match self {
+            Distribution::Installer => None,
+            Distribution::Nix => Some(Phase::Unavailable {
+                reason: "This app was installed with Nix and doesn't update itself. Update the flake input (nix flake update libe) and rebuild.".into(),
+                info: ErrorInfo::code("nixManaged"),
+            }),
+        }
+    }
+}
+
+/// `update_set_track`'s refusal for a build that doesn't update itself (`commandErrorText`
+/// in `src/lib/desktop.ts` recognises the text).
+pub const MANAGED_ERROR: &str = "Updates of this app are managed by Nix.";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -142,6 +205,10 @@ pub struct UpdateState {
     pub phase: Phase,
     /// Last finished check, ms since the epoch.
     pub checked_at: Option<u64>,
+    /// `"nix"`: the app doesn't update itself (phase `unavailable`, code `nixManaged`);
+    /// Settings hides the check button and the tracks. Absent for self-updating builds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub managed_by: Option<&'static str>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -162,6 +229,7 @@ struct Inner {
 
 pub struct Updates {
     inner: Mutex<Inner>,
+    distribution: Distribution,
 }
 
 impl Updates {
@@ -172,6 +240,7 @@ impl Updates {
             track: inner.track,
             phase: inner.phase.clone(),
             checked_at: inner.checked_at,
+            managed_by: self.distribution.manager(),
         }
     }
 
@@ -240,19 +309,25 @@ fn save_track(app: &AppHandle, track: Track) -> Result<(), String> {
     std::fs::write(path, raw).map_err(|e| format!("Could not save the update track: {e}"))
 }
 
-/// Registers the state and starts the background schedule.
+/// Registers the state and starts the background schedule (not for builds that don't update
+/// themselves, see `Distribution`).
 pub fn init(app: &AppHandle) {
+    let distribution = Distribution::current();
     app.manage(Updates {
         inner: Mutex::new(Inner {
             track: load_track(app),
-            phase: Phase::Idle,
+            phase: distribution.fixed_phase().unwrap_or(Phase::Idle),
             checked_at: None,
             pending: None,
             task: None,
             running: false,
             run: 0,
         }),
+        distribution,
     });
+    if !distribution.updates_itself() {
+        return;
+    }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(FIRST_CHECK).await;
@@ -267,6 +342,9 @@ pub fn init(app: &AppHandle) {
 /// Background checks leave a downloaded update alone; asked-for ones look again.
 pub fn check(app: &AppHandle, asked: bool) {
     let updates = app.state::<Updates>();
+    if !updates.distribution.updates_itself() {
+        return;
+    }
     let mut inner = updates.inner.lock().unwrap();
     if inner.running {
         return;
@@ -432,6 +510,9 @@ async fn find_update(app: &AppHandle, track: Track) -> Result<Option<Update>, Ph
 /// track is dropped).
 pub fn set_track(app: &AppHandle, track: Track) -> Result<(), String> {
     let updates = app.state::<Updates>();
+    if !updates.distribution.updates_itself() {
+        return Err(MANAGED_ERROR.into());
+    }
     {
         let mut inner = updates.inner.lock().unwrap();
         if matches!(inner.phase, Phase::Installing { .. }) {
@@ -542,6 +623,54 @@ mod tests {
             serde_json::to_value(phase).unwrap(),
             serde_json::json!({ "kind": "unavailable", "reason": "x", "code": "devBuild" })
         );
+    }
+
+    #[test]
+    fn nix_builds_do_not_update_themselves() {
+        assert_eq!(Distribution::parse(Some("nix")), Distribution::Nix);
+        assert_eq!(Distribution::parse(None), Distribution::Installer);
+        assert_eq!(Distribution::parse(Some("")), Distribution::Installer);
+
+        let installer = Distribution::Installer;
+        assert!(installer.updates_itself());
+        assert_eq!(installer.manager(), None);
+        assert!(installer.fixed_phase().is_none());
+
+        let nix = Distribution::Nix;
+        assert!(!nix.updates_itself());
+        assert_eq!(nix.manager(), Some("nix"));
+        let phase = serde_json::to_value(nix.fixed_phase().unwrap()).unwrap();
+        assert_eq!(phase["kind"], "unavailable");
+        assert_eq!(phase["code"], "nixManaged");
+    }
+
+    #[test]
+    fn update_state_names_the_manager_only_when_there_is_one() {
+        let state = |managed_by| UpdateState {
+            version: "0.2.0+git.1a2b3c4".into(),
+            track: Track::Stable,
+            phase: Phase::Idle,
+            checked_at: None,
+            managed_by,
+        };
+        let nix = serde_json::to_value(state(Distribution::Nix.manager())).unwrap();
+        assert_eq!(nix["managedBy"], "nix");
+        let own = serde_json::to_value(state(Distribution::Installer.manager())).unwrap();
+        assert!(own.get("managedBy").is_none());
+    }
+
+    #[test]
+    fn nix_versions_of_unreleased_commits_are_valid_and_count_as_stable() {
+        // flake.nix: `<committed version>+git.<shortRev>` (`-dirty` for a dirty work tree)
+        for raw in [
+            "0.2.0+git.1a2b3c4",
+            "0.0.0+git.1a2b3c4-dirty",
+            "0.0.0+git.unknown",
+        ] {
+            let version = v(raw);
+            assert_eq!(version.to_string(), raw);
+            assert_eq!(Track::of_version(raw), Some(Track::Stable));
+        }
     }
 
     #[test]
