@@ -250,6 +250,28 @@ failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 5. When a test guards a bug, check that it fails with the bug reintroduced (temporarily —
    never commit the mutation), and that it passes again afterwards.
 
+## Pull request screenshots and videos
+
+UI changes need before and after screenshots (desktop and phone width if the layout changed),
+plus a short video when the change is about motion or timing. They never go into this repo, not
+even on a side branch. The GitHub API has no attachment upload, so agents put them into the
+public repo [`antonsxh/libe-pr-media`](https://github.com/antonsxh/libe-pr-media), one folder
+per PR, after the PR exists (`$SCRATCH` = any temp directory outside this checkout):
+
+```sh
+git clone -q --depth 1 https://github.com/antonsxh/libe-pr-media.git "$SCRATCH/pr-media"
+mkdir -p "$SCRATCH/pr-media/<pr>" && cp before.png after.png "$SCRATCH/pr-media/<pr>/"
+git -C "$SCRATCH/pr-media" add -A && git -C "$SCRATCH/pr-media" commit -qm "PR #<pr>: <topic>"
+git -C "$SCRATCH/pr-media" push -q    # then embed in the PR body:
+# ![before](https://raw.githubusercontent.com/antonsxh/libe-pr-media/main/<pr>/before.png)
+```
+
+Check that each URL returns 200 before editing the PR body. Videos (`.mp4`/`.webm`) are only
+linked — GitHub plays inline only videos dragged into the PR in the browser. Everything in that
+repo is public: no tokens, pairing codes, setup secrets or real personal data in a screenshot.
+Never rewrite or delete existing files there (merged PRs still show them). Human contributors
+just drag the files into the PR description ([`CONTRIBUTING.md`](CONTRIBUTING.md)).
+
 ## CI and releases
 
 GitHub Actions (`.github/workflows/`), runbook in [`docs/RELEASING.md`](docs/RELEASING.md).

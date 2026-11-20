@@ -27,4 +27,4 @@ Upload them here (drag them into this field) — do not commit them. Delete this
 - [ ] New behaviour has tests (unit tests for pure logic, an e2e test following the rules in `AGENTS.md`)
 - [ ] New user-visible strings are in both `en.ts` and `de.ts`
 - [ ] Schema changes come with a generated migration in `drizzle/`
-- [ ] `AGENTS.md` + `CLAUDE.md` (kept identical) and docs updated if conventions or setup changed
+- [ ] `AGENTS.md` (= `CLAUDE.md`, a symlink) and docs updated if conventions or setup changed
