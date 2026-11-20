@@ -6,14 +6,14 @@ candidates, stable promotes a nightly that people already ran, previews test the
 
 ## Workflows
 
-| File                            | Trigger                                    | What                                                                                                                     |
-| ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `.github/workflows/ci.yml`      | pull requests, pushes to `main`            | `checks.yml` + `docker.yml` (build and smoke test, no push)                                                              |
-| `.github/workflows/release.yml` | hourly schedule, manual dispatch, `v*` tag | plan → checks + desktop + docker in parallel → tag image → GitHub release → (stable) version bump on `main`              |
-| `.github/workflows/checks.yml`  | called by both                             | typecheck, lint, unit tests, build · e2e desktop + iPhone/iPad (one job) · Tauri clippy + e2e (Xvfb)                     |
-| `.github/workflows/docker.yml`  | called by both                             | native amd64 + arm64 image builds, smoke test against Postgres 17, optional push by digest                               |
-| `.github/workflows/desktop.yml` | called by `release.yml`                    | Tauri installers: Linux x64/arm64 (`.deb`, `.AppImage`), macOS arm64/x64 (`.dmg`), Windows x64 (NSIS)                    |
-| `scripts/release.ts`            | used by the workflows                      | `plan` (channel, commit, version, tags), `set-version <v>`, `updater-manifest <dir>`; tests in `scripts/release.test.ts` |
+| File                            | Trigger                                                 | What                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `.github/workflows/ci.yml`      | pull requests, pushes to `main`                         | `checks.yml` + `docker.yml` (build and smoke test, no push)                                                              |
+| `.github/workflows/release.yml` | green CI on `main`, schedule, manual dispatch, `v*` tag | plan → checks + desktop + docker in parallel → tag image → GitHub release → (stable) version bump on `main`              |
+| `.github/workflows/checks.yml`  | called by both                                          | typecheck, lint, unit tests, build · e2e desktop + iPhone/iPad (one job) · Tauri clippy + e2e (Xvfb)                     |
+| `.github/workflows/docker.yml`  | called by both                                          | native amd64 + arm64 image builds, smoke test against Postgres 17, optional push by digest                               |
+| `.github/workflows/desktop.yml` | called by `release.yml`                                 | Tauri installers: Linux x64/arm64 (`.deb`, `.AppImage`), macOS arm64/x64 (`.dmg`), Windows x64 (NSIS)                    |
+| `scripts/release.ts`            | used by the workflows                                   | `plan` (channel, commit, version, tags), `set-version <v>`, `updater-manifest <dir>`; tests in `scripts/release.test.ts` |
 
 Nothing is published unless **every** job passed: checks, all desktop targets and both image
 smoke tests. The image is first pushed untagged (by digest); the channel tags are only set
@@ -22,23 +22,23 @@ afterwards, right before the GitHub release is created.
 **Checks are not repeated for a commit that already passed them** (`plan` outputs `verified`,
 logic in `checksDecision`, `scripts/release.ts`):
 
-| Release            | Checks                                                                                                                                                                |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| nightly (schedule) | reuses the passed `ci.yml` push run of the commit. CI still running → no release, the next hourly check retries. CI failed → no nightly. No CI run → runs the checks. |
-| nightly (dispatch) | reuses a passed CI run; CI failed → the run fails (fix `main`, or re-run CI after a flake); running/none → runs the checks itself.                                    |
-| stable (dispatch)  | skipped: the promoted nightly only shipped after every check passed for that commit.                                                                                  |
-| stable (tag)       | reuses a passed CI run of the tagged commit, otherwise runs the checks.                                                                                               |
-| preview            | always runs the checks.                                                                                                                                               |
+| Release             | Checks                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| nightly (automatic) | reuses the passed `ci.yml` push run of the commit. CI still running → no release, CI's completion triggers the next check. CI failed → no nightly. No CI run → runs the checks. |
+| nightly (dispatch)  | reuses a passed CI run; CI failed → the run fails (fix `main`, or re-run CI after a flake); running/none → runs the checks itself.                                              |
+| stable (dispatch)   | skipped: the promoted nightly only shipped after every check passed for that commit.                                                                                            |
+| stable (tag)        | reuses a passed CI run of the tagged commit, otherwise runs the checks.                                                                                                         |
+| preview             | always runs the checks.                                                                                                                                                         |
 
 Desktop builds and the image builds + smoke tests always run.
 
 ## Channels
 
-| Channel | How it starts                                                                                                                           | Version                     | GitHub release                       | Image tags                                                 |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------ | ---------------------------------------------------------- |
-| nightly | schedule (hourly check) when `main` moved since the last nightly **and** that one is ≥ 6 h old; or dispatch `channel=nightly` on `main` | `0.2.1-nightly.20261119.42` | prerelease, never "latest"           | `0.2.1-nightly.20261119.42`, `nightly`                     |
-| preview | dispatch `channel=preview` on **any branch**                                                                                            | `0.2.1-preview.20261119.43` | **draft** (no git tag), warning text | `0.2.1-preview.20261119.43` only                           |
-| stable  | dispatch `channel=stable` on `main`, or push a tag `vX.Y.Z`                                                                             | `0.2.1`                     | release, marked "latest"             | `0.2.1`, `0.2`, `0` (from 1.0 on: `1`), `stable`, `latest` |
+| Channel | How it starts                                                                                                                               | Version                     | GitHub release                       | Image tags                                                 |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------ | ---------------------------------------------------------- |
+| nightly | automatic check (see below) when `main` moved since the last nightly **and** that one is ≥ 6 h old; or dispatch `channel=nightly` on `main` | `0.2.1-nightly.20261119.42` | prerelease, never "latest"           | `0.2.1-nightly.20261119.42`, `nightly`                     |
+| preview | dispatch `channel=preview` on **any branch**                                                                                                | `0.2.1-preview.20261119.43` | **draft** (no git tag), warning text | `0.2.1-preview.20261119.43` only                           |
+| stable  | dispatch `channel=stable` on `main`, or push a tag `vX.Y.Z`                                                                                 | `0.2.1`                     | release, marked "latest"             | `0.2.1`, `0.2`, `0` (from 1.0 on: `1`), `stable`, `latest` |
 
 - **Versions.** `package.json` (and `src-tauri/tauri.conf.json`, `Cargo.toml`, `Cargo.lock`,
   kept equal by `scripts/release.ts set-version`) holds the **last stable** version. Nightlies
@@ -58,13 +58,29 @@ Desktop builds and the image builds + smoke tests always run.
 - Concurrency: nightlies and previews queue in one group, stable in another; running releases
   are never cancelled.
 
+### When the nightly check runs
+
+The gate (`nightlyGate`) runs on two automatic events (`isAutomaticNightly` in
+`scripts/release.ts`), both on the latest commit of `main`:
+
+- **CI passed on `main`** (`workflow_run` of `ci.yml`, push runs only, conclusion `success`).
+  The main trigger: a merge after a quiet stretch ships as soon as CI is green.
+- **Schedule** `8,38 * * * *`: the catch-up for a merge that landed while the last nightly was
+  younger than 6 h. GitHub delivers scheduled runs **best effort**: they start minutes to hours
+  late, some are dropped, and newly created schedules (new repos especially) may get no runs at
+  all for a while. Check with `gh run list -w release.yml -e schedule`.
+
+Each check is cheap (one ~20 s job) when nothing is due. Runs queue in the `prerelease`
+concurrency group (`queue: max`), and the gate is evaluated when a run starts, so overlapping
+checks never publish twice.
+
 ## Everyday use
 
 ```sh
 # Test the whole pipeline on a branch without shipping anything (draft release, exact image tag)
 gh workflow run release.yml --ref my-branch -f channel=preview
 
-# Nightly now, without waiting for the schedule (main only)
+# Nightly now, skipping the 6 h gate (main only)
 gh workflow run release.yml -f channel=nightly
 
 # Promote the latest nightly to stable (main only); optionally choose the version
@@ -74,8 +90,9 @@ gh workflow run release.yml -f channel=stable -f version=0.3.0
 gh run watch                                   # follow the run
 ```
 
-Pause the nightly schedule with the repository variable `PAUSE_NIGHTLY=true`
-(Settings → Secrets and variables → Actions → Variables). Manual runs still work.
+Pause the automatic nightly checks (CI-triggered and schedule) with the repository
+variable `PAUSE_NIGHTLY=true` (Settings → Secrets and variables → Actions → Variables). Manual
+runs still work.
 
 Delete preview drafts on the releases page when you no longer need them; their images stay in
 GHCR under their exact version (Packages → libe → versions) and can be deleted there.

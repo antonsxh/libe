@@ -3,6 +3,7 @@ import {
 	NIGHTLY_GAP_MS,
 	channelOfTag,
 	checksDecision,
+	isAutomaticNightly,
 	ciState,
 	compareVersions,
 	dockerTags,
@@ -284,13 +285,15 @@ describe('checksDecision', () => {
 			});
 	});
 
-	test('a scheduled nightly waits for running CI and skips a red commit', () => {
-		expect(checksDecision('nightly', 'schedule', () => 'running').release).toBe(false);
-		expect(checksDecision('nightly', 'schedule', () => 'failed').release).toBe(false);
-		expect(checksDecision('nightly', 'schedule', () => 'none')).toMatchObject({
-			release: true,
-			verified: false
-		});
+	test('an automatic nightly waits for running CI and skips a red commit', () => {
+		for (const event of ['schedule', 'workflow_run']) {
+			expect(checksDecision('nightly', event, () => 'running').release).toBe(false);
+			expect(checksDecision('nightly', event, () => 'failed').release).toBe(false);
+			expect(checksDecision('nightly', event, () => 'none')).toMatchObject({
+				release: true,
+				verified: false
+			});
+		}
 	});
 
 	test('a dispatched nightly refuses a red commit, runs the checks otherwise', () => {
@@ -310,5 +313,13 @@ describe('checksDecision', () => {
 				release: true,
 				verified: false
 			});
+	});
+});
+
+describe('isAutomaticNightly', () => {
+	test('CI completion and the schedule are automatic; dispatches and tags are not', () => {
+		for (const event of ['workflow_run', 'schedule']) expect(isAutomaticNightly(event)).toBe(true);
+		expect(isAutomaticNightly('workflow_dispatch')).toBe(false);
+		expect(isAutomaticNightly('push')).toBe(false);
 	});
 });

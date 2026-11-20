@@ -1,0 +1,7 @@
+# actionlint config (see CLAUDE.md, "CI and releases").
+paths:
+  .github/workflows/release.yml:
+    ignore:
+      # `concurrency.queue` is documented by GitHub (workflow syntax) but unknown to actionlint
+      # up to at least v1.7.12. Drop this once actionlint supports it.
+      - 'unexpected key "queue" for "concurrency" section'
