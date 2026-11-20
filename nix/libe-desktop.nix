@@ -49,6 +49,7 @@ rustPlatform.buildRustPackage {
   # Every crate comes from the committed lock file (fixed-output fetches by checksum), so
   # there is no cargoHash to keep in sync.
   cargoLock.lockFile = ../src-tauri/Cargo.lock;
+  cargoRoot = "src-tauri";
   buildAndTestSubdir = "src-tauri";
 
   # tauri.conf.json's `version` is what the app reports (`package_info()`); Cargo.toml and
