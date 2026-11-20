@@ -15,9 +15,11 @@
 	import { NAV_ITEMS, isActive } from '#lib/nav.ts';
 	import Logo from './Logo.svelte';
 	import Menu from './Menu.svelte';
+	import CommandPalette from './palette/CommandPalette.svelte';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { timerLabelText } from '#lib/timer.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
+	import { isApplePlatform } from '#lib/palette.ts';
 
 	const timer = useTimer();
 	const t = useI18n();
@@ -35,7 +37,15 @@
 
 	const deviceName = $derived(page.data.device?.name ?? t.nav.thisDevice);
 
-	const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+	/** ⌘ vs Ctrl: decided after mount — SSR can't know, and hydration must not keep its guess. */
+	let isMac = $state(false);
+	$effect(() => {
+		isMac = isApplePlatform(navigator as Parameters<typeof isApplePlatform>[0]);
+	});
+
+	let searchButton = $state<HTMLButtonElement>();
+	let palette = $state<ReturnType<typeof CommandPalette>>();
+	let paletteOpen = $state(false);
 </script>
 
 <header class="nav">
@@ -76,12 +86,27 @@
 				<span class="chip-title">{timer.timer.task.title}</span>
 			</a>
 		{/if}
-		<!-- Command palette lands in a later milestone; the trigger is already part of the shell. -->
-		<button class="search" type="button" title={t.nav.searchSoon} disabled>
+		<!-- Opens the palette synchronously (iOS shows the keyboard only inside the tap). -->
+		<button
+			class="search"
+			type="button"
+			bind:this={searchButton}
+			aria-label={t.nav.search}
+			aria-haspopup="dialog"
+			aria-expanded={paletteOpen}
+			aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}
+			onclick={() => palette?.show(searchButton)}
+		>
 			<Search size={16} strokeWidth={1.75} />
 			<span>{t.nav.search}</span>
 			<kbd>{isMac ? '⌘' : 'Ctrl'} K</kbd>
 		</button>
+		<CommandPalette
+			bind:this={palette}
+			bind:open={paletteOpen}
+			trigger={searchButton}
+			apple={isMac}
+		/>
 		<Menu label={t.nav.account}>
 			{#snippet trigger()}<span class="avatar" aria-hidden="true">L</span>{/snippet}
 			{#snippet children(close)}
@@ -229,7 +254,14 @@
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		color: var(--text-muted);
-		cursor: default;
+		transition:
+			color var(--dur) var(--ease),
+			border-color var(--dur) var(--ease);
+	}
+	.search:hover,
+	.search[aria-expanded='true'] {
+		color: var(--text);
+		border-color: var(--border-strong);
 	}
 
 	.search span {

@@ -60,7 +60,6 @@ export const en = {
 		brandHome: 'libe home',
 		timerChip: (display: string, state: string, title: string) =>
 			`Timer ${display} (${state}): ${title} — open focus`,
-		searchSoon: 'Search (coming soon)',
 		search: 'Search or jump…',
 		account: 'Account and devices',
 		signedInAs: 'Signed in as',
@@ -68,6 +67,24 @@ export const en = {
 		settings: 'Settings',
 		pairNewDevice: 'Pair new device',
 		signOut: 'Sign out this device'
+	},
+	palette: {
+		title: 'Command palette',
+		inputLabel: 'Search pages, actions, quests and tasks',
+		placeholder: 'Search or jump to…',
+		results: 'Results',
+		pages: 'Pages',
+		actions: 'Actions',
+		quests: 'Quests',
+		tasks: 'Tasks',
+		pauseTimer: 'Pause timer',
+		resumeTimer: 'Resume timer',
+		stopTimer: 'Stop timer',
+		searching: 'Searching…',
+		noResults: 'No results',
+		failed: 'Search failed — try again.',
+		startFocus: (title: string) => `Start focus timer for ${title}`,
+		keys: { move: 'move', open: 'open', focus: 'start focus', close: 'close' }
 	},
 	dialog: { close: 'Close dialog' },
 	menu: { open: 'Open menu' },

@@ -30,7 +30,12 @@
 </script>
 
 {#snippet row(task: TaskWithQuest)}
-	<li class="row" class:done={task.doneAt !== null} style:--q={questColorVar(task.questColor)}>
+	<li
+		class="row"
+		class:done={task.doneAt !== null}
+		style:--q={questColorVar(task.questColor)}
+		data-task={task.id}
+	>
 		{#if task.questName}
 			<QuestPill color={task.questColor} label={task.questName} />
 		{:else}
