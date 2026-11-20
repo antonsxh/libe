@@ -14,7 +14,7 @@ token in the OS keychain and restores the session on start.
 | Later starts      | Keychain → `GET {server}/api/pair/session` (Bearer): valid → session bootstrap → app; `401` → keychain entry deleted, pairing screen ("This device was signed out…"); unreachable → "Can't reach your server" with **Retry** and **Change server / Unpair**.                                                                                                                                                                                                                                                                                                                                                                                                           |
 | While running     | A navigation guard sees every page load. When the server sends the webview to `/pair` or `/setup` (cookie expired/cleared, or the device was revoked) the app re-checks the token: still valid → the cookie is restored and you land where you were; revoked → pairing screen. Navigations to other origins are blocked. Remote pages get **no** Tauri IPC beyond the few commands listed under "Access from the server's pages" below.                                                                                                                                                                                                                                |
 | Menu & shortcuts  | **macOS**: menu bar **libe → Reload** (⌘R), **Change server / Unpair…**, **Quit libe** (⌘Q) plus the standard Edit menu (copy/paste shortcuts). **Linux / Windows**: no menu bar (it would be a second bar between the title bar and libe's nav); `src/shortcuts.js`, injected into every page of the webview, handles **Ctrl+R** (reload) and **Ctrl+Q** (quit, `app_quit`). **Change server / Unpair…** is in Settings → Desktop app on every platform (inline confirmation, `app_unpair`): revokes the device on the server when reachable, deletes the keychain entry, clears the webview's cookies/caches, back to the pairing screen with the server pre-filled. |
-| Updates           | Settings → **Desktop app** (on the server's Settings page, only inside the app): version, **Check for updates**, **Update track** Stable / Nightly, **Restart to update**. The app checks 10 s after start and every 4 h, downloads in the background and installs on restart or quit — see "Updates" below.                                                                                                                                                                                                                                                                                                                                                           |
+| Updates           | Settings → **Desktop app** (on the server's Settings page, only inside the app): version, **Check for updates**, **Update track** Stable / Nightly, **Restart to update**. The app checks 10 s after start and every 4 h, downloads in the background and installs on restart or quit — see "Updates" below. Nix builds update with their flake input instead ([NIXOS.md](NIXOS.md)).                                                                                                                                                                                                                                                                                  |
 | Window            | Title "libe", background `#0e0e10` (no white flash), 1280×860 default, min 380×560; size/position are remembered (`tauri-plugin-window-state`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 **Language.** The pairing screen is English or German, picked from `navigator.languages` in
@@ -56,9 +56,17 @@ and the session exchange is a same-origin `fetch` in the webview.
   the private key is the repository secret `TAURI_SIGNING_PRIVATE_KEY` (optional
   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`). Losing it means installed apps can't update any more
   (they would need a manual reinstall with a new public key).
+- **Nix builds** (the flake, [NIXOS.md](NIXOS.md)) never update themselves: the store is
+  read-only. `nix/libe-desktop.nix` compiles with `LIBE_DISTRIBUTION=nix` (`option_env!`,
+  `updates::Distribution`; `build.rs` rejects other values), so the updater starts in phase
+  `unavailable` with code `nixManaged`, `update_state` reports `managedBy: "nix"`, no check is
+  scheduled, `update_check` does nothing and `update_set_track` fails ("Updates of this app are
+  managed by Nix."). Settings → Desktop app then hides the check button and the tracks and
+  explains `nix flake update libe` / the `channel/stable` and `channel/nightly` inputs.
 - **Debug builds** never update unless `LIBE_UPDATER_FEED` (base URL with `<track>.json`) is set;
-  `LIBE_UPDATER_PUBKEY` overrides the key. `e2e/tauri/tauri.spec.ts` uses both with a local,
-  test-signed feed (download + verification, track persistence, tampered signature).
+  `LIBE_UPDATER_PUBKEY` overrides the key and `LIBE_DISTRIBUTION=nix` (at runtime) makes it
+  behave like a Nix build. `e2e/tauri/tauri.spec.ts` uses them with a local, test-signed feed
+  (download + verification, track persistence, tampered signature, the Nix state).
 
 ## Prerequisites
 
@@ -70,12 +78,17 @@ All platforms: **Rust ≥ 1.80** (`rustup`, stable) and **Bun** (for the CLI via
   runtime (preinstalled on Windows 10/11). `aws-lc-rs` (TLS) builds with the MSVC toolchain;
   if it asks for NASM/CMake, install them (`winget install NASM.NASM Kitware.CMake`).
 - **Linux** (Debian/Ubuntu):
+
   ```sh
   sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev \
     libssl-dev libayatana-appindicator3-dev librsvg2-dev
   ```
+
   The keychain is the Secret Service (GNOME Keyring or KWallet) — a desktop session normally
   runs one.
+
+- **NixOS**: `nix run github:antonsxh/libe/channel/stable`, or as a system package — see
+  [NIXOS.md](NIXOS.md). `nix build .#desktop` in a checkout builds the package (`result/bin/libe`).
 
 ## Build and run
 

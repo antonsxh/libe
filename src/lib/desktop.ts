@@ -45,6 +45,11 @@ export type UpdateState = {
 	phase: UpdatePhase;
 	/** Last finished check, ms since the epoch. */
 	checkedAt: number | null;
+	/**
+	 * Set when the app doesn't update itself: `'nix'` for builds of the Nix flake (phase
+	 * `unavailable`, code `nixManaged`). No checks, downloads or track switching then.
+	 */
+	managedBy?: 'nix';
 };
 
 export type DesktopApp = {
@@ -103,6 +108,8 @@ export function updateErrorText(info: UpdateErrorInfo, fallback: string, t: I18n
 			return c.devBuild;
 		case 'unsupportedInstall':
 			return c.unsupportedInstall;
+		case 'nixManaged':
+			return c.nixManaged;
 		case 'noRelease':
 			return info.track ? c.noRelease(trackName(info.track, t)) : fallback;
 		case 'checkFailed':
@@ -128,6 +135,7 @@ export function commandErrorText(err: unknown, t: I18n): string {
 	const c = t.desktop.codes;
 	if (raw === 'An update is being installed.') return c.installing;
 	if (raw === 'No update has been downloaded yet.') return c.nothingDownloaded;
+	if (raw === 'Updates of this app are managed by Nix.') return c.managedByNix;
 	const prefixed: [string, (detail: string) => string][] = [
 		['Installing the update failed: ', c.installFailed],
 		['Could not save the update track: ', c.saveTrackFailed]

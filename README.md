@@ -69,6 +69,16 @@ the OS keychain. Installers (unsigned) are attached to every
 [GitHub release](https://github.com/antonsxh/libe/releases). Build instructions, pairing and
 limitations: [docs/TAURI.md](docs/TAURI.md).
 
+**NixOS** (x86_64, aarch64): the repository is a flake, with released builds in the binary
+cache `libe.cachix.org`:
+
+```sh
+nix run github:antonsxh/libe/channel/stable      # or channel/nightly
+```
+
+As a system package, with updates through `nix flake update libe` or `system.autoUpgrade`:
+[docs/NIXOS.md](docs/NIXOS.md).
+
 ## Develop
 
 ```sh

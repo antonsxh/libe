@@ -18,6 +18,10 @@ but use the name **libe** and our own logo — never "Quest" branding).
 - **Tauri 2** thin desktop client in `src-tauri/` (see `docs/TAURI.md`), auto-updating on a
   Stable/Nightly track (`src-tauri/src/updates.rs`); iPhone/iPad use the installable PWA. The
   server is the single source of truth.
+- **Nix flake** (`flake.nix`, `nix/libe-desktop.nix`, `docs/NIXOS.md`): the desktop client
+  only, for x86_64/aarch64 Linux, nixpkgs pinned to the stable NixOS branch in `flake.lock`;
+  releases are cached on `libe.cachix.org` and followed via the `channel/stable|nightly`
+  branches.
 
 ## Commands
 
@@ -41,6 +45,7 @@ Bun is on the `PATH` (CI uses the version pinned by `packageManager` in `package
 | `bun run test:e2e:mobile` | the same suite's `@mobile` tests on iPhone + iPad emulation |
 | `bun run test:tauri`      | Tauri app e2e (debug build, tauri-driver, `xvfb-run`; slow) |
 | `bun scripts/release.ts`  | release planning / `set-version` (see docs/RELEASING.md)    |
+| `nix build .#desktop`     | NixOS package of the desktop app (needs Nix; CI runs it)    |
 
 ### Database without Docker
 
@@ -167,6 +172,10 @@ timer.serverNow)` so today moves live with the timer.
   explicitly. Settings → Desktop app (`components/settings/DesktopAppSection.svelte`) is the
   update UI and has "Change server / Unpair…". Only macOS has a native menu; on Linux/Windows
   `src-tauri/src/shortcuts.js` (injected into every page) handles Ctrl+R / Ctrl+Q.
+  Nix builds compile with `LIBE_DISTRIBUTION=nix` (`updates::Distribution`): no self-updates,
+  `update_state` reports `managedBy: "nix"` and Settings explains the flake input instead.
+  The Nix package's source is a `lib.fileset` of `src-tauri/` files: a new file the client
+  build reads must be added there.
 - **PWA**: the service worker (`src/service-worker/`, production only) must never cache
   `/api/**`, page data or authenticated HTML — only build assets, `static/` files and
   `/offline`. Full-screen/fixed UI must pad with the `--safe-top/right/bottom/left` tokens.
@@ -291,6 +300,11 @@ promotion of the latest nightly, or a `vX.Y.Z` tag): GitHub release with desktop
   from a clean checkout.
 - Bun's version is pinned by `packageManager` in `package.json` (used by CI); keep the
   Dockerfile's `oven/bun` tag on the same minor. Actions are pinned by commit SHA.
+- NixOS: `checks.yml` runs `nix flake check` (read-only Cachix). After a nightly or plain
+  stable release, `release.yml` builds the release's Nix commit (`release.ts nix-commit`:
+  released commit + version files + `nix/release.json`, deterministic) on x86_64 and aarch64,
+  pushes it to Cachix (secret `CACHIX_AUTH_TOKEN`) and only then moves `channel/<track>` and
+  tags `nix-v<version>` (`nix-publish`, never backwards). Never commit to `channel/*`.
 - Validate workflow edits with `actionlint` before pushing (config: `.github/actionlint.yaml`).
 - CI time goes mostly to apt mirror downloads, not builds: the Tauri job caches its `.deb`s
   (`~/apt-archives`), the e2e job installs no system packages (the runner image has Chromium's

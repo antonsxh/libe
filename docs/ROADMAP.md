@@ -858,3 +858,50 @@ serverNow)` → `liveStreak(base, liveLoggedMin(…))`: a running session crossi
   quits on libe's pages and on the pairing page. Checked against the previous app build (menu
   bar present; the Settings button only shows the "use the menu" hint) and a build without the
   script (shortcuts dead). Windows behaviour (WebView2's own Ctrl+R) is not verified here.
+
+## NixOS desktop package (after the menu-bar change)
+
+- The repository is a **flake** (`flake.nix`, package `nix/libe-desktop.nix`, user docs
+  `docs/NIXOS.md`) for the **desktop client only**, `x86_64-linux` + `aarch64-linux`:
+  `packages.<system>.{desktop,default}`, `apps`, `checks` (the package), `formatter` (nixfmt),
+  `nixConfig` with the binary cache `libe.cachix.org`. The server stays a Docker image.
+- Decision — nixpkgs: pinned (`flake.lock`) to **`nixos-26.05`**, the current stable NixOS
+  branch: it has everything the client needs (`cargo-tauri.hook`, WebKitGTK 4.1, Rust 1.95 ≥
+  the dependencies' MSRV 1.90), its channel only advances once Hydra built it, so WebKitGTK & co.
+  come from `cache.nixos.org` and only libe itself is in our cache. Unstable would move faster
+  than the cache helps; bump the pin in a PR.
+- Build: `rustPlatform.buildRustPackage` + `cargo-tauri.hook`
+  (`cargo tauri build --bundles deb`; the `.deb`'s `usr/` becomes `$out`: `bin/libe`, desktop
+  entry, hicolor icons),
+  `wrapGAppsHook3` (GIO modules: `glib-networking` for HTTPS, GTK/WebKit data), `dbus` for the
+  Secret Service. `cargoLock.lockFile` = `src-tauri/Cargo.lock` (no hash to maintain). Source
+  is a `lib.fileset` of the client's files, so web-app commits don't change release
+  derivations. No Bun / node_modules (the client UI is `src-tauri/ui/`). Unit tests are not run
+  in the derivation (the release profile's `panic = "abort"` would rebuild every dependency);
+  `checks.yml` now runs `cargo test` in the Tauri job instead.
+- Decision — version: the app shows tauri.conf.json's `version`. Release builds come from a
+  **Nix commit** on top of the released commit with `set-version` applied and
+  `nix/release.json` (version, channel, tag, released commit), created deterministically by
+  `nix-commit` in `release.ts` (author and dates from the released commit), so every job and
+  the channel branch share one SHA. Any other commit reports
+  `<committed version>+git.<shortRev>` (`-dirty` for a dirty tree; semver build metadata,
+  accepted by Tauri, `Track::of_version` → stable). The `v*` release tags themselves stay on
+  `main`'s commits (the nightly gate and the stable promotion compare them with `main`).
+- Decision — updates: Nix builds are compiled with `LIBE_DISTRIBUTION=nix`
+  (`updates::Distribution`): no background checks, `update_check` is a no-op,
+  `update_set_track` fails, phase `unavailable` / code `nixManaged`, `managedBy: "nix"` in
+  `update_state`. Settings → Desktop app hides "Check for updates" and the tracks and explains
+  `nix flake update libe` and the `channel/*` inputs (EN/DE). Without it, `needs_password()`
+  would have treated the build as a `.deb` and tried `pkexec` installs into the read-only store.
+- Release pipeline: after a nightly or plain stable release (`nixTrack`; previews and `-rc`
+  never), `release.yml` builds the Nix commit natively on `ubuntu-24.04` and
+  `ubuntu-24.04-arm`, `cachix push`es the result (Cachix skips what `cache.nixos.org` has),
+  then `nix-channel` verifies both store paths on libe.cachix.org and atomically force-pushes
+  `channel/<track>` + tags `nix-v<version>` (`nix-publish`; never backwards, `nixChannelMove`)
+  and appends the pin to the release notes, whose NixOS block names the channel. A failed Nix
+  job leaves the channel on the previous release and doesn't block anything else.
+- CI: `checks.yml` job "Nix flake" (`nix flake check` + inspecting the package; Cachix
+  read-only, no secret), so nightlies are gated on it like on every other check.
+- e2e (`e2e/tauri/tauri.spec.ts`): the debug build run as a Nix build (`LIBE_DISTRIBUTION=nix`
+  at runtime, debug only, second tauri-driver): Settings shows the Nix block and no tracks /
+  check button; `update_check` stays `unavailable`/`nixManaged`, `update_set_track` is refused.

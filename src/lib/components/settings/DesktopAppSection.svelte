@@ -35,6 +35,8 @@
 	let unpairError = $state<string | null>(null);
 
 	const phase = $derived(update?.phase ?? { kind: 'idle' as const });
+	/** Nix builds don't update themselves: no check button, no tracks, no status line. */
+	const managed = $derived(update?.managedBy === 'nix');
 	const percent = $derived(downloadPercent(phase));
 	const serverTrack = $derived(trackOfVersion(serverVersion));
 	const busy = $derived(isBusy(phase) || switching || installing);
@@ -114,67 +116,89 @@
 				<h2 id="desktop-title" class="label">{t.desktop.title}</h2>
 				<p class="muted desc">
 					<span class="tabular" data-testid="app-version">libe {update.version}</span>
-					{t.desktop.desc}
+					{managed ? t.desktop.nix.desc : t.desktop.desc}
 				</p>
 			</div>
-			<Button variant="secondary" onclick={check} disabled={busy}>
-				<RefreshCw size={16} />
-				{t.desktop.check}
-			</Button>
-		</header>
-
-		<div class="row">
-			<div class="row-text">
-				<p class="row-title" id="track-title">{t.desktop.track}</p>
-				<p class="muted desc">{t.desktop.trackDesc}</p>
-			</div>
-			<div class="tracks" role="radiogroup" aria-labelledby="track-title">
-				{#each UPDATE_TRACKS as track (track)}
-					<label class:on={update.track === track}>
-						<input
-							type="radio"
-							name="update-track"
-							value={track}
-							checked={update.track === track}
-							disabled={switching || phase.kind === 'installing'}
-							onchange={() => setTrack(track)}
-						/>
-						{t.desktop.tracks[track]}
-					</label>
-				{/each}
-			</div>
-		</div>
-
-		<div class="status" role="status" data-phase={phase.kind}>
-			<p class:error={phase.kind === 'failed'}>
-				{phaseText(phase, t)}
-				{#if update.checkedAt && (phase.kind === 'upToDate' || phase.kind === 'failed')}
-					<span class="muted">
-						{t.desktop.checked(formatAgo(new Date(update.checkedAt), new Date(now), t))}
-					</span>
-				{/if}
-			</p>
-			{#if percent !== null}
-				<div
-					class="bar"
-					role="progressbar"
-					aria-label={t.desktop.downloadProgress}
-					aria-valuenow={percent}
-					aria-valuemin={0}
-					aria-valuemax={100}
-				>
-					<span style:width="{percent}%"></span>
-				</div>
-			{/if}
-			{#if phase.kind === 'ready'}
-				<Button variant="primary" onclick={install} disabled={installing}>
-					{#if phase.needsPassword}<Download size={16} />
-						{t.desktop.installRestart}{:else}<RotateCw size={16} />
-						{t.desktop.restartToUpdate}{/if}
+			{#if !managed}
+				<Button variant="secondary" onclick={check} disabled={busy}>
+					<RefreshCw size={16} />
+					{t.desktop.check}
 				</Button>
 			{/if}
-			{#if error}<p class="error" role="alert">{error}</p>{/if}
-		</div>
+		</header>
+
+		{#if managed}
+			<div class="row" data-testid="managed-by-nix">
+				<div class="row-text">
+					<p class="row-title">{t.desktop.nix.title}</p>
+					<p class="muted desc">{t.desktop.nix.body}</p>
+					<dl class="nix">
+						<dt>{t.desktop.nix.update}</dt>
+						<dd><code>nix flake update libe</code> {t.desktop.nix.rebuild}</dd>
+						<dt>{t.desktop.nix.track}</dt>
+						<dd>
+							<code>channel/stable</code>
+							{t.desktop.nix.or}
+							<code>channel/nightly</code>
+							{t.desktop.nix.trackNote}
+						</dd>
+					</dl>
+				</div>
+			</div>
+		{:else}
+			<div class="row">
+				<div class="row-text">
+					<p class="row-title" id="track-title">{t.desktop.track}</p>
+					<p class="muted desc">{t.desktop.trackDesc}</p>
+				</div>
+				<div class="tracks" role="radiogroup" aria-labelledby="track-title">
+					{#each UPDATE_TRACKS as track (track)}
+						<label class:on={update.track === track}>
+							<input
+								type="radio"
+								name="update-track"
+								value={track}
+								checked={update.track === track}
+								disabled={switching || phase.kind === 'installing'}
+								onchange={() => setTrack(track)}
+							/>
+							{t.desktop.tracks[track]}
+						</label>
+					{/each}
+				</div>
+			</div>
+
+			<div class="status" role="status" data-phase={phase.kind}>
+				<p class:error={phase.kind === 'failed'}>
+					{phaseText(phase, t)}
+					{#if update.checkedAt && (phase.kind === 'upToDate' || phase.kind === 'failed')}
+						<span class="muted">
+							{t.desktop.checked(formatAgo(new Date(update.checkedAt), new Date(now), t))}
+						</span>
+					{/if}
+				</p>
+				{#if percent !== null}
+					<div
+						class="bar"
+						role="progressbar"
+						aria-label={t.desktop.downloadProgress}
+						aria-valuenow={percent}
+						aria-valuemin={0}
+						aria-valuemax={100}
+					>
+						<span style:width="{percent}%"></span>
+					</div>
+				{/if}
+				{#if phase.kind === 'ready'}
+					<Button variant="primary" onclick={install} disabled={installing}>
+						{#if phase.needsPassword}<Download size={16} />
+							{t.desktop.installRestart}{:else}<RotateCw size={16} />
+							{t.desktop.restartToUpdate}{/if}
+					</Button>
+				{/if}
+				{#if error}<p class="error" role="alert">{error}</p>{/if}
+			</div>
+		{/if}
 
 		<p class="muted desc server" data-testid="server-version">
 			{#if serverTrack}
@@ -321,6 +345,21 @@
 	}
 	.server {
 		margin-top: var(--space-5);
+	}
+	.nix {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: var(--space-2) var(--space-4);
+		margin-top: var(--space-4);
+		font-size: var(--fs-sm);
+		color: var(--text-2);
+	}
+	.nix dt {
+		color: var(--text-muted);
+	}
+	.nix dd {
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 	.confirm {
 		display: flex;

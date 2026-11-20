@@ -524,6 +524,17 @@ export const en = {
 		unpairUnsupported:
 			'This version of the app can’t do that from here. Use its menu (libe → Change server / Unpair…) or update the app first.',
 		unpairFailed: (detail: string) => `Unpairing failed: ${detail}`,
+		/** Builds of the Nix flake (`managedBy: 'nix'`): no self-updates, no tracks. */
+		nix: {
+			desc: '· installed with Nix.',
+			title: 'Updates come with Nix',
+			body: 'This app was installed with Nix, so it doesn’t update itself. It changes when you update its flake input and rebuild.',
+			update: 'Update',
+			rebuild: 'then rebuild (or let system.autoUpgrade do it)',
+			track: 'Track',
+			or: 'or',
+			trackNote: '— the branch of the libe input'
+		},
 		phases: {
 			idle: 'Not checked yet.',
 			checking: 'Checking for updates…',
@@ -541,6 +552,9 @@ export const en = {
 			devBuild: 'Development builds don’t update themselves.',
 			unsupportedInstall:
 				'There are no automatic updates for this kind of install. Download new versions from the GitHub releases.',
+			nixManaged:
+				'This app was installed with Nix and doesn’t update itself. Update the flake input (nix flake update libe) and rebuild.',
+			managedByNix: 'Updates of this app are managed by Nix.',
 			noRelease: (track: string) => `No ${track} release is published yet.`,
 			checkFailed: (detail: string) => `Couldn’t check for updates: ${detail}`,
 			downloadFailed: (version: string, detail: string) =>

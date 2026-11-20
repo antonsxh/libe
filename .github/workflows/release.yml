@@ -14,6 +14,10 @@ name: Release
 #            Latest release + image tags `X.Y.Z`, `X.Y`, `X`, `stable`, `latest`; then bumps
 #            the version files on main.
 #
+# NixOS: after a nightly or plain stable release, `nix` builds the flake's desktop package on
+# x86_64 and aarch64 and pushes it to libe.cachix.org; only then `nix-channel` moves the branch
+# `channel/nightly` or `channel/stable` (and tags `nix-v<version>`). Previews and -rc never.
+#
 # Nothing is published unless every check, the desktop builds and the image smoke tests pass.
 # The checks run here only when no passed run exists for the commit: nightlies and tags reuse
 # ci.yml's run of the same commit, stable-by-dispatch the nightly it promotes (`verified`,
@@ -88,6 +92,7 @@ jobs:
       prerelease: ${{ steps.plan.outputs.prerelease }}
       latest: ${{ steps.plan.outputs.latest }}
       docker_tags: ${{ steps.plan.outputs.docker_tags }}
+      nix_track: ${{ steps.plan.outputs.nix_track }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -115,6 +120,7 @@ jobs:
             echo "- checks: ${{ steps.plan.outputs.verified == 'true' && 'already passed (skipped here)' || 'run here' }}"
             echo "- notes since: \`${{ steps.plan.outputs.previous_tag || '(first release)' }}\`"
             echo "- image tags: \`${{ steps.plan.outputs.docker_tags }}\`"
+            echo "- NixOS channel: \`${{ steps.plan.outputs.nix_track && format('channel/{0}', steps.plan.outputs.nix_track) || '(none)' }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
   checks:
@@ -212,6 +218,7 @@ jobs:
       TAG: ${{ needs.plan.outputs.tag }}
       REF: ${{ needs.plan.outputs.ref }}
       PREVIOUS_TAG: ${{ needs.plan.outputs.previous_tag }}
+      NIX_TRACK: ${{ needs.plan.outputs.nix_track }}
     steps:
       # The release scripts of this workflow run (not of the released commit).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -265,6 +272,16 @@ jobs:
 
           EOF
           fi
+          if [ -n "$NIX_TRACK" ]; then
+            cat >> notes.md <<EOF
+          ### NixOS
+
+          \`nix run github:$GITHUB_REPOSITORY/channel/$NIX_TRACK\`, or the flake input
+          \`github:$GITHUB_REPOSITORY/channel/$NIX_TRACK\` ([docs/NIXOS.md]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/main/docs/NIXOS.md)).
+          The channel moves to this release once it is in the binary cache (\`libe.cachix.org\`).
+
+          EOF
+          fi
           cat notes.md
 
       - name: Publish
@@ -300,6 +317,147 @@ jobs:
           fi
           cp dist/latest.json "$CHANNEL.json"
           gh release upload update-feed "$CHANNEL.json" --clobber
+
+  # NixOS (docs/NIXOS.md): build the commit users will fetch — the released commit plus its
+  # version files and nix/release.json (`release.ts nix-commit`, deterministic, so every job
+  # recreates the same commit) — natively on both architectures and push it to the binary
+  # cache. Paths already on cache.nixos.org are not pushed (Cachix checks its upstream).
+  # A failure leaves the channel on the previous release; the GitHub release stays.
+  nix:
+    name: Nix ${{ matrix.system }}
+    needs: [plan, release]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.plan.outputs.nix_track != '' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-24.04
+          - system: aarch64-linux
+            runner: ubuntu-24.04-arm
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      REF: ${{ needs.plan.outputs.ref }}
+      NIX_TRACK: ${{ needs.plan.outputs.nix_track }}
+    steps:
+      # The release scripts of this workflow run; the released commit next to them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tools
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.ref }}
+          path: release
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: tools/package.json
+
+      - id: commit
+        working-directory: release
+        run: bun ../tools/scripts/release.ts nix-commit
+
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        if: steps.commit.outputs.commit != ''
+
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        if: steps.commit.outputs.commit != ''
+        with:
+          name: libe
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: true # only the package below, not every build-time path
+
+      - name: Build
+        if: steps.commit.outputs.commit != ''
+        working-directory: release
+        run: |
+          nix build .#packages.${{ matrix.system }}.desktop -L
+          test -x result/bin/libe
+          test -f result/share/applications/libe.desktop
+          # the version Settings shows is compiled into the binary
+          grep -aqF "$VERSION" result/bin/.libe-wrapped
+          nix path-info -Sh ./result # closure size
+
+      - name: Push to Cachix
+        if: steps.commit.outputs.commit != ''
+        working-directory: release
+        run: cachix push libe "$(readlink result)"
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+  # Only after both architectures are in the cache: `channel/<track>` and the tag
+  # `nix-v<version>` → the release's Nix commit (never backwards, see `nixChannelMove`).
+  nix-channel:
+    name: Move NixOS channel
+    needs: [plan, nix]
+    if: ${{ !cancelled() && needs.nix.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.plan.outputs.version }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      REF: ${{ needs.plan.outputs.ref }}
+      NIX_TRACK: ${{ needs.plan.outputs.nix_track }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tools
+          persist-credentials: false
+
+      # Keeps the token: nix-publish pushes from here.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.ref }}
+          path: release
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: tools/package.json
+
+      - id: commit
+        working-directory: release
+        run: bun ../tools/scripts/release.ts nix-commit
+
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        if: steps.commit.outputs.commit != ''
+
+      # What users of this commit will substitute: both packages must be on libe.cachix.org.
+      - name: Check the binary cache
+        if: steps.commit.outputs.commit != ''
+        working-directory: release
+        run: |
+          for system in x86_64-linux aarch64-linux; do
+            out="$(nix eval --raw ".#packages.$system.desktop.outPath")"
+            nix path-info --store https://libe.cachix.org "$out"
+          done
+
+      - id: publish
+        if: steps.commit.outputs.commit != ''
+        working-directory: release
+        run: bun ../tools/scripts/release.ts nix-publish
+
+      - name: Release notes
+        if: steps.publish.outputs.moved == 'true'
+        run: |
+          pin="Pinned to this release: \`github:$GITHUB_REPOSITORY/nix-$TAG\`"
+          gh release view "$TAG" --json body --jq .body > notes.md
+          grep -qF "$pin" notes.md && exit 0 # a re-run
+          printf '\n%s\n' "$pin" >> notes.md
+          gh release edit "$TAG" --notes-file notes.md
 
   # Stable only: the version files on main now name the released version, so the next
   # nightlies preview the patch after it.

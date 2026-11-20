@@ -2,12 +2,13 @@
  * The Tauri 2 shell end to end (Linux/WebKitGTK): bundled pairing page, pairing over
  * `POST /api/pair` from Rust, session bootstrap into the webview, token reuse on restart,
  * revocation and "Change server / Unpair…" in Settings, the unreachable-server view, the
- * auto-updater driven from the server's Settings page (against a local, test-signed feed), and
- * the Ctrl+R / Ctrl+Q shortcuts that replace the menu bar on Linux/Windows.
+ * auto-updater driven from the server's Settings page (against a local, test-signed feed),
+ * the Ctrl+R / Ctrl+Q shortcuts that replace the menu bar on Linux/Windows, and a Nix build
+ * (`LIBE_DISTRIBUTION=nix`), which never updates itself.
  *
  * Headless boxes have no Secret Service, so the debug build stores its credentials in
  * `LIBE_TAURI_CREDENTIALS_FILE`; the updater reads `LIBE_UPDATER_FEED` / `LIBE_UPDATER_PUBKEY`
- * (all honoured only in debug builds).
+ * and `LIBE_DISTRIBUTION` (all honoured at runtime only in debug builds).
  */
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -35,6 +36,9 @@ const TAURI_CLI = `${ROOT}node_modules/.bin/tauri`;
 const RELEASES = { stable: '9.9.9', nightly: '9.9.10-nightly.20261119.1' } as const;
 
 let driver: ChildProcess;
+let driverEnv: NodeJS.ProcessEnv;
+/** A second driver whose app runs as a Nix build (`LIBE_DISTRIBUTION=nix`, debug override). */
+let nixDriver: ChildProcess | null = null;
 let sql: Sql;
 let admin: string;
 let wd: WebDriver | null = null;
@@ -108,43 +112,52 @@ test.beforeAll(async () => {
 	admin = await pairWithSecret(BASE, { name: 'Admin browser' });
 	const pubkey = signedFeed();
 	const feedUrl = await startFeed();
-	driver = spawn(`${homedir()}/.cargo/bin/tauri-driver`, ['--port', String(DRIVER_PORT)], {
-		env: {
-			...process.env,
-			HOME: STATE, // window state + WebKit data land here, not in the real home
-			XDG_DATA_HOME: `${STATE}data`,
-			XDG_CONFIG_HOME: `${STATE}config`,
-			XDG_CACHE_HOME: `${STATE}cache`,
-			LIBE_TAURI_CREDENTIALS_FILE: CREDS,
-			LIBE_UPDATER_FEED: feedUrl,
-			LIBE_UPDATER_PUBKEY: pubkey,
-			WEBKIT_DISABLE_DMABUF_RENDERER: '1',
-			LIBGL_ALWAYS_SOFTWARE: '1'
-		},
-		stdio: 'ignore'
-	});
+	driverEnv = {
+		...process.env,
+		HOME: STATE, // window state + WebKit data land here, not in the real home
+		XDG_DATA_HOME: `${STATE}data`,
+		XDG_CONFIG_HOME: `${STATE}config`,
+		XDG_CACHE_HOME: `${STATE}cache`,
+		LIBE_TAURI_CREDENTIALS_FILE: CREDS,
+		LIBE_UPDATER_FEED: feedUrl,
+		LIBE_UPDATER_PUBKEY: pubkey,
+		WEBKIT_DISABLE_DMABUF_RENDERER: '1',
+		LIBGL_ALWAYS_SOFTWARE: '1'
+	};
+	driver = await startDriver(DRIVER_PORT, driverEnv);
+});
+
+/**
+ * tauri-driver on `port`, its WebKitWebDriver on `port + 1` (two drivers must not share the
+ * default native port); the apps it starts inherit `env`.
+ */
+async function startDriver(port: number, env: NodeJS.ProcessEnv): Promise<ChildProcess> {
+	const args = ['--port', String(port), '--native-port', String(port + 1)];
+	const child = spawn(`${homedir()}/.cargo/bin/tauri-driver`, args, { env, stdio: 'ignore' });
 	await expect
 		.poll(() =>
-			fetch(`http://127.0.0.1:${DRIVER_PORT}/status`).then(
+			fetch(`http://127.0.0.1:${port}/status`).then(
 				(r) => r.ok,
 				() => false
 			)
 		)
 		.toBe(true);
-});
+	return child;
+}
 
 test.afterAll(async () => {
 	await wd?.quit().catch(() => {});
 	driver?.kill();
+	nixDriver?.kill();
 	feed?.close();
 	await sql?.end();
 	await server.stop();
 });
 
-async function launch(): Promise<WebDriver> {
+async function launch(port = DRIVER_PORT): Promise<WebDriver> {
 	await wd?.quit().catch(() => {});
 	wd = await new Builder()
-		.usingServer(`http://127.0.0.1:${DRIVER_PORT}/`)
+		.usingServer(`http://127.0.0.1:${port}/`)
 		.withCapabilities({ browserName: 'wry', 'tauri:options': { application: BIN } })
 		.build();
 	return wd;
@@ -354,5 +367,50 @@ test('Ctrl+R reloads and Ctrl+Q quits — on libe’s pages and on the pairing p
 	await visible(d, 'view-pair');
 	await quitWithCtrlQ(d);
 	await d.quit().catch(() => {}); // the app is gone already
+	wd = null;
+});
+
+/** Calls a Tauri command from the current page → `{ ok }` or `{ err }` (the rejection's text). */
+const invoke = (d: WebDriver, cmd: string, args: Record<string, unknown> = {}) =>
+	d.executeAsyncScript<{ ok?: Record<string, unknown>; err?: string }>(
+		`const done = arguments[arguments.length - 1];
+		window.__TAURI_INTERNALS__.invoke(arguments[0], arguments[1]).then(
+			(ok) => done({ ok }),
+			(err) => done({ err: String(err) })
+		);`,
+		cmd,
+		args
+	);
+
+test('a Nix build never updates itself; Settings points to the flake input instead', async () => {
+	// Same debug binary, run as a Nix build (`LIBE_DISTRIBUTION` is a compile-time marker in
+	// release builds; debug builds also read it at runtime).
+	nixDriver = await startDriver(DRIVER_PORT + 2, { ...driverEnv, LIBE_DISTRIBUTION: 'nix' });
+	const d = await launch(DRIVER_PORT + 2);
+	await visible(d, 'view-pair'); // the previous test removed the credentials
+	const server = await d.findElement(By.id('server'));
+	await server.clear();
+	await server.sendKeys(BASE);
+	await pair(d, 'Tauri nix');
+	await desktopSettings(d);
+
+	const managed = await d.findElement(By.css('[data-testid=managed-by-nix]'));
+	expect(await managed.getText()).toContain('nix flake update libe');
+	expect(await d.findElements(By.css('input[name=update-track]'))).toHaveLength(0);
+	expect(await d.findElements(By.xpath('//button[contains(., "Check for updates")]'))).toHaveLength(
+		0
+	);
+
+	// The commands refuse as well (an older server's Settings page still offers them): a check
+	// never starts, the track can't change.
+	const checked = await invoke(d, 'update_check');
+	expect(checked.ok).toMatchObject({
+		managedBy: 'nix',
+		phase: { kind: 'unavailable', code: 'nixManaged' }
+	});
+	expect(await invoke(d, 'update_set_track', { track: 'stable' })).toEqual({
+		err: 'Updates of this app are managed by Nix.'
+	});
+	await d.quit();
 	wd = null;
 });

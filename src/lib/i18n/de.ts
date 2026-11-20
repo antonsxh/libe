@@ -520,6 +520,16 @@ export const de: Messages = {
 		unpairUnsupported:
 			'Diese Version der App kann das hier noch nicht. Nutze ihr Menü (libe → Change server / Unpair…) oder aktualisiere die App zuerst.',
 		unpairFailed: (detail) => `Die Kopplung konnte nicht aufgehoben werden: ${detail}`,
+		nix: {
+			desc: '· mit Nix installiert.',
+			title: 'Updates kommen über Nix',
+			body: 'Diese App wurde mit Nix installiert und aktualisiert sich deshalb nicht selbst. Sie ändert sich, wenn du ihren Flake-Input aktualisierst und neu baust.',
+			update: 'Aktualisieren',
+			rebuild: 'danach neu bauen (oder system.autoUpgrade machen lassen)',
+			track: 'Kanal',
+			or: 'oder',
+			trackNote: '– der Branch des libe-Inputs'
+		},
 		phases: {
 			idle: 'Noch nicht geprüft.',
 			checking: 'Suche nach Updates …',
@@ -536,6 +546,9 @@ export const de: Messages = {
 			devBuild: 'Entwicklungs-Builds aktualisieren sich nicht selbst.',
 			unsupportedInstall:
 				'Für diese Installationsart gibt es keine automatischen Updates. Lade neue Versionen von den GitHub-Releases herunter.',
+			nixManaged:
+				'Diese App wurde mit Nix installiert und aktualisiert sich nicht selbst. Aktualisiere den Flake-Input (nix flake update libe) und baue neu.',
+			managedByNix: 'Updates dieser App laufen über Nix.',
 			noRelease: (track) => `Es ist noch kein ${track}-Release veröffentlicht.`,
 			checkFailed: (detail) => `Die Suche nach Updates ist fehlgeschlagen: ${detail}`,
 			downloadFailed: (version, detail) =>

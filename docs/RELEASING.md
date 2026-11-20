@@ -6,14 +6,14 @@ candidates, stable promotes a nightly that people already ran, previews test the
 
 ## Workflows
 
-| File                            | Trigger                                                 | What                                                                                                                     |
-| ------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `.github/workflows/ci.yml`      | pull requests, pushes to `main`                         | `checks.yml` + `docker.yml` (build and smoke test, no push)                                                              |
-| `.github/workflows/release.yml` | green CI on `main`, schedule, manual dispatch, `v*` tag | plan → checks + desktop + docker in parallel → tag image → GitHub release → (stable) version bump on `main`              |
-| `.github/workflows/checks.yml`  | called by both                                          | typecheck, lint, unit tests, build · e2e desktop + iPhone/iPad (one job) · Tauri clippy + e2e (Xvfb)                     |
-| `.github/workflows/docker.yml`  | called by both                                          | native amd64 + arm64 image builds, smoke test against Postgres 17, optional push by digest                               |
-| `.github/workflows/desktop.yml` | called by `release.yml`                                 | Tauri installers: Linux x64/arm64 (`.deb`, `.AppImage`), macOS arm64/x64 (`.dmg`), Windows x64 (NSIS)                    |
-| `scripts/release.ts`            | used by the workflows                                   | `plan` (channel, commit, version, tags), `set-version <v>`, `updater-manifest <dir>`; tests in `scripts/release.test.ts` |
+| File                            | Trigger                                                 | What                                                                                                                                                  |
+| ------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/ci.yml`      | pull requests, pushes to `main`                         | `checks.yml` + `docker.yml` (build and smoke test, no push)                                                                                           |
+| `.github/workflows/release.yml` | green CI on `main`, schedule, manual dispatch, `v*` tag | plan → checks + desktop + docker in parallel → tag image → GitHub release → (stable) version bump on `main`; Nix build + Cachix → `channel/*`         |
+| `.github/workflows/checks.yml`  | called by both                                          | typecheck, lint, unit tests, build · e2e desktop + iPhone/iPad (one job) · Tauri clippy + e2e (Xvfb) + `cargo test` · Nix flake check + build         |
+| `.github/workflows/docker.yml`  | called by both                                          | native amd64 + arm64 image builds, smoke test against Postgres 17, optional push by digest                                                            |
+| `.github/workflows/desktop.yml` | called by `release.yml`                                 | Tauri installers: Linux x64/arm64 (`.deb`, `.AppImage`), macOS arm64/x64 (`.dmg`), Windows x64 (NSIS)                                                 |
+| `scripts/release.ts`            | used by the workflows                                   | `plan` (channel, commit, version, tags), `set-version <v>`, `updater-manifest <dir>`, `nix-commit`, `nix-publish`; tests in `scripts/release.test.ts` |
 
 Nothing is published unless **every** job passed: checks, all desktop targets and both image
 smoke tests. The image is first pushed untagged (by digest); the channel tags are only set
@@ -126,10 +126,46 @@ feed. To stop offering a broken build, put the previous release's manifest back
 (`gh release download v0.2.0 --pattern latest.json && mv latest.json stable.json && gh release upload update-feed stable.json --clobber`);
 apps that already installed it only move on with the next, newer release.
 
+## NixOS (flake, Cachix, channel branches)
+
+`flake.nix` packages the desktop app for `x86_64-linux` and `aarch64-linux` (user docs:
+[NIXOS.md](NIXOS.md)). nixpkgs is pinned in `flake.lock` to the current stable NixOS branch
+(`nixos-26.05`), whose packages are all on `cache.nixos.org`; bump it with
+`nix flake update nixpkgs` in a PR (CI builds it) — and move to the next release branch
+(`nixos-26.11`, …) once it is out.
+
+- **CI** (`checks.yml`, job "Nix flake"): `nix flake check` (evaluates every output, builds the
+  package) and an inspection of the result, on x86_64 only. It reads `libe.cachix.org` but
+  never pushes. Like every check it gates the nightlies (`checksDecision`).
+- **Releases** (`release.yml`, nightly and plain stable only — `nixTrack`): after the GitHub
+  release is published, `nix` recreates the release's **Nix commit** on top of the released
+  commit (`release.ts nix-commit`: `set-version` + `nix/release.json`, author/dates from the
+  released commit, so every job gets the same SHA), builds it natively on `ubuntu-24.04` and
+  `ubuntu-24.04-arm` and pushes the result's closure with `cachix push libe` (paths that are on
+  `cache.nixos.org` are skipped by Cachix). Then `nix-channel` recreates the commit, checks
+  that both systems' store paths are on libe.cachix.org, and pushes it in one atomic push to
+  the branch **`channel/<track>`** (force) and the tag **`nix-v<version>`** (`nix-publish`;
+  never backwards: a re-run of an older release leaves a newer channel alone), then appends
+  the pin to the release notes.
+- **Cache**: [libe.cachix.org](https://app.cachix.org/cache/libe), public, signing managed by
+  Cachix (public key in `flake.nix`'s `nixConfig`). The repository secret
+  **`CACHIX_AUTH_TOKEN`** (read + write, scoped to that cache) is only used by the `nix` job.
+  Cachix keeps everything until the cache's storage limit, then garbage-collects the least
+  recently used paths — old nightlies age out, the channels' current paths stay hot.
+- **If the Nix job fails**, the release itself is out (image, installers, update feed); only
+  the channel stays on the previous release. Fix the cause and re-run the failed jobs of that
+  workflow run (`gh run rerun <id> --failed`) — `nix-channel` then moves the channel. A
+  release whose commit predates the flake skips the Nix jobs with a notice.
+- `channel/*` and `nix-v*` are written only by the workflow; never commit to them. A ruleset
+  must allow `github-actions[bot]` to force-push `channel/*` and create `nix-v*` tags (none
+  exists today). Pushes with `GITHUB_TOKEN` trigger no workflows, and `nix-v*` tags don't match
+  the `v*.*.*` release trigger anyway.
+
 ## Secrets and permissions
 
-One secret: **`TAURI_SIGNING_PRIVATE_KEY`** (the updater signing key, see docs/TAURI.md;
-`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only if the key has one). Without it the desktop builds
-fail. Everything else uses the workflow's `GITHUB_TOKEN` (`contents: write` for the
-release, the update feed and the version bump, `packages: write` for GHCR). If `main` gets branch protection
+Two secrets: **`TAURI_SIGNING_PRIVATE_KEY`** (the updater signing key, see docs/TAURI.md;
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only if the key has one) — without it the desktop builds
+fail — and **`CACHIX_AUTH_TOKEN`** (pushes the NixOS builds, see above). Everything else uses
+the workflow's `GITHUB_TOKEN` (`contents: write` for the release, the update feed, the version
+bump and the `channel/*` branches, `packages: write` for GHCR). If `main` gets branch protection
 that blocks direct pushes, the `finalize` job needs an exception for `github-actions[bot]`.
