@@ -203,6 +203,12 @@ test('touch: tapping the search button opens the palette with the keyboard up @m
 	await option.tap();
 	await expect(page).toHaveURL(/\/$/);
 	await expect(page.locator('li.task', { hasText: task.title })).toBeVisible();
+
+	// No Esc key on touch: the Cancel button closes it.
+	await trigger(page).tap();
+	await expect(input(page)).toBeFocused();
+	await palette(page).getByRole('button', { name: 'Cancel' }).tap();
+	await expect(palette(page)).toBeHidden();
 });
 
 test('the search API needs a paired device', async () => {

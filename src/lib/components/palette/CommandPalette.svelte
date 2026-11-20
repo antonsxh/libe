@@ -441,6 +441,8 @@
 			onkeydown={onInputKey}
 		/>
 		<kbd class="esc">Esc</kbd>
+		<!-- Touch: no Esc key, and the iOS keyboard leaves little backdrop to tap. -->
+		<button type="button" class="cancel" onclick={() => hide()}>{t.common.cancel}</button>
 	</div>
 
 	<!-- Pointer presses keep focus in the input (and the iOS keyboard up). -->
@@ -604,6 +606,17 @@
 		text-align: center;
 	}
 
+	.cancel {
+		display: none;
+		flex: none;
+		padding: 0 var(--space-2);
+		background: none;
+		border: 0;
+		color: var(--accent);
+		font: inherit;
+		font-size: var(--fs-md);
+	}
+
 	.list {
 		flex: 1 1 auto;
 		min-height: 0;
@@ -748,6 +761,9 @@
 		.keys,
 		.esc {
 			display: none;
+		}
+		.cancel {
+			display: block;
 		}
 		.option {
 			min-height: var(--hit-min);
