@@ -7,6 +7,7 @@ import {
 	isBusy,
 	phaseText as phaseTextIn,
 	trackOfVersion,
+	unpairErrorText,
 	type UpdatePhase
 } from './desktop.ts';
 
@@ -97,6 +98,21 @@ describe('app errors in the UI language', () => {
 		);
 		expect(commandErrorText('Something new', de)).toBe('Something new');
 		expect(commandErrorText(new Error('x'), en)).toBe('Error: x');
+	});
+
+	test('an app without `app_unpair` (Tauri ACL) points to its menu; other errors keep their text', () => {
+		// The two ACL rejections of an older app: unknown command, no grant for the origin.
+		for (const acl of [
+			'app_unpair not allowed. Command not found',
+			'app_unpair not allowed on origin [http://libe.local]. Please create a capability that has this origin on the context field.'
+		]) {
+			expect(unpairErrorText(acl, en)).toContain('libe → Change server / Unpair…');
+			expect(unpairErrorText(acl, de)).toContain('Nutze ihr Menü');
+		}
+		expect(unpairErrorText('keychain locked', en)).toBe('Unpairing failed: keychain locked');
+		expect(unpairErrorText(new Error('boom'), de)).toBe(
+			'Die Kopplung konnte nicht aufgehoben werden: Error: boom'
+		);
 	});
 });
 

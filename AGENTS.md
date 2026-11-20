@@ -162,9 +162,11 @@ timer.serverNow)` so today moves live with the timer.
   `ADDRESS_HEADER=x-forwarded-for`, so tests send a fresh `X-Forwarded-For` (`freshIp()`).
 - **Desktop app from the server's pages**: only `#lib/desktop.ts` talks to Tauri
   (`desktopApp()` → `null` outside the app). Remote pages may call nothing but the four
-  `update_*` commands (runtime capability in `src-tauri/src/lib.rs`); a new command must be
-  listed in `src-tauri/build.rs` and granted explicitly. Settings → Desktop app
-  (`components/settings/DesktopAppSection.svelte`) is the update UI.
+  `update_*` commands, `app_unpair` and `app_quit` (runtime capability, `SERVER_COMMANDS` in
+  `src-tauri/src/lib.rs`); a new command must be listed in `src-tauri/build.rs` and granted
+  explicitly. Settings → Desktop app (`components/settings/DesktopAppSection.svelte`) is the
+  update UI and has "Change server / Unpair…". Only macOS has a native menu; on Linux/Windows
+  `src-tauri/src/shortcuts.js` (injected into every page) handles Ctrl+R / Ctrl+Q.
 - **PWA**: the service worker (`src/service-worker/`, production only) must never cache
   `/api/**`, page data or authenticated HTML — only build assets, `static/` files and
   `/offline`. Full-screen/fixed UI must pad with the `--safe-top/right/bottom/left` tokens.

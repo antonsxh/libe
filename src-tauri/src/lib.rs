@@ -9,10 +9,13 @@
 //! - Revoked device / lost cookie: the server redirects the webview to `/pair`; the navigation
 //!   guard intercepts that, re-checks the token and either restores the cookie or returns to
 //!   the pairing screen. Unreachable server → the local page offers Retry / Change server.
-//! - Menu: Reload, Change server / Unpair.
+//! - macOS: a menu in the global menu bar (Reload, Change server / Unpair…, Quit, Edit).
+//!   Linux/Windows have no menu bar: `shortcuts.js` (injected into every page) handles
+//!   Ctrl+R / Ctrl+Q, and Settings → Desktop app offers Change server / Unpair.
 //! - Updates (`updates.rs`): background check + download on the chosen track (stable /
-//!   nightly). The server's Settings page drives it through the `update_*` commands, the only
-//!   IPC the remote origin gets (a runtime capability for exactly the paired server).
+//!   nightly). The server's Settings page drives it through the `update_*` commands.
+//! - The paired server's pages may call only the `update_*` commands, `app_unpair` and
+//!   `app_quit` (a runtime capability for exactly that origin, see `allow_server_commands`).
 
 mod problem;
 mod server;
@@ -26,6 +29,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use store::Credentials;
 use tauri::ipc::CapabilityBuilder;
+#[cfg(target_os = "macos")]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::window::Color;
 use tauri::{AppHandle, Manager, RunEvent, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
@@ -44,8 +48,8 @@ struct App {
     last_server: Mutex<Option<String>>,
     /// Loop guard for cookie recovery (see `recover`).
     recoveries: Mutex<Vec<Instant>>,
-    /// Server origins whose pages may call the `update_*` commands.
-    update_origins: Mutex<HashSet<String>>,
+    /// Server origins whose pages may call the commands in `SERVER_COMMANDS`.
+    server_origins: Mutex<HashSet<String>>,
 }
 
 impl App {
@@ -54,7 +58,7 @@ impl App {
     }
     fn set_creds(&self, app: &AppHandle, creds: Option<Credentials>) {
         if let Some(c) = &creds {
-            allow_updates_from(app, &self.update_origins, &c.server);
+            allow_server_commands(app, &self.server_origins, &c.server);
             *self.last_server.lock().unwrap() = Some(c.server.clone());
         }
         *self.creds.lock().unwrap() = creds;
@@ -64,26 +68,37 @@ impl App {
     }
 }
 
-/// Lets the paired server's pages (Settings → Desktop app) see and drive the updater — and
-/// nothing else. Capabilities can't be removed at runtime; an origin from an earlier pairing
-/// keeps the grant until restart, but the navigation guard never loads it again.
-fn allow_updates_from(app: &AppHandle, granted: &Mutex<HashSet<String>>, server: &str) {
+/// What the paired server's pages may call: the updater (Settings → Desktop app), unpairing
+/// (Settings → Desktop app) and quitting (Ctrl+Q from `shortcuts.js`). The pairing commands
+/// stay local-only.
+const SERVER_COMMANDS: [&str; 6] = [
+    "allow-update-state",
+    "allow-update-check",
+    "allow-update-set-track",
+    "allow-update-install",
+    "allow-app-unpair",
+    "allow-app-quit",
+];
+
+/// Grants the paired server's pages the commands in `SERVER_COMMANDS` — and nothing else.
+/// Capabilities can't be removed at runtime; an origin from an earlier pairing keeps the
+/// grant until restart, but the navigation guard never loads it again.
+fn allow_server_commands(app: &AppHandle, granted: &Mutex<HashSet<String>>, server: &str) {
     let mut granted = granted.lock().unwrap();
     if granted.contains(server) {
         return;
     }
-    let capability = CapabilityBuilder::new(format!("server-updates-{}", granted.len()))
-        .remote(format!("{server}/*"))
-        .window(MAIN)
-        .permission("allow-update-state")
-        .permission("allow-update-check")
-        .permission("allow-update-set-track")
-        .permission("allow-update-install");
+    let capability = SERVER_COMMANDS.iter().fold(
+        CapabilityBuilder::new(format!("server-{}", granted.len()))
+            .remote(format!("{server}/*"))
+            .window(MAIN),
+        |capability, permission| capability.permission(*permission),
+    );
     match app.add_capability(capability) {
         Ok(()) => {
             granted.insert(server.to_string());
         }
-        Err(e) => eprintln!("libe: could not grant update access to {server}: {e}"),
+        Err(e) => eprintln!("libe: could not grant {server} access to the app: {e}"),
     }
 }
 
@@ -262,6 +277,27 @@ async fn unpair(app: AppHandle, state: State<'_, App>) -> Result<Status, Problem
     Ok(pair_status(&state, None))
 }
 
+/// `unpair`, then the pairing page (server pre-filled; a failure shows as its notice).
+async fn unpair_to_pairing(app: AppHandle) {
+    let notice = unpair(app.clone(), app.state::<App>()).await.err();
+    show_local(&app, notice);
+}
+
+// ─── App (also called by the server's pages) ─────────────────────────────────
+
+/// Settings → Desktop app → "Change server / Unpair…" (the menu item on macOS). The webview
+/// leaves the calling page, so the caller usually never sees the answer.
+#[tauri::command]
+async fn app_unpair(app: AppHandle) {
+    unpair_to_pairing(app).await;
+}
+
+/// Ctrl+Q on Linux/Windows (`shortcuts.js`); macOS quits through the menu.
+#[tauri::command]
+fn app_quit(app: AppHandle) {
+    app.exit(0);
+}
+
 // ─── Updates (also called by the server's Settings page) ──────────────────────
 
 #[tauri::command]
@@ -349,38 +385,37 @@ async fn recover(app: AppHandle, creds: Credentials, next: String) {
     }
 }
 
-// ─── Menu ────────────────────────────────────────────────────────────────────
+// ─── Menu (macOS only) ───────────────────────────────────────────────────────
+//
+// macOS shows it in the global menu bar and needs the Edit menu for ⌘C/⌘V/…. Linux and
+// Windows would draw it as an extra bar inside the window, so there the shortcuts come from
+// `shortcuts.js` and "Change server / Unpair" lives in Settings → Desktop app.
 
+#[cfg(target_os = "macos")]
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let reload = MenuItem::with_id(app, "reload", "Reload", true, Some("CmdOrCtrl+R"))?;
     let unpair = MenuItem::with_id(app, "unpair", "Change server / Unpair…", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
-    // A plain item: the predefined Quit is not supported by the Linux (GTK) menu backend.
     let quit = MenuItem::with_id(app, "quit", "Quit libe", true, Some("CmdOrCtrl+Q"))?;
     let libe = Submenu::with_items(app, "libe", true, &[&reload, &unpair, &separator, &quit])?;
-    #[cfg(target_os = "macos")]
-    {
-        // macOS routes ⌘C/⌘V/… through the Edit menu.
-        let edit = Submenu::with_items(
-            app,
-            "Edit",
-            true,
-            &[
-                &PredefinedMenuItem::undo(app, None)?,
-                &PredefinedMenuItem::redo(app, None)?,
-                &PredefinedMenuItem::separator(app)?,
-                &PredefinedMenuItem::cut(app, None)?,
-                &PredefinedMenuItem::copy(app, None)?,
-                &PredefinedMenuItem::paste(app, None)?,
-                &PredefinedMenuItem::select_all(app, None)?,
-            ],
-        )?;
-        return Menu::with_items(app, &[&libe, &edit]);
-    }
-    #[cfg(not(target_os = "macos"))]
-    Menu::with_items(app, &[&libe])
+    let edit = Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(app, None)?,
+            &PredefinedMenuItem::redo(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, None)?,
+            &PredefinedMenuItem::copy(app, None)?,
+            &PredefinedMenuItem::paste(app, None)?,
+            &PredefinedMenuItem::select_all(app, None)?,
+        ],
+    )?;
+    Menu::with_items(app, &[&libe, &edit])
 }
 
+#[cfg(target_os = "macos")]
 fn on_menu(app: &AppHandle, id: &str) {
     match id {
         "reload" => {
@@ -390,16 +425,15 @@ fn on_menu(app: &AppHandle, id: &str) {
         }
         "quit" => app.exit(0),
         "unpair" => {
-            let app = app.clone();
-            tauri::async_runtime::spawn(async move {
-                let state = app.state::<App>();
-                let _ = unpair(app.clone(), state).await;
-                show_local(&app, None);
-            });
+            tauri::async_runtime::spawn(unpair_to_pairing(app.clone()));
         }
         _ => {}
     }
 }
+
+/// Ctrl+R / Ctrl+Q without a menu (Linux, Windows): runs in every page of the main webview.
+#[cfg(not(target_os = "macos"))]
+const SHORTCUTS: &str = include_str!("shortcuts.js");
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
@@ -412,6 +446,8 @@ pub fn run() {
             resume,
             pair,
             unpair,
+            app_unpair,
+            app_quit,
             update_state,
             update_check,
             update_set_track,
@@ -422,9 +458,9 @@ pub fn run() {
                 Ok(creds) => (creds, None),
                 Err(e) => (None, Some(e)),
             };
-            let update_origins = Mutex::new(HashSet::new());
+            let server_origins = Mutex::new(HashSet::new());
             if let Some(c) = &creds {
-                allow_updates_from(app.handle(), &update_origins, &c.server);
+                allow_server_commands(app.handle(), &server_origins, &c.server);
             }
             app.manage(App {
                 http: server::client(),
@@ -432,22 +468,27 @@ pub fn run() {
                 creds: Mutex::new(creds),
                 notice: Mutex::new(notice),
                 recoveries: Mutex::new(Vec::new()),
-                update_origins,
+                server_origins,
             });
             updates::init(app.handle());
 
-            let handle = app.handle().clone();
-            app.set_menu(build_menu(&handle)?)?;
-            app.on_menu_event(|app, event| on_menu(app, event.id().as_ref()));
+            #[cfg(target_os = "macos")]
+            {
+                let handle = app.handle().clone();
+                app.set_menu(build_menu(&handle)?)?;
+                app.on_menu_event(|app, event| on_menu(app, event.id().as_ref()));
+            }
 
             let guard = app.handle().clone();
-            WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
+            let window = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
                 .title("libe")
                 .inner_size(1280.0, 860.0)
                 .min_inner_size(380.0, 560.0)
                 .background_color(BACKGROUND)
-                .on_navigation(move |url| allow_navigation(&guard, url))
-                .build()?;
+                .on_navigation(move |url| allow_navigation(&guard, url));
+            #[cfg(not(target_os = "macos"))]
+            let window = window.initialization_script(SHORTCUTS);
+            window.build()?;
             Ok(())
         })
         .build(tauri::generate_context!())

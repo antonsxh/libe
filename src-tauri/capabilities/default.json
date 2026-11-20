@@ -1,7 +1,7 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "default",
-	"description": "The bundled pairing page (local origin only). The paired server's pages get only the update commands, granted at runtime (src/lib.rs).",
+	"description": "The bundled pairing page (local origin only). The paired server's pages get only the update, app_unpair and app_quit commands, granted at runtime (src/lib.rs).",
 	"windows": ["main"],
 	"permissions": [
 		"core:default",
@@ -9,6 +9,7 @@
 		"allow-resume",
 		"allow-pair",
 		"allow-unpair",
+		"allow-app-quit",
 		"allow-update-state"
 	]
 }

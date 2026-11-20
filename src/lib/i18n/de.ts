@@ -510,6 +510,16 @@ export const de: Messages = {
 		sameTrackBefore: 'Er wird separat über sein Docker-Image aktualisiert (',
 		sameTrackAfter: ').',
 		devServer: (version) => `Dein Server läuft mit einem Entwicklungs-Build von libe (${version}).`,
+		unpairTitle: 'Server wechseln / Kopplung aufheben',
+		unpairDesc:
+			'Meldet diese App ab und vergisst den Server. Danach zeigt sie ihren Kopplungsbildschirm, auf dem du sie erneut koppeln kannst – mit diesem oder einem anderen Server.',
+		unpair: 'Server wechseln / Kopplung aufheben …',
+		unpairConfirm: 'Diese App jetzt abmelden?',
+		unpairConfirmButton: 'Kopplung aufheben',
+		unpairing: 'Kopplung wird aufgehoben …',
+		unpairUnsupported:
+			'Diese Version der App kann das hier noch nicht. Nutze ihr Menü (libe → Change server / Unpair…) oder aktualisiere die App zuerst.',
+		unpairFailed: (detail) => `Die Kopplung konnte nicht aufgehoben werden: ${detail}`,
 		phases: {
 			idle: 'Noch nicht geprüft.',
 			checking: 'Suche nach Updates …',

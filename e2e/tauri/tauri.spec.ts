@@ -1,8 +1,9 @@
 /**
  * The Tauri 2 shell end to end (Linux/WebKitGTK): bundled pairing page, pairing over
  * `POST /api/pair` from Rust, session bootstrap into the webview, token reuse on restart,
- * revocation and the native "Change server / Unpair…" menu, the unreachable-server view, and
- * the auto-updater driven from the server's Settings page (against a local, test-signed feed).
+ * revocation and "Change server / Unpair…" in Settings, the unreachable-server view, the
+ * auto-updater driven from the server's Settings page (against a local, test-signed feed), and
+ * the Ctrl+R / Ctrl+Q shortcuts that replace the menu bar on Linux/Windows.
  *
  * Headless boxes have no Secret Service, so the debug build stores its credentials in
  * `LIBE_TAURI_CREDENTIALS_FILE`; the updater reads `LIBE_UPDATER_FEED` / `LIBE_UPDATER_PUBKEY`
@@ -14,7 +15,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { homedir } from 'node:os';
-import { Builder, By, until, type WebDriver } from 'selenium-webdriver';
+import { Builder, By, Key, until, type WebDriver } from 'selenium-webdriver';
 import { test, expect } from '@playwright/test';
 import { OUTPUT, ROOT } from '../support/env.ts';
 import { bearer, issueCode, pairWithSecret } from '../support/auth.ts';
@@ -167,12 +168,39 @@ async function pair(d: WebDriver, name?: string) {
 	await d.findElement(By.id('submit')).click();
 	await onLibe(d);
 }
-/** Click at screen coordinates through libxdo (no xdotool binary on this box). */
-function xclick(x: number, y: number) {
-	execFileSync('python3', [
-		'-c',
-		`import ctypes,time; x=ctypes.CDLL('libxdo.so.3'); d=x.xdo_new(None); x.xdo_move_mouse(ctypes.c_void_p(d),${x},${y},0); time.sleep(0.2); x.xdo_click_window(ctypes.c_void_p(d),0,1)`
-	]);
+/** The desktop app's section of the server's Settings page (only rendered inside the app). */
+async function desktopSettings(d: WebDriver) {
+	await d.get(`${BASE}/settings`);
+	await onLibe(d, '/settings');
+	await visible(d, 'desktop-title');
+}
+/** A button of that section. */
+const button = (d: WebDriver, text: string) =>
+	d.findElement(
+		By.xpath(`//section[@aria-labelledby="desktop-title"]//button[normalize-space()="${text}"]`)
+	);
+/** Is the app process (started by tauri-driver) still running? */
+const appRunning = () => {
+	try {
+		execFileSync('pgrep', ['-f', BIN], { stdio: 'ignore' });
+		return true;
+	} catch {
+		return false;
+	}
+};
+/** Ctrl+<key> as real key events (WebDriver actions → WebKit). */
+const ctrl = (d: WebDriver, key: string) =>
+	d.actions().keyDown(Key.CONTROL).sendKeys(key).keyUp(Key.CONTROL).perform();
+/** The app exits while WebDriver still sends the key-up, so that request fails. */
+async function quitWithCtrlQ(d: WebDriver) {
+	await ctrl(d, 'q').catch(() => {});
+	await expect.poll(appRunning).toBe(false);
+}
+/** Ctrl+R reloads the current page: a marker set on `window` is gone afterwards. */
+async function expectCtrlRReloads(d: WebDriver) {
+	await d.executeScript('window.__libeMarker = 1');
+	await ctrl(d, 'r');
+	await d.wait(async () => (await d.executeScript('return window.__libeMarker')) == null, 20_000);
 }
 
 test("first start shows the bundled pairing page; a wrong code shows the server's message", async () => {
@@ -199,9 +227,13 @@ test('pairing opens libe with a live stream, as a "tauri" device; the token stay
 	await onLibe(d, '/plan');
 });
 
-test('a restart reuses the stored token and goes straight to Home', async () => {
+test('a restart reuses the stored token and goes straight to Home; no menu bar', async () => {
 	const d = await launch();
 	await onLibe(d);
+	// Linux/Windows have no native menu bar: the webview fills the whole window (Xvfb has no
+	// window manager, so there is no title bar either). With the old "libe" GTK menu bar the
+	// webview was ~25 px shorter than the window.
+	expect(await d.executeScript('return window.outerHeight - window.innerHeight')).toBe(0);
 });
 
 test('revoking the app in Settings brings it back to pairing, server kept', async () => {
@@ -225,21 +257,24 @@ test('revoking the app in Settings brings it back to pairing, server kept', asyn
 	expect(await d.findElement(By.id('server')).getAttribute('value')).toBe(BASE);
 });
 
-test('menu "Change server / Unpair…" revokes the device and returns to pairing', async () => {
+test('Settings → Desktop app "Change server / Unpair…" revokes the device and returns to pairing', async () => {
 	const d = wd!;
-	await pair(d);
+	await pair(d, 'Tauri unpair');
 	expect(existsSync(CREDS)).toBe(true);
-	xclick(22, 12); // "libe" menu on the GTK menu bar
-	await new Promise((r) => setTimeout(r, 600)); // the native menu opens asynchronously
-	xclick(70, 70); // second item: Change server / Unpair…
+	await desktopSettings(d);
+	await button(d, 'Change server / Unpair…').click();
+	// An inline confirmation first: Cancel keeps everything as it is.
+	await button(d, 'Cancel').click();
+	await button(d, 'Change server / Unpair…').click();
+	expect(existsSync(CREDS)).toBe(true);
+	await button(d, 'Unpair').click();
 	await visible(d, 'view-pair');
+	expect(await d.getCurrentUrl()).toMatch(/^tauri:\/\/localhost/);
 	expect(existsSync(CREDS)).toBe(false);
-	// The app revokes the device on the server while it shows the pairing page.
-	const revoked = async () =>
-		(
-			await sql`select revoked_at from devices where kind = 'tauri' order by paired_at desc limit 1`
-		)[0].revoked_at;
-	await expect.poll(revoked).not.toBeNull();
+	expect(await d.findElement(By.id('server')).getAttribute('value')).toBe(BASE);
+	// The app revokes the device on the server before it shows the pairing page.
+	const [dev] = await sql`select revoked_at from devices where name = 'Tauri unpair'`;
+	expect(dev.revoked_at).not.toBeNull();
 });
 
 test('with the server down the app says so, and Retry works once it is back', async () => {
@@ -255,12 +290,6 @@ test('with the server down the app says so, and Retry works once it is back', as
 	await onLibe(d);
 });
 
-/** The desktop app's section of the server's Settings page (only rendered inside the app). */
-async function desktopSettings(d: WebDriver) {
-	await d.get(`${BASE}/settings`);
-	await onLibe(d, '/settings');
-	await visible(d, 'desktop-title');
-}
 const phase = (d: WebDriver) =>
 	d.findElement(By.css('[data-phase]')).then((el) => el.getAttribute('data-phase'));
 async function waitForPhase(d: WebDriver, kind: string) {
@@ -307,4 +336,23 @@ test('an update whose signature does not verify is rejected', async () => {
 	} finally {
 		tampered.delete('stable');
 	}
+});
+
+test('Ctrl+R reloads and Ctrl+Q quits — on libe’s pages and on the pairing page', async () => {
+	let d = await launch(); // paired (previous tests)
+	await onLibe(d);
+	await expectCtrlRReloads(d);
+	await onLibe(d);
+	expect(appRunning()).toBe(true);
+	await quitWithCtrlQ(d);
+	expect(existsSync(CREDS)).toBe(true); // quitting is not unpairing
+
+	rmSync(CREDS); // → the bundled pairing page on the next start
+	d = await launch();
+	await visible(d, 'view-pair');
+	await expectCtrlRReloads(d);
+	await visible(d, 'view-pair');
+	await quitWithCtrlQ(d);
+	await d.quit().catch(() => {}); // the app is gone already
+	wd = null;
 });

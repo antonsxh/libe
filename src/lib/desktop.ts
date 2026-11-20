@@ -1,9 +1,11 @@
 /**
  * The libe desktop app (Tauri, `src-tauri/`) as seen from the server's pages.
  *
- * Inside the desktop app the paired server's pages may call exactly four Tauri commands, all
- * about updating the app (`update_state`, `update_check`, `update_set_track`, `update_install`;
- * see `src-tauri/src/updates.rs`). Everywhere else (browser, PWA, SSR) `desktopApp()` is `null`.
+ * Inside the desktop app the paired server's pages may call exactly six Tauri commands: the
+ * updater's `update_state`, `update_check`, `update_set_track`, `update_install` (see
+ * `src-tauri/src/updates.rs`), `app_unpair` and `app_quit` (`SERVER_COMMANDS` in
+ * `src-tauri/src/lib.rs`; `app_quit` is only used by the app's own Ctrl+Q handler).
+ * Everywhere else (browser, PWA, SSR) `desktopApp()` is `null`.
  */
 
 import type { I18n } from '#lib/i18n/index.ts';
@@ -53,6 +55,11 @@ export type DesktopApp = {
 	setTrack(track: UpdateTrack): Promise<UpdateState>;
 	/** Installs the downloaded update and restarts the app (does not return on success). */
 	install(): Promise<void>;
+	/**
+	 * Revokes this device, forgets the server and shows the app's pairing page (server
+	 * pre-filled). The webview leaves the page, so on success this usually never settles.
+	 */
+	unpair(): Promise<void>;
 };
 
 type TauriInternals = { invoke(cmd: string, args?: Record<string, unknown>): Promise<unknown> };
@@ -67,7 +74,8 @@ export function desktopApp(): DesktopApp | null {
 		state: () => call('update_state'),
 		check: () => call('update_check'),
 		setTrack: (track) => call('update_set_track', { track }),
-		install: () => call('update_install')
+		install: () => call('update_install'),
+		unpair: () => call('app_unpair')
 	};
 }
 
@@ -127,6 +135,15 @@ export function commandErrorText(err: unknown, t: I18n): string {
 	for (const [prefix, text] of prefixed)
 		if (raw.startsWith(prefix)) return text(raw.slice(prefix.length));
 	return raw;
+}
+
+/**
+ * Error of a rejected `app_unpair`. Apps from before the command (they unpair through their
+ * menu bar) reject it as "… not allowed …" (Tauri's ACL); anything else is shown with its text.
+ */
+export function unpairErrorText(err: unknown, t: I18n): string {
+	const raw = String(err);
+	return /\bnot allowed\b/.test(raw) ? t.desktop.unpairUnsupported : t.desktop.unpairFailed(raw);
 }
 
 /** One status line for Settings. */
