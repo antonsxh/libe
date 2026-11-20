@@ -1,0 +1,4 @@
+ALTER TABLE "settings" ADD COLUMN "display_name" text;--> statement-breakpoint
+ALTER TABLE "settings" ADD COLUMN "avatar_color" text DEFAULT 'amber' NOT NULL;--> statement-breakpoint
+ALTER TABLE "settings" ADD CONSTRAINT "settings_display_name_chk" CHECK ("settings"."display_name" IS NULL OR (char_length("settings"."display_name") BETWEEN 1 AND 40 AND "settings"."display_name" = btrim("settings"."display_name")));--> statement-breakpoint
+ALTER TABLE "settings" ADD CONSTRAINT "settings_avatar_color_chk" CHECK ("settings"."avatar_color" in ('red', 'orange', 'amber', 'lime', 'green', 'teal', 'blue', 'purple', 'pink', 'olive', 'slate'));

@@ -24,6 +24,8 @@ import {
 	uniqueIndex,
 	uuid
 } from 'drizzle-orm/pg-core';
+// Relative (not `#lib/…`): drizzle-kit loads this file outside Vite.
+import { QUEST_COLORS } from '../../quest-colors.ts';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
@@ -176,7 +178,10 @@ export const pomodoroRuns = pgTable(
 	]
 );
 
-/** App settings — a single row (`id = 1`). Pomodoro intervals in minutes. */
+/**
+ * App settings — a single row (`id = 1`): pomodoro intervals (minutes), the UI language and
+ * the owner's profile (global, the same on every device — see `#lib/profile.ts`).
+ */
 export const settings = pgTable(
 	'settings',
 	{
@@ -190,11 +195,24 @@ export const settings = pgTable(
 		pomodoroAutoStart: boolean('pomodoro_auto_start').notNull().default(true),
 		/** UI language: `auto` (per request from `Accept-Language`), `en` or `de`. */
 		language: text('language').notNull().default('auto'),
+		/** Profile: the owner's name (null = none set); trimmed, 1–40 code points. */
+		displayName: text('display_name'),
+		/** Profile: avatar colour, a key of `QUEST_COLORS`. */
+		avatarColor: text('avatar_color').notNull().default('amber'),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(t) => [
 		check('settings_single_row_chk', sql`${t.id} = 1`),
-		check('settings_language_chk', sql`${t.language} in ('auto', 'en', 'de')`)
+		check('settings_language_chk', sql`${t.language} in ('auto', 'en', 'de')`),
+		check(
+			'settings_display_name_chk',
+			sql`${t.displayName} IS NULL OR (char_length(${t.displayName}) BETWEEN 1 AND 40 AND ${t.displayName} = btrim(${t.displayName}))`
+		),
+		// Built from `QUEST_COLORS`: a new colour key shows up as a schema diff (new migration).
+		check(
+			'settings_avatar_color_chk',
+			sql`${t.avatarColor} in (${sql.raw(QUEST_COLORS.map((c) => `'${c}'`).join(', '))})`
+		)
 	]
 );
 

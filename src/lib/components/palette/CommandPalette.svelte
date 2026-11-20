@@ -14,9 +14,11 @@
 		Settings,
 		Square,
 		SquareKanban,
-		Timer
+		Timer,
+		UserRound
 	} from '@lucide/svelte';
 	import { NAV_ITEMS } from '#lib/nav.ts';
+	import { PROFILE_HREF } from '#lib/profile.ts';
 	import { formatDayLabel } from '#lib/dates.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import {
@@ -206,8 +208,22 @@
 		}
 	]);
 
-	/** Only what the app already offers for the active timer (Focus screen, task cards). */
-	const actions = $derived.by<PaletteItem[]>(() => {
+	/** Always there: jumps to Settings → Profile (a page item, listed under Actions). */
+	const profileAction = $derived<PaletteItem>({
+		key: 'action:profile',
+		kind: 'page',
+		label: t.palette.editProfile,
+		href: PROFILE_HREF,
+		icon: UserRound
+	});
+
+	/**
+	 * Timer actions: only what the app already offers for the active timer (Focus screen,
+	 * task cards) — then "Edit profile".
+	 */
+	const actions = $derived.by<PaletteItem[]>(() => [...timerActions(), profileAction]);
+
+	function timerActions(): PaletteItem[] {
 		const view = timer.view;
 		const active = timer.timer;
 		if (!view || !active) return [];
@@ -252,7 +268,7 @@
 			}
 		);
 		return out;
-	});
+	}
 
 	const groups = $derived.by<Group<PaletteItem>[]>(() => {
 		const label = (i: PaletteItem) => i.label;

@@ -655,3 +655,64 @@ Fix found by the suite:
   Shift+Enter starts focus, the touch flow (`@mobile-only`: tap → input focused, tap a result,
   no horizontal scroll), 401 without a device. Checked against reintroduced bugs (`disabled`
   trigger, unescaped `ILIKE`, the stale-`open` race of a quick second ⌘K).
+
+## Profile (after command palette)
+
+Phase 1 of 3 — replaces the hard-coded "L" avatar with a real profile.
+
+- **Data**: the profile is global (single user, the same on every paired device), so it lives
+  in the single `settings` row (migration `0004_profile`): `display_name` (nullable; check:
+  trimmed, 1–40 characters) and `avatar_color` (a `QUEST_COLORS` key, default `amber`; the
+  check list is built from `QUEST_COLORS`, so a new colour key shows up as a schema diff).
+  `hooks.server.ts` reads language **and** profile in one query (`getRequestSettings`) for
+  paired devices only → `locals.profile` → root layout data `profile` (null without a device:
+  public pages never get the owner's name). No extra query per page.
+- **Pure logic** (`src/lib/profile.ts`, unit-tested): `normalizeDisplayName` (NFC, whitespace
+  collapsed, trimmed, control characters dropped, empty → `null` = no name; at most 40 **code
+  points** — the unit of Postgres' `char_length` and of device names; a grapheme limit could
+  accept names the check constraint rejects), `parseAvatarColor`, `initials` (first grapheme
+  of the first and last word via `Intl.Segmenter`, punctuation-only words skipped,
+  locale-aware upper-casing: "Anton Schmidt" → "AS", "🦊 Fox" → "🦊F"), `greetingPart`
+  (5–11 morning, 12–17 afternoon, 18–22 evening, 23–4 night). Errors are `ErrorCode`s
+  (`profileNameTooLong`, `profileColorInvalid`).
+- **Avatar** (`components/Avatar.svelte`, sizes `sm`/`md`/`lg` from the `--avatar-*` tokens):
+  initials on a circle tinted by `questColorVar(color)`; without a name a neutral lucide
+  `User` icon. Decorative (`aria-hidden`) — the control around it carries the name. In the
+  styleguide.
+- **Nav / account menu**: the avatar is the trigger (label "Account and devices (Anton
+  Schmidt)"); the menu head shows the name and "This device: <device>" below it, without a
+  name the previous "Signed in as <device>". New first item **Edit profile** →
+  `/settings#profile`.
+- **Settings → Profile** (first section, anchor `#profile`): name field + colour swatches
+  (`components/ColorSwatches.svelte`, extracted from the quest form and shared) with a live
+  avatar preview; form action `?/profile` (`use:enhance`, validated on the server, errors
+  translated, rejected input echoed). Saving refreshes the layout data, so the nav avatar
+  updates at once; a no-JS submit also sets `locals.profile` so its response renders the
+  new avatar. Blank name = no name. The name field has no `maxlength` (UTF-16 units would
+  disagree with the code-point limit); the hint states the limit.
+- **Home greeting**: "Good morning, Anton Schmidt" / „Guten Morgen, Anton Schmidt“ above the
+  date; without a name just "Good morning". The part of the day comes from the server clock
+  and `TZ` (`greetingPart`, like "today"). The full display name is used (no first-name
+  guessing). German uses the name only as a vocative („…, Anton“); afternoon is „Hallo“,
+  night "Still up?" / „Noch wach?“.
+- **Pairing**: `/setup` shows an optional **Your name** field for the first device only
+  (no active devices). The server stores it only while no name is set
+  (`setDisplayNameIfUnset`, `ON CONFLICT … WHERE display_name IS NULL`) — a public form
+  never overwrites a name, and the public pages never render it (the field is never
+  prefilled).
+- **Welcome**: a successful `/setup` or `/pair` form sets a short-lived httpOnly cookie
+  `libe_welcome`; the root layout's `load` consumes it (read + delete) on the first
+  authenticated page — whatever `next` the pairing redirects to — and the `(app)` layout
+  shows "Welcome, Anton — this device is now paired." until dismissed or the next
+  navigation. The Tauri shell (`/api/pair` + `/pair/session`) gets no welcome:
+  `/pair/session` also runs on every app start, so it can't tell a fresh pairing apart.
+- **Command palette**: an always-present **Edit profile** action (after the timer actions)
+  → `/settings#profile`.
+- e2e: `e2e/specs/profile.spec.ts` — name + colour saved through the palette's "Edit profile"
+  → DB row, nav avatar without and after a reload, account menu, Home greeting (`@mobile`);
+  40 chars pass / 41 rejected / whitespace-only clears; first `/setup` with "Your name" sets
+  the profile and welcomes once; `/setup` never overwrites a name nor shows it. The profile is
+  reset (no name, amber) around every test. Checked against reintroduced bugs (overwrite
+  from `/setup`, welcome cookie not consumed).
+- **Planned**: Phase 2 — emoji avatar (alternative to initials), daily-goal progress ring
+  around the avatar, the name in Focus/Review texts. Phase 3 — streaks.

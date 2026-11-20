@@ -26,6 +26,7 @@ import { doneLast } from '#lib/ordering.ts';
 import { addDays, todayISO, formatDayLabel, minuteOfDay } from '#lib/dates.ts';
 import { parseClock, validateBlockSpan, type BlockFormResult } from '#lib/timeline.ts';
 import { i18n, intlLocale } from '#lib/i18n/index.ts';
+import { greetingPart } from '#lib/profile.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load = (async ({ url, locals }) => {
@@ -71,6 +72,8 @@ export const load = (async ({ url, locals }) => {
 		day,
 		/** Server's minutes-of-day for the timeline "now" line (client refreshes it). */
 		now: minuteOfDay(),
+		/** Part of the day for the greeting — server clock and `TZ`, like "today". */
+		greeting: greetingPart(Math.floor(minuteOfDay() / 60)),
 		todayMin: Math.round(time.todayH * 60),
 		weekMin: Math.round(time.weekH * 60),
 		weekBudgetMin,

@@ -69,6 +69,20 @@
 				<span class="label">{t.auth.deviceName}</span>
 				<input name="name" bind:value={name} maxlength="60" autocomplete="off" required />
 			</label>
+			{#if !data.hasDevices}
+				<!-- First device only. Never prefilled: this public page must not reveal a stored
+				     name, and the server only uses it while no name is set. -->
+				<label class="field">
+					<span class="label">{t.auth.setup.yourName}</span>
+					<input
+						name="displayName"
+						value={form?.displayName ?? ''}
+						autocomplete="name"
+						aria-describedby="setup-name-hint"
+					/>
+					<span class="hint" id="setup-name-hint">{t.auth.setup.yourNameHint}</span>
+				</label>
+			{/if}
 			{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
 			<div class="submit">
 				<Button variant="primary" type="submit" disabled={busy}>

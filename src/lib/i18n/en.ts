@@ -5,6 +5,7 @@
  */
 import { DEVICE_MODEL_NAMES, DEVICE_NAME_MAX } from '#lib/auth.ts';
 import { MANUAL_LOG_MAX_AGE_DAYS } from '#lib/manual-log.ts';
+import { DISPLAY_NAME_MAX } from '#lib/profile.ts';
 import { QUEST_BUDGET_MAX_H, QUEST_DESC_MAX, QUEST_NAME_MAX } from '#lib/quest-form.ts';
 import { TASK_DURATION_MAX_MIN, TASK_TITLE_MAX } from '#lib/task-form.ts';
 import { MAX_TIMER_MIN, POMODORO_LIMITS } from '#lib/timer.ts';
@@ -62,8 +63,11 @@ export const en = {
 			`Timer ${display} (${state}): ${title} — open focus`,
 		search: 'Search or jump…',
 		account: 'Account and devices',
+		accountOf: (name: string) => `Account and devices (${name})`,
 		signedInAs: 'Signed in as',
 		thisDevice: 'This device',
+		thisDeviceIs: (device: string) => `This device: ${device}`,
+		editProfile: 'Edit profile',
 		settings: 'Settings',
 		pairNewDevice: 'Pair new device',
 		signOut: 'Sign out this device'
@@ -80,6 +84,7 @@ export const en = {
 		pauseTimer: 'Pause timer',
 		resumeTimer: 'Resume timer',
 		stopTimer: 'Stop timer',
+		editProfile: 'Edit profile',
 		searching: 'Searching…',
 		noResults: 'No results',
 		failed: 'Search failed — try again.',
@@ -122,6 +127,13 @@ export const en = {
 		backlogEmpty: 'Nothing waiting in the backlog.'
 	},
 	home: {
+		/** Greeting above the date (hour from the server's `TZ`); `name` = display name or null. */
+		greeting: {
+			morning: (name: string | null) => (name ? `Good morning, ${name}` : 'Good morning'),
+			afternoon: (name: string | null) => (name ? `Good afternoon, ${name}` : 'Good afternoon'),
+			evening: (name: string | null) => (name ? `Good evening, ${name}` : 'Good evening'),
+			night: (name: string | null) => (name ? `Still up, ${name}?` : 'Still up?')
+		},
 		today: 'today',
 		thisWeek: (hours: string) => `${hours} this week`,
 		budgetBar: "Share of this week's quest budget used",
@@ -362,7 +374,15 @@ export const en = {
 	},
 	settings: {
 		title: 'Settings',
-		subtitle: 'Paired devices, focus timer and language.',
+		subtitle: 'Profile, paired devices, focus timer and language.',
+		profile: 'Profile',
+		profileDesc: 'Your name and avatar colour — the same on all your devices.',
+		displayName: 'Name',
+		displayNamePlaceholder: 'Your name',
+		displayNameHint: `Optional, up to ${DISPLAY_NAME_MAX} characters. Leave it empty for no name.`,
+		avatarColour: 'Avatar colour',
+		saveProfile: 'Save profile',
+		profileSaved: 'Profile saved.',
 		devices: 'Devices',
 		devicesDesc:
 			'Every browser, home-screen app and desktop app that can open libe. Revoke one to sign it out everywhere at once.',
@@ -479,6 +499,8 @@ export const en = {
 			secret: 'Setup secret',
 			secretHintHtml: 'The value of <code>LIBE_SETUP_SECRET</code> on the server.',
 			submit: 'Pair this device',
+			yourName: 'Your name',
+			yourNameHint: 'Optional — shown in libe. You can change it later in Settings.',
 			haveDevice: 'Have a paired device nearby?',
 			withCode: 'Pair with a code instead'
 		},
@@ -508,6 +530,14 @@ export const en = {
 			unreachable: 'Could not reach the server.',
 			pairAgain: 'Pair this device'
 		}
+	},
+	/** One-time notice on the first page after pairing a device. */
+	welcome: {
+		paired: (name: string | null) =>
+			name
+				? `Welcome, ${name} — this device is now paired.`
+				: 'Welcome — this device is now paired.',
+		dismiss: 'Dismiss'
 	},
 	offline: {
 		pageTitle: 'Offline · libe',
@@ -602,7 +632,9 @@ export const en = {
 			'Too many wrong attempts for this code. Generate a new one on your other device.',
 		pairCodeWrong: 'Wrong code. Check the code on your other device and try again.',
 		// settings
-		languageInvalid: 'Pick one of the languages.'
+		languageInvalid: 'Pick one of the languages.',
+		profileNameTooLong: `Keep the name to at most ${DISPLAY_NAME_MAX} characters.`,
+		profileColorInvalid: 'Pick one of the colours.'
 	}
 };
 

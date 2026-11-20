@@ -10,7 +10,7 @@ import {
 } from '#lib/auth.ts';
 import { clearDeviceCookie, setDeviceCookie } from '#lib/server/auth.ts';
 import { authenticate, countActiveDevices } from '#lib/server/devices.ts';
-import { getLanguageSetting } from '#lib/server/settings.ts';
+import { getRequestSettings } from '#lib/server/settings.ts';
 import { i18n, negotiateLocale, resolveLocale } from '#lib/i18n/index.ts';
 
 /**
@@ -23,6 +23,9 @@ import { i18n, negotiateLocale, resolveLocale } from '#lib/i18n/index.ts';
  * UI language (`locals.locale`, `<html lang>`): a paired device gets the `settings.language`
  * choice (`auto` → `Accept-Language`); requests without a device (pairing pages, public
  * assets) negotiate from `Accept-Language` only.
+ *
+ * Profile (`locals.profile`): read in the same query as the language, for paired devices
+ * only — public pages never see the owner's name.
  */
 export const handle: Handle = async ({ event, resolve }) => {
 	const { url, cookies, request } = event;
@@ -43,9 +46,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const acceptLanguage = request.headers.get('accept-language');
-	event.locals.locale = event.locals.device
-		? resolveLocale(await getLanguageSetting(), acceptLanguage)
-		: negotiateLocale(acceptLanguage);
+	event.locals.profile = null;
+	if (event.locals.device) {
+		const { language, profile } = await getRequestSettings();
+		event.locals.locale = resolveLocale(language, acceptLanguage);
+		event.locals.profile = profile;
+	} else {
+		event.locals.locale = negotiateLocale(acceptLanguage);
+	}
 
 	const rawPathname = new URL(request.url).pathname;
 	if (!event.locals.device && !isPublicRequest(url.pathname, rawPathname)) {

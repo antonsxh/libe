@@ -10,9 +10,11 @@
 		Search,
 		Settings,
 		SquareKanban,
-		Timer
+		Timer,
+		UserRound
 	} from '@lucide/svelte';
 	import { NAV_ITEMS, isActive } from '#lib/nav.ts';
+	import Avatar from './Avatar.svelte';
 	import Logo from './Logo.svelte';
 	import Menu from './Menu.svelte';
 	import CommandPalette from './palette/CommandPalette.svelte';
@@ -20,6 +22,7 @@
 	import { timerLabelText } from '#lib/timer.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import { isApplePlatform } from '#lib/palette.ts';
+	import { PROFILE_HREF } from '#lib/profile.ts';
 
 	const timer = useTimer();
 	const t = useI18n();
@@ -36,6 +39,8 @@
 	} as Record<string, typeof House>;
 
 	const deviceName = $derived(page.data.device?.name ?? t.nav.thisDevice);
+	const profile = $derived(page.data.profile ?? null);
+	const displayName = $derived(profile?.displayName ?? null);
 
 	/** ⌘ vs Ctrl: decided after mount — SSR can't know, and hydration must not keep its guess. */
 	let isMac = $state(false);
@@ -107,13 +112,27 @@
 			trigger={searchButton}
 			apple={isMac}
 		/>
-		<Menu label={t.nav.account}>
-			{#snippet trigger()}<span class="avatar" aria-hidden="true">L</span>{/snippet}
+		<Menu label={displayName ? t.nav.accountOf(displayName) : t.nav.account}>
+			{#snippet trigger()}<Avatar name={displayName} color={profile?.avatarColor} />{/snippet}
 			{#snippet children(close)}
-				<p class="menu-head">
-					<span class="muted">{t.nav.signedInAs}</span>
-					<span class="device-name">{deviceName}</span>
-				</p>
+				<div class="menu-head">
+					{#if displayName}
+						<Avatar name={displayName} color={profile?.avatarColor} size="sm" />
+						<p class="who">
+							<span class="person">{displayName}</span>
+							<span class="muted device">{t.nav.thisDeviceIs(deviceName)}</span>
+						</p>
+					{:else}
+						<p class="who">
+							<span class="muted">{t.nav.signedInAs}</span>
+							<span class="person">{deviceName}</span>
+						</p>
+					{/if}
+				</div>
+				<a class="item" role="menuitem" href={PROFILE_HREF} onclick={close}>
+					<UserRound size={14} />
+					{t.nav.editProfile}
+				</a>
 				<a class="item" role="menuitem" href="/settings" onclick={close}>
 					<Settings size={14} />
 					{t.nav.settings}
@@ -283,18 +302,6 @@
 		padding: 1px 6px;
 	}
 
-	.avatar {
-		display: grid;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		background: var(--surface-2);
-		border: 1px solid var(--border-strong);
-		font-weight: var(--fw-semibold);
-		font-size: var(--fs-sm);
-		transition: border-color var(--dur) var(--ease);
-	}
 	.right :global(.trigger-custom:hover .avatar),
 	.right :global(.trigger-custom[aria-expanded='true'] .avatar) {
 		border-color: var(--text-faint);
@@ -305,18 +312,26 @@
 
 	/* Account menu */
 	.menu-head {
-		display: grid;
-		gap: 2px;
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
 		padding: var(--space-2) var(--space-3) var(--space-3);
 		margin-bottom: var(--space-1);
 		border-bottom: 1px solid var(--border);
 		font-size: var(--fs-xs);
 	}
-	.device-name {
+	.who {
+		display: grid;
+		gap: 2px;
+		min-width: 0;
+	}
+	.who > span {
 		max-width: 220px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.person {
 		color: var(--text);
 		font-size: var(--fs-sm);
 		font-weight: var(--fw-medium);

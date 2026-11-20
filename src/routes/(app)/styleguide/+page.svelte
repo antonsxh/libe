@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Check, Filter, Pause, Play, Plus } from '@lucide/svelte';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import Button from '#lib/components/Button.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
@@ -83,6 +84,22 @@
 		<Button icon aria-label="Filter"><Filter size={16} /></Button>
 		<Button size="sm">Today</Button>
 		<Button disabled>Disabled</Button>
+	</div>
+</section>
+
+<section>
+	<h2 class="label">Avatar</h2>
+	<div class="row">
+		<Avatar name={null} size="sm" />
+		<Avatar name={null} />
+		<Avatar name={null} size="lg" />
+		<Avatar name="Anton Schmidt" color="amber" size="sm" />
+		<Avatar name="Anton Schmidt" color="amber" />
+		<Avatar name="Anton Schmidt" color="amber" size="lg" />
+		<Avatar name="ölaf" color="teal" />
+		<Avatar name="🦊 Fox" color="purple" />
+		<Avatar name="Mia Lee" color="pink" />
+		<Avatar name="Sam" color="slate" />
 	</div>
 </section>
 
