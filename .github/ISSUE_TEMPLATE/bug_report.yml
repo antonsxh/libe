@@ -1,0 +1,93 @@
+name: Bug report
+description: Something in libe doesn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please search the
+        [existing issues](https://github.com/antonsxh/libe/issues?q=is%3Aissue) first.
+
+        **Don't paste secrets** (`LIBE_SETUP_SECRET`, device tokens, pairing codes, your server's
+        address if you'd rather keep it private).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug. What did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shorter, the better.
+      placeholder: |
+        1. Open Plan
+        2. Drag a task from Monday to Tuesday
+        3. Reload the page
+        4. The task is back on Monday
+    validations:
+      required: true
+
+  - type: dropdown
+    id: client
+    attributes:
+      label: Where does it happen?
+      multiple: true
+      options:
+        - Web browser (desktop)
+        - Web browser (phone / tablet)
+        - iPhone / iPad home-screen app (PWA)
+        - Desktop app — macOS
+        - Desktop app — Windows
+        - Desktop app — Linux
+        - Server / Docker / self-hosting
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: libe version
+      description: >-
+        The Docker image tag or version (e.g. `stable`, `0.2.0`, `0.2.1-nightly.20261119.12`), or
+        the commit if you built it yourself. The desktop app shows the server version under
+        Settings → Desktop app.
+      placeholder: 0.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser / OS
+      description: Browser and OS with versions, if relevant.
+      placeholder: Safari 19 on iOS 19.1, Firefox 145 on Ubuntu 26.04, …
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: UI language
+      options:
+        - English
+        - German (Deutsch)
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, screenshots, console errors
+      description: >-
+        Browser console errors, server logs (`docker compose logs app`), or screenshots. Logs are
+        formatted as code automatically.
+      render: shell
+
+  - type: textarea
+    id: setup
+    attributes:
+      label: Deployment details
+      description: >-
+        Only if it might matter: reverse proxy (Caddy overlay, nginx, …), `TZ`, `ORIGIN`, anything
+        non-default.
