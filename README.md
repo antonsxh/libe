@@ -79,4 +79,5 @@ bun run db:migrate
 bun run dev                       # → open /setup, enter the secret
 ```
 
-See [AGENTS.md](AGENTS.md) for conventions and [docs/ROADMAP.md](docs/ROADMAP.md) for the plan.
+See [AGENTS.md](AGENTS.md) for conventions, [docs/ROADMAP.md](docs/ROADMAP.md) for the plan and
+[CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute — issues and pull requests are welcome.

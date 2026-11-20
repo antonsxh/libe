@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup and self-hosting guide
+    url: https://github.com/antonsxh/libe#readme
+    about: Docker, HTTPS, pairing devices, iPhone/iPad and the desktop app.
+  - name: Contributing guide
+    url: https://github.com/antonsxh/libe/blob/main/CONTRIBUTING.md
+    about: Development setup, conventions and how pull requests work.

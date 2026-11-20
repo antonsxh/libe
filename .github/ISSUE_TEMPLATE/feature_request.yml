@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest an idea or an improvement for libe.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Please search the
+        [existing issues](https://github.com/antonsxh/libe/issues?q=is%3Aissue) first — maybe
+        someone already suggested it and you can add your use case there.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: >-
+        Describe the situation where libe falls short today. "When I plan my week, I can't …"
+        helps more than a feature name.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How do you imagine it working? Sketches and screenshots are welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Workarounds you use today, or how other apps handle this.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Home / Today
+        - Plan
+        - Quests
+        - Focus / timer / pomodoro
+        - Calendar
+        - Review / stats / streaks
+        - Settings / profile
+        - Command palette
+        - Desktop app
+        - iPhone / iPad (PWA)
+        - Self-hosting / Docker
+        - Other
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to work on this myself (see [CONTRIBUTING.md](https://github.com/antonsxh/libe/blob/main/CONTRIBUTING.md)).
