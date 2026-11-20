@@ -98,6 +98,9 @@ test('Home shows the current streak (pending today), menu and Review the longest
 	await expect(streakBox(page)).toHaveAttribute('data-state', 'pending');
 	await expect(chip(page)).toHaveText('3-day streak');
 	await expect(page.getByTestId('streak-hint')).toHaveText(/^Log .+ more today to keep it$/);
+	// In the two-column layout Home scrolls the day timeline's now line into view on load,
+	// which moves the header off screen in the evening. The chip must fit the first screen.
+	await page.evaluate(() => window.scrollTo(0, 0));
 	await expect(chip(page)).toBeInViewport();
 	await expectNoHorizontalScroll(page);
 
