@@ -45,6 +45,13 @@
 		goalChoice,
 		splitMinutes
 	} from '#lib/daily-goal.ts';
+	import {
+		STREAK_ANCHOR,
+		STREAK_FALLBACK_MIN,
+		restWeekdays,
+		streakThreshold
+	} from '#lib/streak.ts';
+	import { addDays, formatDayLabel } from '#lib/dates.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -156,6 +163,47 @@
 			// Reloads the layout data → the nav avatar ring follows at once.
 			await update({ reset: false });
 			goalSaved = result.type === 'success';
+		};
+	};
+
+	/* ── Streak ───────────────────────────────────────────────────────────── */
+	/** A Monday — weekday names come from `Intl` (Monday first, like the app's weeks). */
+	const REF_MONDAY = '2024-01-01';
+	const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+	const weekdayName = (i: number, weekday: 'short' | 'long') =>
+		formatDayLabel(addDays(REF_MONDAY, i), { weekday }, t.intl);
+	const streakForm = $derived(
+		form?.intent === 'streak' && 'error' in form && form.values
+			? { error: form.error, values: form.values }
+			: null
+	);
+	const threshold = $derived(
+		data.streak
+			? { min: data.streak.threshold, fromGoal: data.streak.fromGoal }
+			: streakThreshold(storedGoal)
+	);
+	const streakRule = $derived(
+		threshold.fromGoal
+			? t.settings.streakRuleGoal(goalDuration(threshold.min))
+			: t.settings.streakRuleFallback(goalDuration(STREAK_FALLBACK_MIN))
+	);
+	// Follow the stored rest days (or the rejected input); toggling overrides locally.
+	let restDays = $derived<number[]>(
+		streakForm
+			? streakForm.values.map(Number).filter((i) => Number.isInteger(i))
+			: restWeekdays(data.streak?.restMask ?? 0)
+	);
+	let restSaved = $state(false);
+	function toggleRest(i: number, on: boolean) {
+		restDays = on ? [...restDays.filter((d) => d !== i), i] : restDays.filter((d) => d !== i);
+		restSaved = false;
+	}
+	const onStreak: SubmitFunction = () => {
+		restSaved = false;
+		return async ({ result, update }) => {
+			// Reloads the layout data → Home, the account menu and Review recount at once.
+			await update({ reset: false });
+			restSaved = result.type === 'success';
 		};
 	};
 
@@ -392,6 +440,48 @@
 			<div class="profile-actions">
 				<Button variant="primary" type="submit">{t.settings.saveGoal}</Button>
 				<span class="saved muted" role="status">{goalSaved ? t.settings.goalSaved : ''}</span>
+			</div>
+		</form>
+	</section>
+
+	<section class="card section" id={STREAK_ANCHOR} aria-labelledby="streak-title">
+		<div class="section-head">
+			<div>
+				<h2 id="streak-title" class="label">{t.settings.streak}</h2>
+				<p class="muted desc" data-testid="streak-rule">{streakRule}</p>
+				<p class="muted desc">{t.settings.streakRuleHistory}</p>
+			</div>
+		</div>
+		<form class="goal" method="POST" action="?/streak" use:enhance={onStreak}>
+			<fieldset class="rest" aria-describedby="rest-hint">
+				<legend class="field-label">{t.settings.restDays}</legend>
+				<div class="weekdays">
+					{#each WEEKDAYS as i (i)}
+						{@const on = restDays.includes(i)}
+						<label class="weekday" class:on title={weekdayName(i, 'long')}>
+							<input
+								type="checkbox"
+								name="restDay"
+								value={String(i)}
+								checked={on}
+								aria-label={weekdayName(i, 'long')}
+								onchange={(e) => toggleRest(i, e.currentTarget.checked)}
+							/>
+							<span aria-hidden="true">{weekdayName(i, 'short')}</span>
+						</label>
+					{/each}
+				</div>
+			</fieldset>
+			{#if streakForm}
+				<p class="error" role="alert" id="rest-hint">{streakForm.error}</p>
+			{:else}
+				<p class="hint muted" id="rest-hint">{t.settings.restDaysHint}</p>
+			{/if}
+			<div class="profile-actions">
+				<Button variant="primary" type="submit">{t.settings.saveRestDays}</Button>
+				<span class="saved muted" role="status">
+					{restSaved ? t.settings.restDaysSaved : ''}
+				</span>
 			</div>
 		</form>
 	</section>
@@ -764,6 +854,71 @@
 		flex-wrap: wrap;
 		align-items: end;
 		gap: var(--space-4);
+	}
+	.rest {
+		display: grid;
+		gap: var(--space-2);
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		border: none;
+	}
+	.rest legend {
+		padding: 0;
+		margin-bottom: var(--space-2);
+	}
+	/* Seven equal toggles in one row, down to phone width (≥ 44 px tall on touch). */
+	.weekdays {
+		display: grid;
+		grid-template-columns: repeat(7, minmax(0, 56px));
+		gap: var(--space-2);
+	}
+	.weekday {
+		position: relative;
+		display: grid;
+		place-items: center;
+		min-width: 0;
+		height: 36px;
+		padding: 0 var(--space-1);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		background: var(--bg);
+		color: var(--text-muted);
+		font-size: var(--fs-sm);
+		cursor: pointer;
+		user-select: none;
+		transition:
+			color var(--dur) var(--ease),
+			border-color var(--dur) var(--ease),
+			background var(--dur) var(--ease);
+	}
+	.weekday:hover {
+		border-color: var(--border-strong);
+		color: var(--text);
+	}
+	.weekday.on {
+		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+		background: var(--accent-soft);
+		color: var(--accent);
+		font-weight: var(--fw-medium);
+	}
+	.weekday:has(:focus-visible) {
+		box-shadow: var(--ring);
+	}
+	.weekday input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+	@media (pointer: coarse) {
+		.weekday {
+			height: var(--hit-min);
+		}
+	}
+	@media (max-width: 600px) {
+		.weekdays {
+			gap: var(--space-1);
+		}
 	}
 	.field .goal-hours {
 		width: 96px;

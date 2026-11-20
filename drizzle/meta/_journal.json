@@ -43,6 +43,13 @@
       "when": 1795167916863,
       "tag": "0005_profile_extras",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795170554906,
+      "tag": "0006_streak_rest_days",
+      "breakpoints": true
     }
   ]
 }

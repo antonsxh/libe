@@ -11,6 +11,7 @@
 	import BacklogList from '#lib/components/home/BacklogList.svelte';
 	import DayTimeline from '#lib/components/home/DayTimeline.svelte';
 	import BlockDialog from '#lib/components/home/BlockDialog.svelte';
+	import StreakStatus from '#lib/components/home/StreakStatus.svelte';
 	import { groupEdges } from '#lib/ordering.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
@@ -18,6 +19,7 @@
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { liveLoggedMin, runningSpan } from '#lib/daily-goal.ts';
+	import { pageStreak } from '#lib/streak.ts';
 
 	let { data, form } = $props();
 	const t = useI18n();
@@ -33,6 +35,18 @@
 					liveLoggedMin(data.todayLog, runningSpan(timer.timer, timer.view), timer.serverNow)
 				)
 			: 0
+	);
+
+	/** The streak with today's live minutes — flips `pending → active` while a session runs. */
+	const streak = $derived(
+		data.streak && data.todayLog
+			? pageStreak(
+					data.streak,
+					data.todayLog,
+					runningSpan(timer.timer, timer.view),
+					timer.serverNow
+				)
+			: null
 	);
 
 	/** The open "Time-block" dialog target (null = closed). */
@@ -98,6 +112,9 @@
 <PageHeader title={data.title}>
 	{#snippet actions()}
 		<div class="day-stats">
+			{#if streak}
+				<StreakStatus {streak} name={data.profile?.displayName ?? null} />
+			{/if}
 			<p class="today tabular">
 				<strong>{formatHours(todayMin / 60, t.intl)}</strong>
 				<span>
@@ -213,9 +230,20 @@
 	}
 	.day-stats {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: var(--space-4);
+		gap: var(--space-3) var(--space-6);
 		padding-bottom: var(--space-1);
+	}
+	/* Phones: the streak gets its own row below today / this week. */
+	@media (max-width: 720px) {
+		.day-stats {
+			column-gap: var(--space-4);
+		}
+		.day-stats > :global(.streak) {
+			order: 1;
+			flex-basis: 100%;
+		}
 	}
 	.today {
 		color: var(--text-muted);

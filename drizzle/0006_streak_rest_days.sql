@@ -1,0 +1,2 @@
+ALTER TABLE "settings" ADD COLUMN "streak_rest_days" smallint DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "settings" ADD CONSTRAINT "settings_streak_rest_days_chk" CHECK ("settings"."streak_rest_days" BETWEEN 0 AND 126);

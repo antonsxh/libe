@@ -8,6 +8,7 @@ import { DEVICE_NAME_MAX } from '#lib/auth.ts';
 import { MANUAL_LOG_MAX_AGE_DAYS } from '#lib/manual-log.ts';
 import { DISPLAY_NAME_MAX } from '#lib/profile.ts';
 import { DAILY_GOAL_MAX, DAILY_GOAL_MIN, DAILY_GOAL_STEP } from '#lib/daily-goal.ts';
+import { MAX_REST_DAYS } from '#lib/streak.ts';
 import { QUEST_BUDGET_MAX_H, QUEST_DESC_MAX, QUEST_NAME_MAX } from '#lib/quest-form.ts';
 import { TASK_DURATION_MAX_MIN, TASK_TITLE_MAX } from '#lib/task-form.ts';
 import { MAX_TIMER_MIN, POMODORO_LIMITS } from '#lib/timer.ts';
@@ -400,7 +401,7 @@ export const de: Messages = {
 	},
 	settings: {
 		title: 'Einstellungen',
-		subtitle: 'Profil, Tagesziel, gekoppelte Geräte, Fokus-Timer und Sprache.',
+		subtitle: 'Profil, Tagesziel, Serie, gekoppelte Geräte, Fokus-Timer und Sprache.',
 		profile: 'Profil',
 		profileDesc: 'Dein Name und dein Avatar – auf all deinen Geräten gleich.',
 		displayName: 'Name',
@@ -424,6 +425,18 @@ export const de: Messages = {
 		goalHint: `Von ${duration(0, DAILY_GOAL_MIN)} bis ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-Minuten-Schritten.`,
 		saveGoal: 'Ziel speichern',
 		goalSaved: 'Tagesziel gespeichert.',
+		streak: 'Serie',
+		streakRuleGoal: (threshold) =>
+			`Ein Tag zählt für deine Serie, sobald du dein Tagesziel (${threshold}) erreichst.`,
+		streakRuleFallback: (threshold) =>
+			`Ein Tag zählt für deine Serie, sobald du mindestens ${threshold} erfasst – oder dein Tagesziel, sobald du eins festlegst.`,
+		streakRuleHistory:
+			'Vergangene Tage werden mit dem aktuellen Ziel bewertet – änderst du es, wird deine Serie neu gezählt.',
+		restDays: 'Ruhetage',
+		restDaysHint: `Ruhetage unterbrechen keine Serie: Ohne genug Zeit werden sie übersprungen, mit genug Zeit zählen sie trotzdem. Höchstens ${MAX_REST_DAYS} pro Woche.`,
+		restDayToggle: (weekday) => `${weekday} ist ein Ruhetag`,
+		saveRestDays: 'Ruhetage speichern',
+		restDaysSaved: 'Ruhetage gespeichert.',
 		saveProfile: 'Profil speichern',
 		profileSaved: 'Profil gespeichert.',
 		devices: 'Geräte',
@@ -688,10 +701,30 @@ export const de: Messages = {
 		profileNameTooLong: `Der Name darf höchstens ${DISPLAY_NAME_MAX} Zeichen lang sein.`,
 		profileColorInvalid: 'Wähle eine der Farben.',
 		profileEmojiInvalid: 'Verwende genau ein Emoji.',
-		dailyGoalInvalid: `Wähle ein Ziel von ${duration(0, DAILY_GOAL_MIN)} bis ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-Minuten-Schritten.`
+		dailyGoalInvalid: `Wähle ein Ziel von ${duration(0, DAILY_GOAL_MIN)} bis ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-Minuten-Schritten.`,
+		streakRestDayInvalid: 'Wähle Ruhetage von Montag bis Sonntag.',
+		streakRestDaysTooMany: `Wähle höchstens ${MAX_REST_DAYS} Ruhetage – mindestens ein Tag pro Woche muss zählen.`
 	},
 	goal: {
 		duration,
 		progress: (logged, goal) => `${logged} von ${goal} heute`
+	},
+	streak: {
+		count: (n) => `${n} ${plural(n, 'Tag', 'Tage')} in Folge`,
+		todayDone: 'heute geschafft',
+		pending: (remaining) => `Noch ${remaining} heute, damit deine Serie hält`,
+		startHint: (remaining) => `Erfasse heute ${remaining} für eine neue Serie`,
+		rest: 'Ruhetag – deine Serie ist sicher',
+		milestone: (n, name) => `${n} Tage in Folge – stark${name ? `, ${name}` : ''}!`,
+		none: 'Noch keine Serie',
+		longestShort: (n) => `Längste: ${n} ${plural(n, 'Tag', 'Tage')}`,
+		longest: (n) => `Längste Serie: ${n} ${plural(n, 'Tag', 'Tage')}`,
+		marks: {
+			done: 'Serientag',
+			rest: 'Ruhetag',
+			missed: 'verpasst',
+			today: 'zählt noch nicht',
+			future: 'kommt noch'
+		}
 	}
 };

@@ -7,6 +7,7 @@ import { DEVICE_MODEL_NAMES, DEVICE_NAME_MAX } from '#lib/auth.ts';
 import { MANUAL_LOG_MAX_AGE_DAYS } from '#lib/manual-log.ts';
 import { DISPLAY_NAME_MAX } from '#lib/profile.ts';
 import { DAILY_GOAL_MAX, DAILY_GOAL_MIN, DAILY_GOAL_STEP } from '#lib/daily-goal.ts';
+import { MAX_REST_DAYS } from '#lib/streak.ts';
 import { QUEST_BUDGET_MAX_H, QUEST_DESC_MAX, QUEST_NAME_MAX } from '#lib/quest-form.ts';
 import { TASK_DURATION_MAX_MIN, TASK_TITLE_MAX } from '#lib/task-form.ts';
 import { MAX_TIMER_MIN, POMODORO_LIMITS } from '#lib/timer.ts';
@@ -405,7 +406,7 @@ export const en = {
 	},
 	settings: {
 		title: 'Settings',
-		subtitle: 'Profile, daily goal, paired devices, focus timer and language.',
+		subtitle: 'Profile, daily goal, streak, paired devices, focus timer and language.',
 		profile: 'Profile',
 		profileDesc: 'Your name and avatar — the same on all your devices.',
 		displayName: 'Name',
@@ -429,6 +430,19 @@ export const en = {
 		goalHint: `From ${duration(0, DAILY_GOAL_MIN)} to ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-minute steps.`,
 		saveGoal: 'Save goal',
 		goalSaved: 'Daily goal saved.',
+		streak: 'Streak',
+		/** `threshold`: "1 h" — the daily goal, or the fallback while none is set. */
+		streakRuleGoal: (threshold: string) =>
+			`A day counts toward your streak once you reach your daily goal (${threshold}).`,
+		streakRuleFallback: (threshold: string) =>
+			`A day counts toward your streak once you log at least ${threshold} — or your daily goal, once you set one.`,
+		streakRuleHistory:
+			'Past days are judged with the current goal, so changing it recounts your streak.',
+		restDays: 'Rest days',
+		restDaysHint: `Rest days never break a streak: without enough time they are skipped, with enough time they still count. Up to ${MAX_REST_DAYS} a week.`,
+		restDayToggle: (weekday: string) => `${weekday} is a rest day`,
+		saveRestDays: 'Save rest days',
+		restDaysSaved: 'Rest days saved.',
 		saveProfile: 'Save profile',
 		profileSaved: 'Profile saved.',
 		devices: 'Devices',
@@ -684,13 +698,42 @@ export const en = {
 		profileNameTooLong: `Keep the name to at most ${DISPLAY_NAME_MAX} characters.`,
 		profileColorInvalid: 'Pick one of the colours.',
 		profileEmojiInvalid: 'Use exactly one emoji.',
-		dailyGoalInvalid: `Pick a goal from ${duration(0, DAILY_GOAL_MIN)} to ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-minute steps.`
+		dailyGoalInvalid: `Pick a goal from ${duration(0, DAILY_GOAL_MIN)} to ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-minute steps.`,
+		streakRestDayInvalid: 'Pick rest days from Monday to Sunday.',
+		streakRestDaysTooMany: `Pick at most ${MAX_REST_DAYS} rest days — at least one day a week has to count.`
 	},
 	/** Daily goal (avatar ring, Home, Settings). */
 	goal: {
 		duration,
 		/** Accessible progress of the avatar ring: "2 h 10 min of 4 h today". */
 		progress: (logged: string, goal: string) => `${logged} of ${goal} today`
+	},
+	/** Streaks (Home, account menu, Review, Settings). Durations come from `goal.duration`. */
+	streak: {
+		/** "12-day streak" (chip, account menu). */
+		count: (n: number) => `${n}-day streak`,
+		/** Visually hidden after the chip when today already counts. */
+		todayDone: 'today counts',
+		/** Hint under the chip while today hasn't counted yet (`remaining`: "20 min"). */
+		pending: (remaining: string) => `Log ${remaining} more today to keep it`,
+		startHint: (remaining: string) => `Log ${remaining} today to start one`,
+		rest: 'Rest day — your streak is safe',
+		/** Shown on Home on the day a milestone is reached; name in the vocative only. */
+		milestone: (n: number, name: string | null) =>
+			`${n}-day streak — nice${name ? `, ${name}` : ''}!`,
+		none: 'No streak yet',
+		/** Account menu: "Longest: 20 days". */
+		longestShort: (n: number) => `Longest: ${n} ${plural(n, 'day', 'days')}`,
+		/** Review: "Longest streak: 20 days". */
+		longest: (n: number) => `Longest streak: ${n} ${plural(n, 'day', 'days')}`,
+		/** Review per-day markers (text alternative, appended to the day). */
+		marks: {
+			done: 'streak day',
+			rest: 'rest day',
+			missed: 'missed',
+			today: 'not counted yet',
+			future: 'upcoming'
+		}
 	}
 };
 

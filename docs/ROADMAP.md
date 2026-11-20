@@ -21,8 +21,10 @@ sessions(id, task_id, state running|paused|completed, started_at, duration_min,
 pomodoro_runs(id, task_id, phase focus|short_break|long_break, round, phase_started_at NULL,
               phase_min, ended_at, created_at)                     -- M4, active run = ended_at NULL
 settings(id = 1, pomodoro_focus_min, pomodoro_short_break_min, pomodoro_long_break_min,
-         pomodoro_long_break_every, pomodoro_auto_start, language auto|en|de, updated_at)
-                                                       -- M4, single row; language: 0003_ui_language
+         pomodoro_long_break_every, pomodoro_auto_start, language auto|en|de, display_name,
+         avatar_color, avatar_emoji, daily_goal_min, streak_rest_days, updated_at)
+                                                       -- M4, single row; language: 0003_ui_language;
+                                                       -- profile 0004/0005; rest days 0006
 devices(id, token_hash UNIQUE, name, kind browser|pwa|tauri, user_agent, paired_at, last_seen_at,
         cookie_renewed_at, revoked_at)                                    -- M7 (0002_devices)
 pairing_codes(id, code_hash, expires_at, used_at, attempts, created_by_device_id → devices,
@@ -597,7 +599,7 @@ Fix found by the suite:
 - German copy: informal „du“, glossary Quest, Backlog, Fokus, Planen (nav) / „Woche planen“,
   Rückblick, Kalender, Einstellungen, Heute, Start (Home), Pomodoro, Aufgabe (task), Sitzung
   (session), Zeit erfassen (log time), Zeitblock, koppeln / Kopplungscode (pair), Setup-Secret,
-  Update-Kanal (update track), Sonstiges (other).
+  Update-Kanal (update track), Sonstiges (other), Serie (streak), Ruhetag (rest day).
 - e2e: `e2e/specs/i18n.spec.ts` (setting persists and applies, `auto` per browser locale,
   translated validation errors, German phone layout). The config pins `locale: 'en-US'`;
   the spec resets the setting to `auto` around every test.
@@ -770,7 +772,59 @@ Phase 1 of 3 — replaces the hard-coded "L" avatar with a real profile.
   rejected; Review subtitle and Focus line carry the name. Checked against reintroduced
   bugs (running time not added; layout not refreshed after the timer completes).
 
-### Phase 3 — streaks (planned)
+### Phase 3 — streaks (done)
 
-- Days on which the daily goal was met in a row (reuses `daily_goal_min` and `todayLog`'s
-  definition of a day's logged time).
+- **Rule** (`#lib/streak.ts`, unit-tested): a **streak day** reaches the threshold — the daily
+  goal when one is set, otherwise `STREAK_FALLBACK_MIN` = 25 min. A day's logged minutes have
+  exactly `todayLog()`'s definition: completed sessions attributed to the day of `started_at`
+  in the server TZ, `sessionMinutes` (span − pauses, `duration_min` fallback) —
+  `loggedMinutesByDay` in `stats-core.ts`, next to `dayWeekMinutes`. Decision: every past day
+  is judged with the **current** threshold (no goal history), so changing the goal recounts
+  the whole streak; Settings says so. Comparison `min ≥ threshold` = the goal ring's "done".
+- **Rest days**: `settings.streak_rest_days` (migration `0006_streak_rest_days`), a `smallint`
+  weekday bitmask (bit 0 = Monday … bit 6 = Sunday), default 0; check `0 … 126` (= any set
+  except all seven → at most `MAX_REST_DAYS` = 6, built from `REST_MASK_MAX`). A rest day below
+  the threshold neither breaks nor extends a streak; one that reaches it extends it (+1).
+- **Current / longest**: consecutive streak days ending today or yesterday, rest days in
+  between skipped; today below the threshold doesn't break it yet. States: `active` (today
+  counts), `pending` (alive, today not reached — "at risk" until midnight), `rest` (alive,
+  today is a rest day below the threshold: nothing to do — an addition to the planned three),
+  `none`. Longest = max over all history with the same rules (the current run included).
+  `streakBase` walks only the qualifying days (a gap continues iff every day in it is a rest
+  day; ≥ 7 days always breaks); day math via `#lib/dates.ts` (DST-safe, tested).
+- **Server / live**: `server/streak.ts` → `loadStreakBase(goal, restMask)`: one query over the
+  minimal columns of completed sessions started **before today**, bucketed in TS (SQL grouping
+  would duplicate the duration rule with a different precision). Root layout data `streak`
+  (`StreakBase`: day, threshold, `fromGoal`, rest mask, streak through yesterday, longest
+  before today; null without a device), next to `todayLog`; the layout still re-runs only on
+  `refreshAll`. `getRequestSettings` reads the rest days in the existing per-request query
+  (`locals.streakRestDays`). Clients compose with `pageStreak(base, todayLog, runningSpan,
+serverNow)` → `liveStreak(base, liveLoggedMin(…))`: a running session crossing the
+  threshold flips `pending → active` without a reload. After midnight with stale data the base
+  rolls over a day (`nextStreakBase`).
+- **Milestones**: 7, 30, 100, 365 days, then every further hundred and every full year
+  (`isStreakMilestone`). Shown only while today counts and the current streak _is_ the
+  milestone — i.e. only on the day it is reached ("once" without extra persistence; the next
+  day it reads 7 while pending, then 8).
+- **UI**: Home header — a streak chip (lucide `Flame`, lit when today counts; screen readers
+  get ", today counts") with a hint below: pending "Log 20 min more today to keep it" (live,
+  rounded up), rest "Rest day — your streak is safe", none "No streak yet" / "Log 25 min today
+  to start one"; on the milestone day the chip becomes "7-day streak — nice, Anton!"
+  (`role=status`, vocative only, no name → no name). Below 720 px the streak gets its own row
+  under today / this week. **Account menu** head: "12-day streak · Longest: 20 days".
+  **Review** per-day card: "Longest streak: N days" in its head and a marker row under the
+  weekdays (flame = streak day, moon = rest day, dot = missed, ring = today not yet, outline =
+  upcoming); the day's accessible name ends with the marker ("; rest day"). Markers judge the
+  day's total (quest + other) although the bars show quest hours. **Settings → Streak**
+  (after Daily goal, anchor `#streak`, action `?/streak`): which threshold applies now, the
+  "judged with the current goal" note, seven weekday toggles (`restDay` checkboxes, one row
+  down to phone width, 44 px tall on touch), server validation (`streakRestDayInvalid`,
+  `streakRestDaysTooMany`), rejected input echoed.
+- **German**: „12 Tage in Folge“, Serie (streak), Ruhetag (rest day).
+- e2e (`e2e/specs/streak.spec.ts`): the goal is set to 16 h so only the spec's own 16-hour
+  sessions count; its tasks (sessions cascade), the goal, rest days and timer are reset around
+  every test. History → Home chip/hint, account menu and Review longest (`@mobile`); seven
+  rest days rejected, the gap's weekday saved → DB row, reload, Home "2-day streak", Review
+  marks the rest day; a running timer (shifted in the DB) crosses the goal → `active` and the
+  7-day milestone without reload, still after completing + reload. Checked against
+  reintroduced bugs (rest days ignored; running time not added).

@@ -11,10 +11,12 @@ import {
 	pomodoroSettingsFailure,
 	saveDailyGoal,
 	saveLanguageSetting,
-	saveProfile
+	saveProfile,
+	saveStreakRestDays
 } from '#lib/server/settings.ts';
 import { normalizeDisplayName, parseAvatarColor, parseAvatarEmoji } from '#lib/profile.ts';
 import { parseDailyGoal } from '#lib/daily-goal.ts';
+import { parseRestDays } from '#lib/streak.ts';
 import { i18n, isLanguageSetting } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -122,6 +124,25 @@ export const actions = {
 		await saveDailyGoal(goal.value);
 		locals.dailyGoalMin = goal.value;
 		return { intent: 'goal' as const, saved: true };
+	},
+
+	/**
+	 * Streak rest days (Settings → Streak): the checked `restDay` boxes (`0` = Monday …
+	 * `6` = Sunday), at most six. Rejected input is echoed. `locals.streakRestDays` is updated
+	 * so a no-JS submit renders the new streak.
+	 */
+	streak: async ({ request, locals }) => {
+		const values = (await request.formData()).getAll('restDay').map(String);
+		const parsed = parseRestDays(values);
+		if (!parsed.ok)
+			return fail(400, {
+				intent: 'streak' as const,
+				values,
+				error: i18n(locals.locale).errors[parsed.error]
+			});
+		await saveStreakRestDays(parsed.value);
+		locals.streakRestDays = parsed.value;
+		return { intent: 'streak' as const, saved: true };
 	},
 
 	/** UI language for every device: `auto` (each browser's `Accept-Language`), `en`, `de`. */

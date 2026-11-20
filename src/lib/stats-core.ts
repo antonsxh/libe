@@ -63,6 +63,25 @@ export function dayWeekMinutes(
 	return { todayMin, weekMin };
 }
 
+/**
+ * Logged minutes per day (`YYYY-MM-DD` of `started_at` in `timeZone`) — the same attribution
+ * and duration rule as {@link dayWeekMinutes}, so a day's total equals Home's "today" on that
+ * day. Streaks (`#lib/streak.ts`) are judged on these totals.
+ */
+export function loggedMinutesByDay(
+	rows: Array<LoggedRow & { startedAt: Date }>,
+	timeZone?: string
+): Map<ISODay, number> {
+	const map = new Map<ISODay, number>();
+	for (const row of rows) {
+		const mins = sessionMinutes(row);
+		if (mins <= 0) continue;
+		const day = todayISO(timeZone, row.startedAt);
+		map.set(day, (map.get(day) ?? 0) + mins);
+	}
+	return map;
+}
+
 /** Total logged milliseconds per task id (all completed sessions, any day). */
 export function loggedMsByTask(rows: Array<LoggedRow & { taskId: string }>): Map<string, number> {
 	const map = new Map<string, number>();

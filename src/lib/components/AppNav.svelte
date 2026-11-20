@@ -4,6 +4,7 @@
 		CalendarDays,
 		ChartColumn,
 		Flag,
+		Flame,
 		House,
 		LogOut,
 		QrCode,
@@ -24,6 +25,7 @@
 	import { isApplePlatform } from '#lib/palette.ts';
 	import { PROFILE_HREF } from '#lib/profile.ts';
 	import { goalProgress, liveLoggedMin, runningSpan, splitMinutes } from '#lib/daily-goal.ts';
+	import { pageStreak } from '#lib/streak.ts';
 
 	const timer = useTimer();
 	const t = useI18n();
@@ -54,6 +56,13 @@
 		const logged = liveLoggedMin(log, runningSpan(timer.timer, timer.view), timer.serverNow);
 		return goalProgress(logged, goalMin);
 	});
+	/** Account menu head: current (live, like Home) and longest streak. */
+	const streak = $derived.by(() => {
+		const base = page.data.streak ?? null;
+		const log = page.data.todayLog ?? null;
+		if (!base || !log) return null;
+		return pageStreak(base, log, runningSpan(timer.timer, timer.view), timer.serverNow);
+	});
 	const duration = (min: number) => {
 		const { h, m } = splitMinutes(min);
 		return t.goal.duration(h, m);
@@ -77,6 +86,17 @@
 	let palette = $state<ReturnType<typeof CommandPalette>>();
 	let paletteOpen = $state(false);
 </script>
+
+{#snippet streakLine()}
+	{#if streak}
+		<span class="muted streak tabular" data-testid="menu-streak">
+			<Flame size={12} aria-hidden="true" class={streak.state === 'active' ? 'lit' : ''} />
+			{streak.current > 0 ? t.streak.count(streak.current) : t.streak.none} · {t.streak.longestShort(
+				streak.longest
+			)}
+		</span>
+	{/if}
+{/snippet}
 
 <header class="nav">
 	<a class="brand" href="/" aria-label={t.nav.brandHome}>
@@ -156,11 +176,13 @@
 						<p class="who">
 							<span class="person">{displayName}</span>
 							<span class="muted device">{t.nav.thisDeviceIs(deviceName)}</span>
+							{@render streakLine()}
 						</p>
 					{:else}
 						<p class="who">
 							<span class="muted">{t.nav.signedInAs}</span>
 							<span class="person">{deviceName}</span>
+							{@render streakLine()}
 						</p>
 					{/if}
 				</div>
@@ -365,6 +387,17 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.streak {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+	.streak :global(svg) {
+		flex: none;
+	}
+	.streak :global(svg.lit) {
+		color: var(--accent);
 	}
 	.person {
 		color: var(--text);

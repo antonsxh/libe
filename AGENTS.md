@@ -120,6 +120,12 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   — never count it on the server too. The root layout `load`
   must not read tracked `url` properties (it would re-run on every navigation); it refreshes
   through `refreshAll` (form actions, timer session changes, Log time / calendar edits).
+- **Streaks**: rules live in `#lib/streak.ts` (threshold = daily goal or 25 min fallback, rest
+  days = `settings.streak_rest_days` weekday bitmask, past days judged with the current goal);
+  a day's minutes use the same attribution as `todayLog`/stats (`loggedMinutesByDay`) — never a
+  second rule. The server sends only the streak through yesterday (root layout data `streak`,
+  `server/streak.ts`); pages show `pageStreak(data.streak, data.todayLog, runningSpan(…),
+timer.serverNow)` so today moves live with the timer.
 - Week navigation (‹ range › + "This week", `?week=`) is the shared `WeekNav.svelte`
   (Calendar, Review); extra controls go in its children snippet.
 - `Menu` popovers are `position: fixed` (placed from the trigger rect) so they escape
@@ -135,8 +141,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `timer.view`, `timer.command('pause')`, `timer.start({...})`, `timer.logTarget = task`
   (opens "Log time…"). Code that deletes tasks/sessions behind the timer's back must call
   `broadcastTimer()`.
-- **Logged time by day**: stats (`stats-core.ts`) and the Review (`#lib/review.ts`) attribute a
-  whole session to the day of `started_at`; the Calendar (`#lib/calendar.ts`) draws/totals actual spans, split at midnight.
+- **Logged time by day**: stats (`stats-core.ts`), the Review (`#lib/review.ts`) and streaks
+  (`loggedMinutesByDay`) attribute a whole session to the day of `started_at`; the Calendar (`#lib/calendar.ts`) draws/totals actual spans, split at midnight.
   Calendar edits/logs go through `/api/sessions` (`POST`, `PATCH /[id]`, `DELETE /[id]`), validated
   by `validateSessionSpan` / `validateManualLog` in `#lib/manual-log.ts` — reuse them, don't
   re-implement the rules.
@@ -197,7 +203,7 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n, palette, profile),
+i18n, palette, profile, streak),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 
@@ -234,7 +240,7 @@ failure, HTML report, auth state) go to the ignored `e2e/.output/`.
    "the page loads" belongs only in `pages.spec.ts` (one test per page).
 2. Create your own data with unique names (`uid()`), or read seed data without changing it.
    Never depend on test order or on another test's leftovers (`--repeat-each=2` must pass).
-   Global state (the timer, pomodoro settings, language, profile, daily goal) is reset in `beforeEach`/`afterEach`.
+   Global state (the timer, pomodoro settings, language, profile, daily goal, rest days) is reset in `beforeEach`/`afterEach`.
 3. No fixed sleeps: Playwright's auto-waiting `expect`, `expect.poll` (DB), `actionDone`.
    Shift time in the DB (`started_at - interval '…'`) instead of waiting for it.
 4. Don't re-test pure logic the unit tests cover (`src/**/*.test.ts`) — test its integration.
