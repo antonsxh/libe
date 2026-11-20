@@ -7,7 +7,13 @@ import {
 	parseDeviceName,
 	safeNext
 } from '#lib/auth.ts';
-import { clientKey, pairLimiter, retryMessage, setDeviceCookie } from '#lib/server/auth.ts';
+import {
+	clientKey,
+	pairLimiter,
+	retryMessage,
+	setDeviceCookie,
+	setWelcomeCookie
+} from '#lib/server/auth.ts';
 import { countActiveDevices, pairErrorMessage, pairWithCode } from '#lib/server/devices.ts';
 import { i18n } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
@@ -50,6 +56,7 @@ export const actions = {
 			return fail(400, { ...values, error: pairErrorMessage(result.reason, locals.locale) });
 		}
 		setDeviceCookie(cookies, url, result.token);
+		setWelcomeCookie(cookies, url);
 		redirect(303, safeNext(form.get('next')));
 	}
 } satisfies Actions;

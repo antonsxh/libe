@@ -77,6 +77,9 @@
 	}
 </script>
 
+<p class="greeting">
+	{t.home.greeting[data.greeting](data.profile?.displayName ?? null)}
+</p>
 <PageHeader title={data.title}>
 	{#snippet actions()}
 		<div class="day-stats">
@@ -183,6 +186,11 @@
 {/if}
 
 <style>
+	.greeting {
+		margin-bottom: var(--space-2);
+		color: var(--text-muted);
+		font-size: var(--fs-lg);
+	}
 	.day-stats {
 		display: flex;
 		align-items: center;

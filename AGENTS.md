@@ -104,6 +104,12 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `GET /api/search?q=` (`server/search.ts`, escaped `ILIKE`); pure matching/ranking/targets/↑↓
   logic in `#lib/palette.ts`. New palette actions reuse existing flows (`useTimer()`), never
   local state. Open it synchronously from the tap (iOS keyboard).
+- **Profile** (display name, avatar colour) is global and lives in the single `settings` row;
+  `hooks.server.ts` loads it with the language (`getRequestSettings`) for paired devices only
+  → `locals.profile` → root layout data `profile` (null on public pages — never render the
+  owner's name there). Pure rules in `#lib/profile.ts` (`normalizeDisplayName`, `initials`,
+  `greetingPart`); show people with `Avatar.svelte` (initials or a neutral icon), pick
+  colours with `ColorSwatches.svelte`. Edit link: `PROFILE_HREF` (`/settings#profile`).
 - Week navigation (‹ range › + "This week", `?week=`) is the shared `WeekNav.svelte`
   (Calendar, Review); extra controls go in its children snippet.
 - `Menu` popovers are `position: fixed` (placed from the trigger rect) so they escape
@@ -170,7 +176,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `.muted`, `.tabular`, `.hatch` (diagonal hatching tinted by `--q`), `.sr-only`.
 - Charts are plain divs/SVG (no chart library); sizes come from the `--chart-*` tokens and every
   chart needs a text alternative (aria-label or `.sr-only` text).
-- Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`.
+- Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`,
+  `Avatar`, `ColorSwatches`.
   Look at `/styleguide` in the running app before building new UI.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
   Below 720px the nav is a fixed bottom tab bar (`main` already pads for it).
@@ -180,7 +187,7 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n, palette),
+i18n, palette, profile),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 
@@ -217,7 +224,7 @@ failure, HTML report, auth state) go to the ignored `e2e/.output/`.
    "the page loads" belongs only in `pages.spec.ts` (one test per page).
 2. Create your own data with unique names (`uid()`), or read seed data without changing it.
    Never depend on test order or on another test's leftovers (`--repeat-each=2` must pass).
-   Global state (the timer, pomodoro settings) is reset in `beforeEach`/`afterEach`.
+   Global state (the timer, pomodoro settings, language, profile) is reset in `beforeEach`/`afterEach`.
 3. No fixed sleeps: Playwright's auto-waiting `expect`, `expect.poll` (DB), `actionDone`.
    Shift time in the DB (`started_at - interval '…'`) instead of waiting for it.
 4. Don't re-test pure logic the unit tests cover (`src/**/*.test.ts`) — test its integration.

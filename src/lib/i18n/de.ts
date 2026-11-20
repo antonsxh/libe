@@ -6,6 +6,7 @@
  */
 import { DEVICE_NAME_MAX } from '#lib/auth.ts';
 import { MANUAL_LOG_MAX_AGE_DAYS } from '#lib/manual-log.ts';
+import { DISPLAY_NAME_MAX } from '#lib/profile.ts';
 import { QUEST_BUDGET_MAX_H, QUEST_DESC_MAX, QUEST_NAME_MAX } from '#lib/quest-form.ts';
 import { TASK_DURATION_MAX_MIN, TASK_TITLE_MAX } from '#lib/task-form.ts';
 import { MAX_TIMER_MIN, POMODORO_LIMITS } from '#lib/timer.ts';
@@ -65,8 +66,11 @@ export const de: Messages = {
 		timerChip: (display, state, title) => `Timer ${display} (${state}): ${title} – Fokus öffnen`,
 		search: 'Suchen …',
 		account: 'Konto und Geräte',
+		accountOf: (name) => `Konto und Geräte (${name})`,
 		signedInAs: 'Angemeldet als',
 		thisDevice: 'Dieses Gerät',
+		thisDeviceIs: (device) => `Dieses Gerät: ${device}`,
+		editProfile: 'Profil bearbeiten',
 		settings: 'Einstellungen',
 		pairNewDevice: 'Neues Gerät koppeln',
 		signOut: 'Dieses Gerät abmelden'
@@ -83,6 +87,7 @@ export const de: Messages = {
 		pauseTimer: 'Timer pausieren',
 		resumeTimer: 'Timer fortsetzen',
 		stopTimer: 'Timer stoppen',
+		editProfile: 'Profil bearbeiten',
 		searching: 'Suche läuft …',
 		noResults: 'Keine Treffer',
 		failed: 'Suche fehlgeschlagen – versuch es noch mal.',
@@ -125,6 +130,13 @@ export const de: Messages = {
 		backlogEmpty: 'Im Backlog wartet nichts.'
 	},
 	home: {
+		// Name nur im Vokativ („…, Anton“), nie als Genitiv.
+		greeting: {
+			morning: (name) => (name ? `Guten Morgen, ${name}` : 'Guten Morgen'),
+			afternoon: (name) => (name ? `Hallo, ${name}` : 'Hallo'),
+			evening: (name) => (name ? `Guten Abend, ${name}` : 'Guten Abend'),
+			night: (name) => (name ? `Noch wach, ${name}?` : 'Noch wach?')
+		},
 		today: 'heute',
 		thisWeek: (hours) => `${hours} diese Woche`,
 		budgetBar: 'Genutzter Anteil des Quest-Budgets dieser Woche',
@@ -361,7 +373,15 @@ export const de: Messages = {
 	},
 	settings: {
 		title: 'Einstellungen',
-		subtitle: 'Gekoppelte Geräte, Fokus-Timer und Sprache.',
+		subtitle: 'Profil, gekoppelte Geräte, Fokus-Timer und Sprache.',
+		profile: 'Profil',
+		profileDesc: 'Dein Name und deine Avatarfarbe – auf all deinen Geräten gleich.',
+		displayName: 'Name',
+		displayNamePlaceholder: 'Dein Name',
+		displayNameHint: `Optional, höchstens ${DISPLAY_NAME_MAX} Zeichen. Lass das Feld leer für keinen Namen.`,
+		avatarColour: 'Avatarfarbe',
+		saveProfile: 'Profil speichern',
+		profileSaved: 'Profil gespeichert.',
 		devices: 'Geräte',
 		devicesDesc:
 			'Alle Browser, Home-Bildschirm-Apps und Desktop-Apps, die libe öffnen können. Entferne ein Gerät, um es überall sofort abzumelden.',
@@ -478,6 +498,9 @@ export const de: Messages = {
 			secret: 'Setup-Secret',
 			secretHintHtml: 'Der Wert von <code>LIBE_SETUP_SECRET</code> auf dem Server.',
 			submit: 'Dieses Gerät koppeln',
+			yourName: 'Dein Name',
+			yourNameHint:
+				'Optional – wird in libe angezeigt. Du kannst ihn später in den Einstellungen ändern.',
 			haveDevice: 'Ein gekoppeltes Gerät in der Nähe?',
 			withCode: 'Stattdessen mit einem Code koppeln'
 		},
@@ -507,6 +530,13 @@ export const de: Messages = {
 			unreachable: 'Der Server ist nicht erreichbar.',
 			pairAgain: 'Dieses Gerät koppeln'
 		}
+	},
+	welcome: {
+		paired: (name) =>
+			name
+				? `Willkommen, ${name} – dieses Gerät ist jetzt gekoppelt.`
+				: 'Willkommen – dieses Gerät ist jetzt gekoppelt.',
+		dismiss: 'Schließen'
 	},
 	offline: {
 		pageTitle: 'Offline · libe',
@@ -610,6 +640,8 @@ export const de: Messages = {
 			'Zu viele falsche Versuche für diesen Code. Erzeuge auf deinem anderen Gerät einen neuen.',
 		pairCodeWrong: 'Falscher Code. Prüfe den Code auf deinem anderen Gerät und versuche es erneut.',
 		// Einstellungen
-		languageInvalid: 'Wähle eine der Sprachen.'
+		languageInvalid: 'Wähle eine der Sprachen.',
+		profileNameTooLong: `Der Name darf höchstens ${DISPLAY_NAME_MAX} Zeichen lang sein.`,
+		profileColorInvalid: 'Wähle eine der Farben.'
 	}
 };

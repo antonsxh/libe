@@ -2,6 +2,7 @@
 // for information about these interfaces
 import type { AuthDevice } from '#lib/auth.ts';
 import type { Locale } from '#lib/i18n/index.ts';
+import type { Profile } from '#lib/profile.ts';
 
 declare global {
 	namespace App {
@@ -11,6 +12,8 @@ declare global {
 			device: AuthDevice | null;
 			/** Effective UI language: the `settings.language` row, `auto` → `Accept-Language`. */
 			locale: Locale;
+			/** The owner's profile (`settings` row) — null without a paired device. */
+			profile: Profile | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

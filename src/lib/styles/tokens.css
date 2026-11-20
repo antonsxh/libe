@@ -100,6 +100,9 @@
 	--nav-h: 72px;
 	--nav-h-compact: 60px; /* top bar on phones */
 	--tabbar-h: 56px; /* bottom tab bar on phones (+ safe area) */
+	--avatar-sm: 28px; /* profile avatar (Avatar.svelte) */
+	--avatar-md: 40px; /* nav */
+	--avatar-lg: 64px; /* settings preview */
 
 	/* ── Radii ────────────────────────────────────────────── */
 	--radius-sm: 6px;

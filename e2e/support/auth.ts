@@ -1,10 +1,13 @@
 /** Device pairing for tests: every client of libe must be a paired device. */
 import { COOKIE, SETUP_SECRET } from './env.ts';
 
-/** Pair a new device with the setup secret → its token (= the `libe_device` cookie value). */
+/**
+ * Pair a new device with the setup secret → its token (= the `libe_device` cookie value).
+ * `displayName` = the form's optional "Your name" (fills an empty profile name only).
+ */
 export async function pairWithSecret(
 	base: string,
-	opts: { name?: string; kind?: string; ip?: string } = {}
+	opts: { name?: string; kind?: string; ip?: string; displayName?: string } = {}
 ): Promise<string> {
 	const res = await fetch(`${base}/setup`, {
 		method: 'POST',
@@ -19,7 +22,8 @@ export async function pairWithSecret(
 			secret: SETUP_SECRET,
 			name: opts.name ?? 'e2e',
 			kind: opts.kind ?? 'browser',
-			next: '/'
+			next: '/',
+			...(opts.displayName === undefined ? {} : { displayName: opts.displayName })
 		})
 	});
 	const cookie = res.headers.getSetCookie().find((c) => c.startsWith(`${COOKIE}=`));

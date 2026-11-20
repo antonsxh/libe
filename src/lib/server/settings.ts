@@ -1,5 +1,5 @@
-/** App settings (single row `id = 1`): the pomodoro intervals and the UI language. */
-import { eq } from 'drizzle-orm';
+/** App settings (single row `id = 1`): the pomodoro intervals, the UI language and the profile. */
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { settings } from '#lib/server/db/schema.ts';
 import {
@@ -15,6 +15,7 @@ import {
 	type LanguageSetting,
 	type Locale
 } from '#lib/i18n/index.ts';
+import { toProfile, type Profile } from '#lib/profile.ts';
 
 /** A transaction or the pool — both expose the query builder. */
 type Queryable = Pick<typeof db, 'select' | 'insert' | 'update' | 'delete'>;
@@ -57,6 +58,57 @@ export async function getLanguageSetting(q: Queryable = db): Promise<LanguageSet
 		.from(settings)
 		.where(eq(settings.id, 1));
 	return isLanguageSetting(row?.language) ? row.language : 'auto';
+}
+
+/**
+ * What every authenticated request needs (`hooks.server.ts`): the language choice and the
+ * profile (nav avatar, greeting) — one query, so the profile costs no extra round trip.
+ */
+export async function getRequestSettings(
+	q: Queryable = db
+): Promise<{ language: LanguageSetting; profile: Profile }> {
+	const [row] = await q
+		.select({
+			language: settings.language,
+			displayName: settings.displayName,
+			avatarColor: settings.avatarColor
+		})
+		.from(settings)
+		.where(eq(settings.id, 1));
+	return {
+		language: isLanguageSetting(row?.language) ? row.language : 'auto',
+		profile: toProfile(row)
+	};
+}
+
+/** Save the profile from Settings (already validated: `normalizeDisplayName`, `parseAvatarColor`). */
+export async function saveProfile(profile: Profile, q: Queryable = db): Promise<void> {
+	const cols = {
+		displayName: profile.displayName,
+		avatarColor: profile.avatarColor,
+		updatedAt: new Date()
+	};
+	await q
+		.insert(settings)
+		.values({ id: 1, ...cols })
+		.onConflictDoUpdate({ target: settings.id, set: cols });
+}
+
+/**
+ * Set the display name only while none is set (the public `/setup` form must never overwrite
+ * an existing name). Returns whether it was stored.
+ */
+export async function setDisplayNameIfUnset(name: string, q: Queryable = db): Promise<boolean> {
+	const rows = await q
+		.insert(settings)
+		.values({ id: 1, displayName: name, updatedAt: new Date() })
+		.onConflictDoUpdate({
+			target: settings.id,
+			set: { displayName: name, updatedAt: new Date() },
+			setWhere: and(eq(settings.id, 1), isNull(settings.displayName))
+		})
+		.returning({ id: settings.id });
+	return rows.length > 0;
 }
 
 export async function saveLanguageSetting(language: LanguageSetting, q: Queryable = db) {

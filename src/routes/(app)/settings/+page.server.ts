@@ -9,8 +9,10 @@ import { parsePomodoroSettings } from '#lib/timer.ts';
 import {
 	getLanguageSetting,
 	pomodoroSettingsFailure,
-	saveLanguageSetting
+	saveLanguageSetting,
+	saveProfile
 } from '#lib/server/settings.ts';
+import { normalizeDisplayName, parseAvatarColor } from '#lib/profile.ts';
 import { i18n, isLanguageSetting } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -62,6 +64,34 @@ export const actions = {
 		await revokeDevice(locals.device!.id);
 		clearDeviceCookie(cookies, url);
 		redirect(303, '/pair');
+	},
+
+	/**
+	 * Profile (Settings → Profile): display name (blank = no name) and avatar colour, for
+	 * every device. `locals.profile` is updated too, so a no-JS submit renders the new avatar.
+	 */
+	profile: async ({ request, locals }) => {
+		const form = await request.formData();
+		const values = {
+			displayName: String(form.get('displayName') ?? ''),
+			avatarColor: String(form.get('avatarColor') ?? '')
+		};
+		const t = i18n(locals.locale);
+		const name = normalizeDisplayName(values.displayName);
+		const color = parseAvatarColor(values.avatarColor);
+		if (!name.ok || !color.ok)
+			return fail(400, {
+				intent: 'profile' as const,
+				values,
+				errors: {
+					displayName: name.ok ? undefined : t.errors[name.error],
+					avatarColor: color.ok ? undefined : t.errors[color.error]
+				}
+			});
+		const profile = { displayName: name.value, avatarColor: color.value };
+		await saveProfile(profile);
+		locals.profile = profile;
+		return { intent: 'profile' as const, saved: true };
 	},
 
 	/** UI language for every device: `auto` (each browser's `Accept-Language`), `en`, `de`. */

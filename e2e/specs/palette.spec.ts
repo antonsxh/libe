@@ -101,8 +101,8 @@ test('↑/↓ wrap, Enter opens a page; Esc closes and focus returns to the trig
 	await expect(input(page)).toBeFocused();
 
 	const option = (name: string) => palette(page).getByRole('option', { name, exact: true });
-	await page.keyboard.press('ArrowUp'); // from the first item to the last
-	await expect(option('Settings')).toHaveAttribute('aria-selected', 'true');
+	await page.keyboard.press('ArrowUp'); // from the first item to the last ("Edit profile")
+	await expect(option('Edit profile')).toHaveAttribute('aria-selected', 'true');
 	await page.keyboard.press('ArrowDown');
 	await page.keyboard.press('ArrowDown');
 	await expect(option('Plan')).toHaveAttribute('aria-selected', 'true');

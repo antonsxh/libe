@@ -14,7 +14,9 @@
 		Tablet,
 		Trash2
 	} from '@lucide/svelte';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import Button from '#lib/components/Button.svelte';
+	import ColorSwatches from '#lib/components/ColorSwatches.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
@@ -25,6 +27,7 @@
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { LanguageSetting } from '#lib/i18n/index.ts';
+	import { DEFAULT_PROFILE, PROFILE_ANCHOR } from '#lib/profile.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -67,6 +70,27 @@
 
 	const fmtDate = (d: Date) =>
 		d.toLocaleDateString(t.intl, { month: 'short', day: 'numeric', year: 'numeric' });
+
+	/* ── Profile ──────────────────────────────────────────────────────────── */
+	const profileForm = $derived(
+		form?.intent === 'profile' && form.errors && form.values
+			? { errors: form.errors, values: form.values }
+			: null
+	);
+	const profile = $derived(data.profile ?? DEFAULT_PROFILE);
+	// The fields follow the stored profile (after a save: the normalised name), or echo the
+	// rejected input; typing overrides them locally.
+	let displayName = $derived(profileForm?.values.displayName ?? profile.displayName ?? '');
+	let avatarColor = $derived(profileForm?.values.avatarColor ?? profile.avatarColor);
+	let profileSaved = $state(false);
+	const onProfile: SubmitFunction = () => {
+		profileSaved = false;
+		return async ({ result, update }) => {
+			// Reloads the layout data → the nav avatar shows the new profile.
+			await update({ reset: false });
+			profileSaved = result.type === 'success';
+		};
+	};
 
 	/* ── Language ─────────────────────────────────────────────────────────── */
 	// English and German first (each named in its own language), then the browser default.
@@ -121,6 +145,66 @@
 <PageHeader title={t.settings.title} subtitle={t.settings.subtitle} />
 
 <div class="sections">
+	<section class="card section" id={PROFILE_ANCHOR} aria-labelledby="profile-title">
+		<div class="section-head">
+			<div>
+				<h2 id="profile-title" class="label">{t.settings.profile}</h2>
+				<p class="muted desc">{t.settings.profileDesc}</p>
+			</div>
+		</div>
+		<form class="profile" method="POST" action="?/profile" use:enhance={onProfile}>
+			<Avatar name={displayName} color={avatarColor} size="lg" />
+			<div class="profile-fields">
+				<div class="field">
+					<label class="field-label" for="profile-name">{t.settings.displayName}</label>
+					<input
+						id="profile-name"
+						name="displayName"
+						value={displayName}
+						oninput={(e) => {
+							displayName = e.currentTarget.value;
+							profileSaved = false;
+						}}
+						placeholder={t.settings.displayNamePlaceholder}
+						autocomplete="name"
+						aria-invalid={profileForm?.errors.displayName ? 'true' : undefined}
+						aria-describedby="profile-name-hint"
+					/>
+					{#if profileForm?.errors.displayName}
+						<span class="error" role="alert" id="profile-name-hint">
+							{profileForm.errors.displayName}
+						</span>
+					{:else}
+						<span class="hint muted" id="profile-name-hint">{t.settings.displayNameHint}</span>
+					{/if}
+				</div>
+				<div class="field">
+					<span class="field-label">{t.settings.avatarColour}</span>
+					<ColorSwatches
+						name="avatarColor"
+						bind:value={
+							() => avatarColor,
+							(c) => {
+								avatarColor = c;
+								profileSaved = false;
+							}
+						}
+						label={t.settings.avatarColour}
+					/>
+					{#if profileForm?.errors.avatarColor}
+						<span class="error" role="alert">{profileForm.errors.avatarColor}</span>
+					{/if}
+				</div>
+				<div class="profile-actions">
+					<Button variant="primary" type="submit">{t.settings.saveProfile}</Button>
+					<span class="saved muted" role="status">
+						{profileSaved ? t.settings.profileSaved : ''}
+					</span>
+				</div>
+			</div>
+		</form>
+	</section>
+
 	<section class="card section" aria-labelledby="devices-title">
 		<header class="section-head">
 			<div>
@@ -426,6 +510,62 @@
 		color: var(--danger);
 		font-size: var(--fs-sm);
 	}
+	/* Profile */
+	.sections > section {
+		scroll-margin-top: calc(var(--nav-h) + var(--safe-top) + var(--space-4));
+	}
+	.profile {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-6);
+		margin-top: var(--space-6);
+	}
+	.profile-fields {
+		flex: 1;
+		min-width: 0;
+		display: grid;
+		gap: var(--space-5);
+	}
+	.field {
+		display: grid;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+	.field-label {
+		font-size: var(--fs-sm);
+		font-weight: var(--fw-medium);
+		color: var(--text-2);
+	}
+	.field input {
+		width: 100%;
+		max-width: 360px;
+		height: 40px;
+		padding: 0 var(--space-3);
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		color: var(--text);
+		font-size: var(--fs-md);
+	}
+	.field input:hover {
+		border-color: var(--border-strong);
+	}
+	.field input[aria-invalid='true'] {
+		border-color: var(--danger);
+	}
+	.hint {
+		font-size: var(--fs-xs);
+	}
+	.profile-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-3);
+	}
+	.saved {
+		font-size: var(--fs-sm);
+	}
+
 	.signout {
 		margin-top: var(--space-4);
 		display: flex;
@@ -504,9 +644,18 @@
 		margin-top: var(--space-6);
 	}
 
+	@media (max-width: 720px) {
+		.sections > section {
+			scroll-margin-top: calc(var(--nav-h-compact) + var(--safe-top) + var(--space-4));
+		}
+	}
+
 	@media (max-width: 600px) {
 		.section {
 			padding: var(--space-5) var(--space-4);
+		}
+		.profile {
+			flex-direction: column;
 		}
 		.section-head :global(.btn) {
 			width: 100%;

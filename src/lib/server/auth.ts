@@ -29,6 +29,25 @@ export function clearDeviceCookie(cookies: Cookies, url: URL): void {
 	cookies.delete(DEVICE_COOKIE, cookieOptions(url));
 }
 
+/**
+ * One-time "this device is now paired" welcome: set by the `/setup` and `/pair` form
+ * actions, consumed (read + deleted) by the root layout's `load` on the first authenticated
+ * page — whatever `next` the pairing redirects to. Short-lived, so a pairing that never
+ * reaches a page doesn't greet much later.
+ */
+const WELCOME_COOKIE = 'libe_welcome';
+
+export function setWelcomeCookie(cookies: Cookies, url: URL): void {
+	cookies.set(WELCOME_COOKIE, '1', { ...cookieOptions(url), maxAge: 120 });
+}
+
+/** True once after a pairing (the cookie is deleted right away). */
+export function takeWelcomeCookie(cookies: Cookies, url: URL): boolean {
+	if (cookies.get(WELCOME_COOKIE) === undefined) return false;
+	cookies.delete(WELCOME_COOKIE, cookieOptions(url));
+	return true;
+}
+
 /** Failed pairing-code attempts (`/pair` page + `POST /api/pair`), per client IP. */
 export const pairLimiter = new RateLimiter(PAIR_RATE_LIMIT.limit, PAIR_RATE_LIMIT.windowMs);
 /** Failed setup-secret attempts, per client IP. */
