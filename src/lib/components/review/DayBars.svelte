@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { Flame, Moon } from '@lucide/svelte';
 	import { formatDayLabel, formatHours } from '#lib/dates.ts';
+	import type { StreakMark } from '#lib/streak.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { formatHMin, type ReviewDay, type ReviewQuest } from '#lib/review.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
@@ -8,8 +10,12 @@
 		days: ReviewDay[];
 		/** Quests that appear in `days[].byQuest`, by id. */
 		quests: Record<string, ReviewQuest>;
+		/** Streak marker per day (same order as `days`); null = no streak row. */
+		marks?: StreakMark[] | null;
+		/** Longest streak ever (days), shown in the card head. */
+		longest?: number | null;
 	};
-	let { days, quests }: Props = $props();
+	let { days, quests, marks = null, longest = null }: Props = $props();
 	const t = useI18n();
 
 	/** Smallest full-scale value (minutes) so a 10-minute week doesn't fill the chart. */
@@ -51,12 +57,22 @@
 		);
 		const quest = t.review.dayAria(longDay(d.day), formatHMin(d.questMin));
 		const other = d.otherMin > 0 ? t.review.dayAriaOther(formatHMin(d.otherMin)) : '';
-		return parts.length ? `${quest} (${parts.join(', ')})${other}` : `${quest}${other}`;
+		const base = parts.length ? `${quest} (${parts.join(', ')})${other}` : `${quest}${other}`;
+		const mark = marks?.[days.indexOf(d)];
+		return mark ? `${base}; ${t.streak.marks[mark]}` : base;
 	}
 </script>
 
 <section class="card chart" aria-labelledby="per-day-label">
-	<h2 class="label" id="per-day-label">{t.review.perDay}</h2>
+	<header class="head">
+		<h2 class="label" id="per-day-label">{t.review.perDay}</h2>
+		{#if longest !== null}
+			<p class="longest tabular" data-testid="longest-streak">
+				<Flame size={14} aria-hidden="true" />
+				{t.streak.longest(longest)}
+			</p>
+		{/if}
+	</header>
 	<ol class="bars">
 		{#each days as d, i (d.day)}
 			{@const stub = d.state === 'future' || d.questMin <= 0}
@@ -87,6 +103,13 @@
 						></span>
 					</span>
 					<span class="weekday">{weekday(d.day)}</span>
+					{#if marks?.[i]}
+						<span class="mark" data-mark={marks[i]} data-testid="streak-mark" aria-hidden="true">
+							{#if marks[i] === 'done'}<Flame size={13} />{:else if marks[i] === 'rest'}<Moon
+									size={12}
+								/>{:else}<span class="pip"></span>{/if}
+						</span>
+					{/if}
 				</button>
 				<div class="tip" role="tooltip" id={`tip-${d.day}`}>
 					<p class="tip-head">
@@ -128,6 +151,23 @@
 		border-radius: var(--radius-xl);
 		min-width: 0;
 	}
+	.head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-1) var(--space-3);
+	}
+	.longest {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+	}
+	.longest :global(svg) {
+		color: var(--accent);
+	}
 	.bars {
 		flex: 1;
 		display: grid;
@@ -144,7 +184,7 @@
 	.hit {
 		flex: 1;
 		display: grid;
-		grid-template-rows: auto minmax(var(--chart-h), 1fr) auto;
+		grid-template-rows: auto minmax(var(--chart-h), 1fr) auto auto;
 		justify-items: center;
 		gap: var(--space-2);
 		padding: 0 0 var(--space-1);
@@ -183,6 +223,30 @@
 	.weekday {
 		font-size: var(--fs-sm);
 		color: var(--text-faint);
+	}
+	/* Streak row: flame = streak day, moon = rest day, dot = missed / open / upcoming. */
+	.mark {
+		display: grid;
+		place-items: center;
+		height: 14px;
+		color: var(--text-faint);
+	}
+	.mark[data-mark='done'] {
+		color: var(--accent);
+	}
+	.mark .pip {
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: var(--bar-muted);
+	}
+	.mark[data-mark='today'] .pip {
+		background: transparent;
+		box-shadow: inset 0 0 0 1px var(--accent);
+	}
+	.mark[data-mark='future'] .pip {
+		background: transparent;
+		box-shadow: inset 0 0 0 1px var(--border-strong);
 	}
 	.col[data-state='today'] .value,
 	.col[data-state='today'] .weekday {

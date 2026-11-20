@@ -1,6 +1,6 @@
 /**
- * App settings (single row `id = 1`): the pomodoro intervals, the UI language, the profile and
- * the daily goal.
+ * App settings (single row `id = 1`): the pomodoro intervals, the UI language, the profile,
+ * the daily goal and the streak rest days.
  */
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
@@ -20,6 +20,7 @@ import {
 } from '#lib/i18n/index.ts';
 import { toProfile, type Profile } from '#lib/profile.ts';
 import { toDailyGoal } from '#lib/daily-goal.ts';
+import { toRestMask } from '#lib/streak.ts';
 
 /** A transaction or the pool — both expose the query builder. */
 type Queryable = Pick<typeof db, 'select' | 'insert' | 'update' | 'delete'>;
@@ -64,28 +65,37 @@ export async function getLanguageSetting(q: Queryable = db): Promise<LanguageSet
 	return isLanguageSetting(row?.language) ? row.language : 'auto';
 }
 
+/** The settings every authenticated request reads (see {@link getRequestSettings}). */
+export interface RequestSettings {
+	language: LanguageSetting;
+	profile: Profile;
+	dailyGoalMin: number | null;
+	/** Streak rest weekdays (bitmask, `#lib/streak.ts`). */
+	streakRestDays: number;
+}
+
 /**
  * What every authenticated request needs (`hooks.server.ts`): the language choice, the
- * profile (nav avatar, greeting) and the daily goal (avatar ring) — one query, so they cost
- * no extra round trip.
+ * profile (nav avatar, greeting), the daily goal (avatar ring) and the streak rest days —
+ * one query, so they cost no extra round trip.
  */
-export async function getRequestSettings(
-	q: Queryable = db
-): Promise<{ language: LanguageSetting; profile: Profile; dailyGoalMin: number | null }> {
+export async function getRequestSettings(q: Queryable = db): Promise<RequestSettings> {
 	const [row] = await q
 		.select({
 			language: settings.language,
 			displayName: settings.displayName,
 			avatarColor: settings.avatarColor,
 			avatarEmoji: settings.avatarEmoji,
-			dailyGoalMin: settings.dailyGoalMin
+			dailyGoalMin: settings.dailyGoalMin,
+			streakRestDays: settings.streakRestDays
 		})
 		.from(settings)
 		.where(eq(settings.id, 1));
 	return {
 		language: isLanguageSetting(row?.language) ? row.language : 'auto',
 		profile: toProfile(row),
-		dailyGoalMin: toDailyGoal(row?.dailyGoalMin)
+		dailyGoalMin: toDailyGoal(row?.dailyGoalMin),
+		streakRestDays: toRestMask(row?.streakRestDays)
 	};
 }
 
@@ -126,6 +136,15 @@ export async function setDisplayNameIfUnset(name: string, q: Queryable = db): Pr
 /** Save the daily goal (already validated: `parseDailyGoal`; null = no goal). */
 export async function saveDailyGoal(goalMin: number | null, q: Queryable = db): Promise<void> {
 	const cols = { dailyGoalMin: goalMin, updatedAt: new Date() };
+	await q
+		.insert(settings)
+		.values({ id: 1, ...cols })
+		.onConflictDoUpdate({ target: settings.id, set: cols });
+}
+
+/** Save the streak rest days (already validated: `parseRestDays`; 0 = none). */
+export async function saveStreakRestDays(mask: number, q: Queryable = db): Promise<void> {
+	const cols = { streakRestDays: mask, updatedAt: new Date() };
 	await q
 		.insert(settings)
 		.values({ id: 1, ...cols })

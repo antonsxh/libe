@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
 	aggregateQuestStats,
 	dayWeekMinutes,
+	loggedMinutesByDay,
 	loggedMsByTask,
 	sessionMinutes,
 	type SessionRow
@@ -169,6 +170,54 @@ describe('dayWeekMinutes', () => {
 			todayMin: 0,
 			weekMin: 0
 		});
+	});
+});
+
+describe('loggedMinutesByDay', () => {
+	const row = (
+		startedAt: Date,
+		endedAt: Date | null,
+		durationMin: number | null = null,
+		pausedMs = 0
+	) => ({
+		startedAt,
+		endedAt,
+		pausedMs,
+		durationMin
+	});
+
+	test('buckets by the day of started_at with the dayWeekMinutes rule', () => {
+		const rows = [
+			row(d('2026-11-18T09:00:00Z'), d('2026-11-18T10:30:00Z'), null, 30 * 60_000),
+			row(d('2026-11-18T22:00:00Z'), d('2026-11-19T02:00:00Z')), // spans midnight: all on the 18th
+			row(d('2026-11-17T18:00:00Z'), null, 30),
+			row(d('2026-11-16T08:00:00Z'), d('2026-11-16T08:00:00Z')) // zero → absent
+		];
+		const map = loggedMinutesByDay(rows, 'UTC');
+		expect(map.get('2026-11-18')).toBeCloseTo(60 + 240);
+		expect(map.get('2026-11-17')).toBeCloseTo(30);
+		expect(map.has('2026-11-16')).toBe(false);
+		// Each day equals dayWeekMinutes' "today" for that day.
+		for (const [day, min] of map)
+			expect(dayWeekMinutes(rows, { today: day, timeZone: 'UTC' }).todayMin).toBeCloseTo(min);
+	});
+
+	test('DST: days follow the wall clock of the timezone', () => {
+		// Europe/Berlin switches to summer time on 2026-03-29 (02:00 → 03:00).
+		const rows = [
+			// 23:30 local on Mar 28 (UTC+1) = 22:30Z.
+			row(d('2026-03-28T22:30:00Z'), d('2026-03-28T23:30:00Z')),
+			// 23:30 local on Mar 29 (UTC+2) = 21:30Z.
+			row(d('2026-03-29T21:30:00Z'), d('2026-03-29T22:00:00Z')),
+			// 00:15 local on Mar 30 (UTC+2) = 22:15Z on the 29th.
+			row(d('2026-03-29T22:15:00Z'), d('2026-03-29T22:45:00Z'))
+		];
+		const map = loggedMinutesByDay(rows, 'Europe/Berlin');
+		expect([...map.entries()]).toEqual([
+			['2026-03-28', 60],
+			['2026-03-29', 30],
+			['2026-03-30', 30]
+		]);
 	});
 });
 

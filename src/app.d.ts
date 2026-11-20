@@ -16,6 +16,8 @@ declare global {
 			profile: Profile | null;
 			/** Daily goal in minutes (`settings.daily_goal_min`; null = none or no paired device). */
 			dailyGoalMin: number | null;
+			/** Streak rest weekdays (`settings.streak_rest_days` bitmask; 0 = none or no device). */
+			streakRestDays: number;
 		}
 		// interface PageData {}
 		// interface PageState {}

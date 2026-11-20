@@ -15,11 +15,15 @@
 		type ReviewQuest
 	} from '#lib/review.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
+	import { useTimer } from '#lib/timer-store.svelte.ts';
+	import { runningSpan } from '#lib/daily-goal.ts';
+	import { pageStreak, streakMarks } from '#lib/streak.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const t = useI18n();
 	const hours = (h: number) => formatHours(h, t.intl);
+	const timer = useTimer();
 
 	const week = $derived(data.review.week);
 	const prev = $derived(week.previous);
@@ -32,6 +36,32 @@
 	/** "Your week, Anton. 12.5h logged — 2.1h more than last week." (vocative only). */
 	const headline = $derived(
 		`${t.review.yourWeek(data.profile?.displayName ?? null)} ${weekSummaryText(weekSummary(week), t)}`
+	);
+
+	/** Live streak (today's minutes move with the timer, like Home). */
+	const streak = $derived(
+		data.streak && data.todayLog
+			? pageStreak(
+					data.streak,
+					data.todayLog,
+					runningSpan(timer.timer, timer.view),
+					timer.serverNow
+				)
+			: null
+	);
+	/** Streak marker per day of the shown week (logged minutes = quest + other, same day rule). */
+	const marks = $derived(
+		data.streak
+			? streakMarks(
+					week.days.map((d) => ({ day: d.day, min: d.questMin + d.otherMin })),
+					{
+						today: data.today,
+						threshold: data.streak.threshold,
+						restMask: data.streak.restMask,
+						todayMin: streak?.todayMin
+					}
+				)
+			: null
 	);
 
 	/** Week-over-week deltas (null for future weeks / no data on either side). */
@@ -140,7 +170,12 @@
 	</section>
 
 	<div class="charts">
-		<DayBars days={week.days} quests={questsById} />
+		<DayBars
+			days={week.days}
+			quests={questsById}
+			{marks}
+			longest={streak ? streak.longest : null}
+		/>
 		<div class="side">
 			<QuestHours rows={week.quests} />
 			<QuestVsOther questMin={week.questMin} otherMin={week.otherMin} />

@@ -19,6 +19,7 @@ import {
 	pgEnum,
 	pgTable,
 	real,
+	smallint,
 	text,
 	timestamp,
 	uniqueIndex,
@@ -27,6 +28,7 @@ import {
 // Relative (not `#lib/…`): drizzle-kit loads this file outside Vite.
 import { QUEST_COLORS } from '../../quest-colors.ts';
 import { DAILY_GOAL_MAX, DAILY_GOAL_MIN, DAILY_GOAL_STEP } from '../../daily-goal.ts';
+import { REST_MASK_MAX } from '../../streak.ts';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
@@ -180,8 +182,9 @@ export const pomodoroRuns = pgTable(
 );
 
 /**
- * App settings — a single row (`id = 1`): pomodoro intervals (minutes), the UI language and
- * the owner's profile (global, the same on every device — see `#lib/profile.ts`).
+ * App settings — a single row (`id = 1`): pomodoro intervals (minutes), the UI language,
+ * the owner's profile (global, the same on every device — see `#lib/profile.ts`), the daily
+ * goal and the streak rest days (`#lib/streak.ts`).
  */
 export const settings = pgTable(
 	'settings',
@@ -204,6 +207,11 @@ export const settings = pgTable(
 		avatarEmoji: text('avatar_emoji'),
 		/** Daily goal in minutes (null = no goal): 15–960, a multiple of 15 (`#lib/daily-goal.ts`). */
 		dailyGoalMin: integer('daily_goal_min'),
+		/**
+		 * Streak rest days: weekday bitmask (bit 0 = Monday … bit 6 = Sunday), at most six
+		 * (`#lib/streak.ts`) — 0 = none.
+		 */
+		streakRestDays: smallint('streak_rest_days').notNull().default(0),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(t) => [
@@ -227,6 +235,11 @@ export const settings = pgTable(
 		check(
 			'settings_daily_goal_chk',
 			sql`${t.dailyGoalMin} IS NULL OR (${t.dailyGoalMin} BETWEEN ${sql.raw(String(DAILY_GOAL_MIN))} AND ${sql.raw(String(DAILY_GOAL_MAX))} AND ${t.dailyGoalMin} % ${sql.raw(String(DAILY_GOAL_STEP))} = 0)`
+		),
+		// 0 … 126: any weekday set except all seven (at most `MAX_REST_DAYS` = 6).
+		check(
+			'settings_streak_rest_days_chk',
+			sql`${t.streakRestDays} BETWEEN 0 AND ${sql.raw(String(REST_MASK_MAX))}`
 		)
 	]
 );
