@@ -104,12 +104,22 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `GET /api/search?q=` (`server/search.ts`, escaped `ILIKE`); pure matching/ranking/targets/↑↓
   logic in `#lib/palette.ts`. New palette actions reuse existing flows (`useTimer()`), never
   local state. Open it synchronously from the tap (iOS keyboard).
-- **Profile** (display name, avatar colour) is global and lives in the single `settings` row;
-  `hooks.server.ts` loads it with the language (`getRequestSettings`) for paired devices only
-  → `locals.profile` → root layout data `profile` (null on public pages — never render the
-  owner's name there). Pure rules in `#lib/profile.ts` (`normalizeDisplayName`, `initials`,
-  `greetingPart`); show people with `Avatar.svelte` (initials or a neutral icon), pick
-  colours with `ColorSwatches.svelte`. Edit link: `PROFILE_HREF` (`/settings#profile`).
+- **Profile** (display name, avatar colour, avatar emoji) and the **daily goal** are global and
+  live in the single `settings` row; `hooks.server.ts` loads them with the language
+  (`getRequestSettings`) for paired devices only → `locals.profile` / `locals.dailyGoalMin` →
+  root layout data `profile` / `dailyGoalMin` (null on public pages — never render the
+  owner's name there). Pure rules in `#lib/profile.ts` (`normalizeDisplayName`,
+  `parseAvatarEmoji`, `initials`, `greetingPart`) and `#lib/daily-goal.ts`; show people with
+  `Avatar.svelte` (emoji, initials or a neutral icon; optional goal `ring`), pick colours with
+  `ColorSwatches.svelte`, single emojis with `EmojiPicker.svelte`. Edit links: `PROFILE_HREF`
+  (`/settings#profile`), `GOAL_HREF` (`/settings#goal`). Use the name only as a vocative
+  ("Nice work, Anton"), never in the genitive.
+- **Logged today** (Home's stat, the avatar's goal ring) comes from the root layout data
+  `todayLog` (`server/stats.ts` → `todayLog()`: completed sessions only, one indexed query);
+  add the active session on the client with `liveLoggedMin` + `runningSpan` (timer snapshot)
+  — never count it on the server too. The root layout `load`
+  must not read tracked `url` properties (it would re-run on every navigation); it refreshes
+  through `refreshAll` (form actions, timer session changes, Log time / calendar edits).
 - Week navigation (‹ range › + "This week", `?week=`) is the shared `WeekNav.svelte`
   (Calendar, Review); extra controls go in its children snippet.
 - `Menu` popovers are `position: fixed` (placed from the trigger rect) so they escape
@@ -177,7 +187,7 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 - Charts are plain divs/SVG (no chart library); sizes come from the `--chart-*` tokens and every
   chart needs a text alternative (aria-label or `.sr-only` text).
 - Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`,
-  `Avatar`, `ColorSwatches`.
+  `Avatar`, `ColorSwatches`, `EmojiPicker`.
   Look at `/styleguide` in the running app before building new UI.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
   Below 720px the nav is a fixed bottom tab bar (`main` already pads for it).
@@ -224,7 +234,7 @@ failure, HTML report, auth state) go to the ignored `e2e/.output/`.
    "the page loads" belongs only in `pages.spec.ts` (one test per page).
 2. Create your own data with unique names (`uid()`), or read seed data without changing it.
    Never depend on test order or on another test's leftovers (`--repeat-each=2` must pass).
-   Global state (the timer, pomodoro settings, language, profile) is reset in `beforeEach`/`afterEach`.
+   Global state (the timer, pomodoro settings, language, profile, daily goal) is reset in `beforeEach`/`afterEach`.
 3. No fixed sleeps: Playwright's auto-waiting `expect`, `expect.poll` (DB), `actionDone`.
    Shift time in the DB (`started_at - interval '…'`) instead of waiting for it.
 4. Don't re-test pure logic the unit tests cover (`src/**/*.test.ts`) — test its integration.

@@ -714,5 +714,63 @@ Phase 1 of 3 — replaces the hard-coded "L" avatar with a real profile.
   the profile and welcomes once; `/setup` never overwrites a name nor shows it. The profile is
   reset (no name, amber) around every test. Checked against reintroduced bugs (overwrite
   from `/setup`, welcome cookie not consumed).
-- **Planned**: Phase 2 — emoji avatar (alternative to initials), daily-goal progress ring
-  around the avatar, the name in Focus/Review texts. Phase 3 — streaks.
+
+### Phase 2 — emoji avatar, daily goal, the name in Focus and Review (done)
+
+- **Data** (migration `0005_profile_extras`, same `settings` row): `avatar_emoji` (nullable;
+  check: 1–16 code points, trimmed — one emoji grapheme can be several code points, the app
+  checks "exactly one emoji") and `daily_goal_min` (nullable = no goal; check: 15–960 and a
+  multiple of 15, built from `DAILY_GOAL_MIN/MAX/STEP`). `getRequestSettings` reads both in
+  the existing per-request query → `locals.profile.avatarEmoji`, `locals.dailyGoalMin` → root
+  layout data.
+- **Emoji avatar**: Settings → Profile has "Avatar shows: Initials | Emoji"; Emoji shows the
+  shared `components/EmojiPicker.svelte` (text field + suggestions, extracted from the quest
+  form; avatar suggestions `AVATAR_EMOJIS`). Validated like quest icons (`isSingleEmoji`) by
+  `parseAvatarEmoji` (`profileEmojiInvalid`); "Initials" or a blank field stores `null`
+  (initials). `Avatar` shows the emoji on the colour-tinted circle; without emoji and name the
+  neutral icon as before. Stored values that aren't one emoji read as `null`.
+- **Daily goal** (`#lib/daily-goal.ts`, unit-tested): Settings → **Daily goal** (own section
+  after Profile, anchor `#goal`, action `?/goal`): a select of presets (30 min, 1–6 h, 8 h),
+  "No daily goal" and "Custom…" (hours + quarter-hour minutes; without JS both are shown).
+  Rule: 15 min – 16 h in 15-minute steps (`dailyGoalInvalid`, server-side; the custom field
+  echoes rejected input). Decision: quarter hours keep the select/ring meaningful and make
+  Phase 3's "goal met" unambiguous; 16 h is a generous ceiling for a waking day.
+- **Logged today**: one definition for Home and the ring — `server/stats.ts` → `todayLog()`:
+  completed sessions started today in the server TZ (`dayWeekMinutes`, same attribution as
+  the week/Review), one query on `sessions_started_idx`, returned with the day's bounds as
+  root layout data `todayLog` (Home's own `todayMin` was dropped; `homeTime` keeps the
+  week/per-task totals). The root layout reads no tracked `url` property, so it re-runs
+  only on `refreshAll` — after form actions, timer session changes (the timer store already
+  refreshes then), Log time and calendar edits.
+- **Live**: the server number never includes the active session; the client adds its
+  running time from the snapshot (`runningSpan(timer.timer, timer.view)` → `liveLoggedMin`,
+  counted only when it started today — like Home; after midnight yesterday's number drops
+  until the next refresh). Completing/stopping changes the session → `refreshAll` → the
+  time moves into the server number, so nothing is counted twice (e2e-checked).
+- **Ring** (`Avatar` prop `ring`): thin SVG ring outside the circle (`--avatar-ring-*`,
+  `--goal-*` tokens): accent on an accent-tinted track, reached = full green ring with a
+  soft glow. Nav avatar on all widths (also the phone top bar); no goal → no ring. Text
+  alternative: the account button's name gets the progress — "Account and devices (Anton),
+  2 h 10 min of 4 h today" / „… 2 h 10 min von 4 h heute“ (whole minutes, rounded down).
+- **Home**: the today stat moves live too and reads "2.2h / 4h today" with a goal.
+- **Focus**: one small status line under the state: focus-mode countdown reached → "Nice
+  work, Anton — 25 minutes done." / „Stark, Anton – 25 Minuten geschafft.“; pomodoro short
+  break → "Take a breath, Anton." / „Kurz durchatmen, Anton.“; long break → "Long break —
+  well earned, Anton." Without a name the same sentences without it.
+- **Review**: the subtitle is personal — "Your week, Anton." + one sentence from the data the
+  page has (`weekSummary` / `weekSummaryText` in `#lib/review.ts`): "12.5h logged — 2.1h
+  more than last week." (the same days of last week for the current week; "about the same"
+  when the difference rounds to 0.0h; "Nothing logged yet." / "It hasn’t started yet.").
+  Vocative only, never genitive. The generic subtitle was dropped.
+- e2e (`profile.spec.ts`): emoji + 1 h goal saved in Settings → DB row; after a reload the
+  avatar shows 🦊 and its name reports the progress from a DB session; a running timer
+  (shifted in the DB, pushed by a pause) raises it without reload and completing it keeps
+  the value (`@mobile`: ring visible in the phone top bar, no horizontal scroll); 16 h
+  passes, 16 h 15 min is rejected, "No daily goal" removes the ring, a non-emoji is
+  rejected; Review subtitle and Focus line carry the name. Checked against reintroduced
+  bugs (running time not added; layout not refreshed after the timer completes).
+
+### Phase 3 — streaks (planned)
+
+- Days on which the daily goal was met in a row (reuses `daily_goal_min` and `todayLog`'s
+  definition of a day's logged time).

@@ -7,6 +7,7 @@
 import { DEVICE_NAME_MAX } from '#lib/auth.ts';
 import { MANUAL_LOG_MAX_AGE_DAYS } from '#lib/manual-log.ts';
 import { DISPLAY_NAME_MAX } from '#lib/profile.ts';
+import { DAILY_GOAL_MAX, DAILY_GOAL_MIN, DAILY_GOAL_STEP } from '#lib/daily-goal.ts';
 import { QUEST_BUDGET_MAX_H, QUEST_DESC_MAX, QUEST_NAME_MAX } from '#lib/quest-form.ts';
 import { TASK_DURATION_MAX_MIN, TASK_TITLE_MAX } from '#lib/task-form.ts';
 import { MAX_TIMER_MIN, POMODORO_LIMITS } from '#lib/timer.ts';
@@ -16,6 +17,9 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const lim = POMODORO_LIMITS;
 /** Schmales geschütztes Leerzeichen (zwischen Zahl und Einheit). */
 const nb = ' ';
+/** `2 h 10 min`, `45 min`, `4 h` (Dauer im Satz: Avatar-Fortschritt, Zielauswahl). */
+const duration = (h: number, m: number) =>
+	h === 0 ? `${m}${nb}min` : m === 0 ? `${h}${nb}h` : `${h}${nb}h ${m}${nb}min`;
 
 export const de: Messages = {
 	common: {
@@ -67,6 +71,7 @@ export const de: Messages = {
 		search: 'Suchen …',
 		account: 'Konto und Geräte',
 		accountOf: (name) => `Konto und Geräte (${name})`,
+		withProgress: (account, progress) => `${account}, ${progress}`,
 		signedInAs: 'Angemeldet als',
 		thisDevice: 'Dieses Gerät',
 		thisDeviceIs: (device) => `Dieses Gerät: ${device}`,
@@ -138,6 +143,7 @@ export const de: Messages = {
 			night: (name) => (name ? `Noch wach, ${name}?` : 'Noch wach?')
 		},
 		today: 'heute',
+		ofGoalToday: (goal) => `/ ${goal} heute`,
 		thisWeek: (hours) => `${hours} diese Woche`,
 		budgetBar: 'Genutzter Anteil des Quest-Budgets dieser Woche',
 		blockFailed:
@@ -263,6 +269,15 @@ export const de: Messages = {
 			autoStart: 'Pausen und die nächste Runde automatisch starten',
 			hint: 'Änderungen gelten ab der nächsten Phase. Nach einer langen Pause wartet die nächste Runde immer auf dich.'
 		},
+		cheer: {
+			targetReached: (name, min) =>
+				`Stark${name ? `, ${name}` : ''} – ${min} ${plural(min, 'Minute', 'Minuten')} geschafft.`,
+			shortBreak: (name) => (name ? `Kurz durchatmen, ${name}.` : 'Kurz durchatmen.'),
+			longBreak: (name) =>
+				name
+					? `Lange Pause – hast du dir verdient, ${name}.`
+					: 'Lange Pause – hast du dir verdient.'
+		},
 		switchDialog: {
 			title: 'Timer wechseln?',
 			isRunning: ' läuft',
@@ -339,7 +354,6 @@ export const de: Messages = {
 	},
 	review: {
 		title: 'Wochenrückblick',
-		subtitle: 'Wie viel der Woche deine Quests vorangebracht hat.',
 		keyFigures: 'Kennzahlen',
 		questHours: 'Quest-Stunden',
 		noBudget: 'Kein Wochenbudget festgelegt',
@@ -369,17 +383,47 @@ export const de: Messages = {
 		closedSr: '(abgeschlossen)',
 		split: (quest, pct, other) => `Quest-Arbeit ${quest} (${pct}${nb}%), Sonstiges ${other}`,
 		noTimeThisWeek: 'Diese Woche wurde keine Zeit erfasst',
-		questWorkLegend: 'Quest-Arbeit'
+		questWorkLegend: 'Quest-Arbeit',
+		yourWeek: (name) => (name ? `Deine Woche, ${name}.` : 'Deine Woche.'),
+		summary: {
+			future: 'Sie hat noch nicht begonnen.',
+			emptyCurrent: 'Noch nichts erfasst.',
+			empty: 'Nichts erfasst.',
+			logged: (total) => `${total} erfasst.`,
+			more: (total, delta, partial) =>
+				`${total} erfasst – ${delta} mehr als ${partial ? 'an denselben Tagen letzte Woche' : 'letzte Woche'}.`,
+			less: (total, delta, partial) =>
+				`${total} erfasst – ${delta} weniger als ${partial ? 'an denselben Tagen letzte Woche' : 'letzte Woche'}.`,
+			same: (total, partial) =>
+				`${total} erfasst – etwa so viel wie ${partial ? 'an denselben Tagen letzte Woche' : 'letzte Woche'}.`
+		}
 	},
 	settings: {
 		title: 'Einstellungen',
-		subtitle: 'Profil, gekoppelte Geräte, Fokus-Timer und Sprache.',
+		subtitle: 'Profil, Tagesziel, gekoppelte Geräte, Fokus-Timer und Sprache.',
 		profile: 'Profil',
-		profileDesc: 'Dein Name und deine Avatarfarbe – auf all deinen Geräten gleich.',
+		profileDesc: 'Dein Name und dein Avatar – auf all deinen Geräten gleich.',
 		displayName: 'Name',
 		displayNamePlaceholder: 'Dein Name',
 		displayNameHint: `Optional, höchstens ${DISPLAY_NAME_MAX} Zeichen. Lass das Feld leer für keinen Namen.`,
 		avatarColour: 'Avatarfarbe',
+		avatarStyle: 'Avatar zeigt',
+		avatarStyles: { initials: 'Initialen', emoji: 'Emoji' },
+		avatarEmoji: 'Avatar-Emoji',
+		avatarEmojiHint: 'Ein Emoji statt deiner Initialen. Lass das Feld leer für deine Initialen.',
+		suggestedEmoji: 'Vorgeschlagene Emojis',
+		useAvatarEmoji: (emoji) => `${emoji} als Avatar verwenden`,
+		dailyGoal: 'Tagesziel',
+		dailyGoalDesc:
+			'Wie viel Zeit du jeden Tag erfassen möchtest. Ein Ring um deinen Avatar füllt sich dabei.',
+		goal: 'Ziel',
+		goalOff: 'Kein Tagesziel',
+		goalCustom: 'Eigenes …',
+		goalHours: 'Stunden',
+		goalMinutes: 'Minuten',
+		goalHint: `Von ${duration(0, DAILY_GOAL_MIN)} bis ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-Minuten-Schritten.`,
+		saveGoal: 'Ziel speichern',
+		goalSaved: 'Tagesziel gespeichert.',
 		saveProfile: 'Profil speichern',
 		profileSaved: 'Profil gespeichert.',
 		devices: 'Geräte',
@@ -642,6 +686,12 @@ export const de: Messages = {
 		// Einstellungen
 		languageInvalid: 'Wähle eine der Sprachen.',
 		profileNameTooLong: `Der Name darf höchstens ${DISPLAY_NAME_MAX} Zeichen lang sein.`,
-		profileColorInvalid: 'Wähle eine der Farben.'
+		profileColorInvalid: 'Wähle eine der Farben.',
+		profileEmojiInvalid: 'Verwende genau ein Emoji.',
+		dailyGoalInvalid: `Wähle ein Ziel von ${duration(0, DAILY_GOAL_MIN)} bis ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-Minuten-Schritten.`
+	},
+	goal: {
+		duration,
+		progress: (logged, goal) => `${logged} von ${goal} heute`
 	}
 };

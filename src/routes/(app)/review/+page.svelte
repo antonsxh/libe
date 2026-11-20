@@ -6,7 +6,14 @@
 	import QuestHours from '#lib/components/review/QuestHours.svelte';
 	import QuestVsOther from '#lib/components/review/QuestVsOther.svelte';
 	import { formatHours } from '#lib/dates.ts';
-	import { comparisonLabel, formatSignedHours, percent, type ReviewQuest } from '#lib/review.ts';
+	import {
+		comparisonLabel,
+		formatSignedHours,
+		percent,
+		weekSummary,
+		weekSummaryText,
+		type ReviewQuest
+	} from '#lib/review.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
 
@@ -22,6 +29,10 @@
 		Object.fromEntries(week.quests.map((r) => [r.quest.id, r.quest])) as Record<string, ReviewQuest>
 	);
 	const vs = $derived(prev ? comparisonLabel(prev.days, t) : '');
+	/** "Your week, Anton. 12.5h logged — 2.1h more than last week." (vocative only). */
+	const headline = $derived(
+		`${t.review.yourWeek(data.profile?.displayName ?? null)} ${weekSummaryText(weekSummary(week), t)}`
+	);
 
 	/** Week-over-week deltas (null for future weeks / no data on either side). */
 	const deltas = $derived.by(() => {
@@ -45,7 +56,7 @@
 
 <svelte:head><title>{t.review.title} · libe</title></svelte:head>
 
-<PageHeader title={t.review.title} subtitle={t.review.subtitle}>
+<PageHeader title={t.review.title} subtitle={headline}>
 	{#snippet actions()}
 		<WeekNav
 			monday={data.weekMonday}

@@ -1,11 +1,12 @@
 /**
- * Profile (display name + avatar colour, global in the `settings` row): Settings → Profile
- * persists and drives the nav avatar, the account menu and Home's greeting; server-side name
- * validation; `/setup`'s optional "Your name" only fills an empty name and is never shown on
- * the public page; the one-time welcome after pairing.
+ * Profile (display name, avatar colour and emoji, daily goal — global in the `settings` row):
+ * Settings → Profile / Daily goal persist and drive the nav avatar (emoji, goal ring and its
+ * accessible progress, live with the timer), the account menu, Home's greeting and stat, the
+ * Focus and Review texts; server-side validation; `/setup`'s optional "Your name" only fills
+ * an empty name and is never shown on the public page; the one-time welcome after pairing.
  *
- * The profile is global state — every test resets it (no name, amber), which the rest of the
- * suite relies on.
+ * The profile, the goal and the timer are global state — every test resets them (no name,
+ * amber, no emoji, no goal, no timer), which the rest of the suite relies on.
  */
 import type { Browser, Page } from '@playwright/test';
 import {
@@ -15,24 +16,65 @@ import {
 	actionDone,
 	live,
 	reloadLive,
-	expectNoHorizontalScroll
+	expectNoHorizontalScroll,
+	discardTimer,
+	timerCmd
 } from '../support/fixtures.ts';
 import { freshIp, pairWithSecret } from '../support/auth.ts';
-import { uid, type Sql } from '../support/db.ts';
+import {
+	createSession,
+	createTask,
+	emptyPastWeek,
+	loggedMinutes,
+	today,
+	uid,
+	type Sql
+} from '../support/db.ts';
 import { BASE, SETUP_SECRET } from '../support/env.ts';
 
-async function setProfile(sql: Sql, displayName: string | null, avatarColor = 'amber') {
+async function setProfile(
+	sql: Sql,
+	displayName: string | null,
+	avatarColor = 'amber',
+	{ emoji = null, goalMin = null }: { emoji?: string | null; goalMin?: number | null } = {}
+) {
 	await sql`
-		insert into settings (id, display_name, avatar_color) values (1, ${displayName}, ${avatarColor})
+		insert into settings (id, display_name, avatar_color, avatar_emoji, daily_goal_min)
+		values (1, ${displayName}, ${avatarColor}, ${emoji}, ${goalMin})
 		on conflict (id) do update
-		set display_name = excluded.display_name, avatar_color = excluded.avatar_color`;
+		set display_name = excluded.display_name, avatar_color = excluded.avatar_color,
+			avatar_emoji = excluded.avatar_emoji, daily_goal_min = excluded.daily_goal_min`;
 }
 const storedProfile = async (sql: Sql) =>
 	(await sql`select display_name, avatar_color from settings where id = 1`)[0] ?? null;
+const storedExtras = async (sql: Sql) =>
+	(await sql`select avatar_emoji, daily_goal_min from settings where id = 1`)[0] ?? null;
+
+/** Minutes logged today (completed sessions started today, server TZ) — Home's definition. */
+async function loggedToday(sql: Sql): Promise<number> {
+	const [r] = await sql`
+		select coalesce(sum(${loggedMinutes(sql)}), 0)::float8 as min from sessions s
+		where s.state = 'completed'
+			and (s.started_at at time zone 'Europe/Berlin')::date = ${await today(sql)}::date`;
+	return r.min;
+}
+/** "2 h 10 min" — the avatar's progress wording (whole minutes, rounded down). */
+function hm(min: number): string {
+	const m = Math.floor(min);
+	const [h, r] = [Math.floor(m / 60), m % 60];
+	return h === 0 ? `${r} min` : r === 0 ? `${h} h` : `${h} h ${r} min`;
+}
+/** Accessible name of the avatar with a goal; `logged` may be fractional (±1 min tolerated). */
+const progressName = (logged: number, goal: string) =>
+	new RegExp(`^Account and devices, (${hm(logged)}|${hm(logged + 1)}) of ${goal} today$`);
 
 const avatar = (page: Page) => page.getByRole('button', { name: /^Account and devices/ });
 const GREETING = /^(Good morning|Good afternoon|Good evening|Still up)/;
 const greeting = (page: Page) => page.getByText(GREETING);
+
+/** "Avatar shows: Emoji" (a segmented control — the label takes the click). */
+const chooseEmojiStyle = (page: Page) =>
+	page.locator('label', { has: page.getByRole('radio', { name: 'Emoji', exact: true }) }).click();
 
 async function saveProfile(page: Page, name: string) {
 	await page.getByLabel('Name', { exact: true }).fill(name);
@@ -41,8 +83,14 @@ async function saveProfile(page: Page, name: string) {
 	await done;
 }
 
-test.beforeEach(async ({ sql }) => setProfile(sql, null));
-test.afterEach(async ({ sql }) => setProfile(sql, null));
+test.beforeEach(async ({ sql, api }) => {
+	await setProfile(sql, null);
+	await discardTimer(api);
+});
+test.afterEach(async ({ sql, api }) => {
+	await setProfile(sql, null);
+	await discardTimer(api);
+});
 
 test('Settings → Profile: name and colour persist; nav avatar, menu and Home greeting follow @mobile', async ({
 	page,
@@ -179,4 +227,116 @@ test('/setup never overwrites an existing name and never shows it', async ({ sql
 	});
 	expect((await storedProfile(sql))?.display_name).toBe('Anton Schmidt');
 	await sql`update devices set revoked_at = now() where name in ${sql(devices)}`;
+});
+
+test('emoji avatar and daily goal: the nav ring reports today, live with the timer, without double counting @mobile', async ({
+	page,
+	sql,
+	api
+}) => {
+	const task = await createTask(sql, { title: `Goal ${uid()}`, day: await today(sql) });
+	await createSession(sql, { taskId: task.id, day: await today(sql), start: '00:05', minutes: 30 });
+	const base = await loggedToday(sql); // includes the 30 minutes just logged
+	await setProfile(sql, 'Anton');
+
+	await gotoLive(page, '/settings');
+	await chooseEmojiStyle(page);
+	await page.getByRole('button', { name: 'Use 🦊 as avatar' }).click();
+	let done = actionDone(page, 'profile');
+	await page.getByRole('button', { name: 'Save profile' }).click();
+	await done;
+	await page.getByLabel('Goal', { exact: true }).selectOption({ label: '1 h' });
+	done = actionDone(page, 'goal');
+	await page.getByRole('button', { name: 'Save goal' }).click();
+	await done;
+	await expect.poll(() => storedExtras(sql)).toEqual({ avatar_emoji: '🦊', daily_goal_min: 60 });
+
+	await reloadLive(page);
+	await expect(avatar(page)).toHaveText('🦊');
+	const named = (logged: number) =>
+		new RegExp(`^Account and devices \\(Anton\\), (${hm(logged)}|${hm(logged + 1)}) of 1 h today$`);
+	await expect(avatar(page)).toHaveAccessibleName(named(base));
+	const ring = avatar(page).locator('svg.ring');
+	await expect(ring).toBeInViewport();
+	await expect(ring).toHaveAttribute(
+		'data-progress',
+		String(Math.round(Math.min(1, Math.floor(base) / 60) * 1000) / 10)
+	);
+	await expectNoHorizontalScroll(page);
+
+	// A running timer adds its time from the snapshot (shifted in the DB, then pushed by a
+	// pause) — no reload. Completing it moves the time into the server number: still +10.
+	await timerCmd(api, { action: 'start', taskId: task.id, mode: 'focus', plannedMin: 120 });
+	await sql`update sessions set started_at = started_at - interval '10 minutes' where state = 'running'`;
+	await timerCmd(api, { action: 'pause' });
+	await expect(avatar(page)).toHaveAccessibleName(named(base + 10));
+	await timerCmd(api, { action: 'complete' });
+	await expect.poll(() => loggedToday(sql)).toBeGreaterThanOrEqual(base + 10);
+	await expect(page.locator('html[data-timer=live]')).toBeAttached();
+	await expect(avatar(page)).toHaveAccessibleName(named(base + 10));
+	await reloadLive(page);
+	await expect(avatar(page)).toHaveAccessibleName(named(base + 10));
+});
+
+test('daily goal: 16 h passes, 16 h 15 min is rejected, "No daily goal" removes the ring; emoji is validated', async ({
+	page,
+	sql,
+	console
+}) => {
+	console.allow(/status of 400/);
+	await setProfile(sql, null, 'amber', { goalMin: 120 });
+	await gotoLive(page, '/settings#goal');
+	const base = await loggedToday(sql);
+	await expect(avatar(page)).toHaveAccessibleName(progressName(base, '2 h'));
+
+	const saveGoal = async (hours: string, minutes: string) => {
+		await page.getByLabel('Goal', { exact: true }).selectOption({ label: 'Custom…' });
+		await page.getByLabel('Hours').fill(hours);
+		await page.getByLabel('Minutes').selectOption(minutes);
+		const done = actionDone(page, 'goal');
+		await page.getByRole('button', { name: 'Save goal' }).click();
+		await done;
+	};
+	await saveGoal('16', '15');
+	await expect(page.getByRole('alert')).toHaveText(
+		'Pick a goal from 15 min to 16 h, in 15-minute steps.'
+	);
+	expect((await storedExtras(sql))?.daily_goal_min).toBe(120);
+
+	await saveGoal('16', '0');
+	await expect.poll(async () => (await storedExtras(sql))?.daily_goal_min).toBe(960);
+	await expect(avatar(page)).toHaveAccessibleName(progressName(base, '16 h'));
+
+	await page.getByLabel('Goal', { exact: true }).selectOption({ label: 'No daily goal' });
+	let done = actionDone(page, 'goal');
+	await page.getByRole('button', { name: 'Save goal' }).click();
+	await done;
+	await expect.poll(async () => (await storedExtras(sql))?.daily_goal_min).toBeNull();
+	await expect(avatar(page)).toHaveAccessibleName('Account and devices');
+	await expect(avatar(page).locator('svg.ring')).toHaveCount(0);
+
+	await chooseEmojiStyle(page);
+	await page.getByLabel('Avatar emoji').fill('ab');
+	done = actionDone(page, 'profile');
+	await page.getByRole('button', { name: 'Save profile' }).click();
+	await done;
+	await expect(page.getByRole('alert')).toHaveText('Use exactly one emoji.');
+	expect((await storedExtras(sql))?.avatar_emoji).toBeNull();
+});
+
+test('the name in Focus and Review texts', async ({ page, sql, api }) => {
+	await setProfile(sql, 'Mia');
+	const monday = await emptyPastWeek(sql);
+	const task = await createTask(sql, { title: `Named ${uid()}`, day: await today(sql) });
+	await createSession(sql, { taskId: task.id, day: monday, start: '09:00', minutes: 90 });
+
+	await gotoLive(page, `/review?week=${monday}`);
+	await expect(page.getByText(/^Your week, Mia\. /)).toHaveText(
+		/^Your week, Mia\. 1\.5h logged( — .*)?\.$/
+	);
+
+	await timerCmd(api, { action: 'start', taskId: task.id, mode: 'focus', plannedMin: 1 });
+	await sql`update sessions set started_at = started_at - interval '2 minutes' where state = 'running'`;
+	await gotoLive(page, '/focus');
+	await expect(page.locator('.cheer')).toHaveText('Nice work, Mia — 1 minute done.');
 });

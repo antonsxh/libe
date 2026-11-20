@@ -100,6 +100,17 @@
 		<Avatar name="🦊 Fox" color="purple" />
 		<Avatar name="Mia Lee" color="pink" />
 		<Avatar name="Sam" color="slate" />
+		<Avatar name="Anton" color="teal" emoji="🦊" size="sm" />
+		<Avatar name="Anton" color="teal" emoji="🦊" />
+		<Avatar name={null} color="blue" emoji="🐙" size="lg" />
+	</div>
+	<p class="muted caption">Daily-goal ring: 0 %, 35 %, 80 %, reached</p>
+	<div class="row">
+		<Avatar name="Anton Schmidt" color="amber" ring={{ fraction: 0, done: false }} />
+		<Avatar name="Anton Schmidt" color="amber" ring={{ fraction: 0.35, done: false }} />
+		<Avatar name="Anton" color="teal" emoji="🦊" ring={{ fraction: 0.8, done: false }} />
+		<Avatar name="Anton" color="teal" emoji="🦊" ring={{ fraction: 1, done: true }} />
+		<Avatar name="Anton" color="teal" size="lg" ring={{ fraction: 0.6, done: false }} />
 	</div>
 </section>
 
@@ -139,6 +150,10 @@
 		font-family: var(--font-mono);
 		font-size: var(--fs-xs);
 		color: var(--text-muted);
+	}
+	.caption {
+		margin: var(--space-4) 0 var(--space-2);
+		font-size: var(--fs-sm);
 	}
 	.row {
 		display: flex;

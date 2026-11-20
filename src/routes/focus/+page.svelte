@@ -80,6 +80,22 @@
 		view && active ? `${view.display} · ${active.task.title}` : `${t.focus.title} · libe`
 	);
 	const settings = $derived(timer.settings);
+
+	/**
+	 * One short line when a countdown reaches its planned minutes or a pomodoro break begins,
+	 * with the profile name as a vocative (root layout data; without a name the same sentence
+	 * without it).
+	 */
+	const cheer = $derived.by(() => {
+		if (!view || !active) return null;
+		const name = data.profile?.displayName ?? null;
+		if (view.phase === 'short_break') return t.focus.cheer.shortBreak(name);
+		if (view.phase === 'long_break') return t.focus.cheer.longBreak(name);
+		const planned = active.session?.durationMin ?? null;
+		if (view.mode === 'focus' && view.overtime && planned !== null)
+			return t.focus.cheer.targetReached(name, planned);
+		return null;
+	});
 </script>
 
 <svelte:head><title>{pageTitle}</title></svelte:head>
@@ -141,6 +157,7 @@
 					{view.display}
 				</p>
 				<p class="state" aria-live="polite">{timerLabelText(view.label, t)}</p>
+				<p class="cheer" role="status">{cheer ?? ''}</p>
 				{#if view.dots.length > 0}
 					<ol class="dots" aria-label={t.focus.cycle}>
 						{#each view.dots as dot, i (i)}
@@ -453,6 +470,15 @@
 		font-size: var(--fs-sm);
 		font-weight: var(--fw-medium);
 		letter-spacing: var(--tracking-label);
+	}
+	.cheer {
+		max-width: 48ch;
+		color: var(--text-2);
+		font-size: var(--fs-md);
+		text-align: center;
+	}
+	.cheer:not(:empty) {
+		margin-top: var(--space-2);
 	}
 	.dots {
 		display: flex;

@@ -6,12 +6,17 @@
 import { DEVICE_MODEL_NAMES, DEVICE_NAME_MAX } from '#lib/auth.ts';
 import { MANUAL_LOG_MAX_AGE_DAYS } from '#lib/manual-log.ts';
 import { DISPLAY_NAME_MAX } from '#lib/profile.ts';
+import { DAILY_GOAL_MAX, DAILY_GOAL_MIN, DAILY_GOAL_STEP } from '#lib/daily-goal.ts';
 import { QUEST_BUDGET_MAX_H, QUEST_DESC_MAX, QUEST_NAME_MAX } from '#lib/quest-form.ts';
 import { TASK_DURATION_MAX_MIN, TASK_TITLE_MAX } from '#lib/task-form.ts';
 import { MAX_TIMER_MIN, POMODORO_LIMITS } from '#lib/timer.ts';
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const lim = POMODORO_LIMITS;
+
+/** `2 h 10 min`, `45 min`, `4 h` — durations in sentences (avatar progress, goal choices). */
+const duration = (h: number, m: number) =>
+	h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h} h ${m} min`;
 
 export const en = {
 	common: {
@@ -64,6 +69,8 @@ export const en = {
 		search: 'Search or jump…',
 		account: 'Account and devices',
 		accountOf: (name: string) => `Account and devices (${name})`,
+		/** Avatar button with a daily goal: `account` label + `goal.progress`. */
+		withProgress: (account: string, progress: string) => `${account}, ${progress}`,
 		signedInAs: 'Signed in as',
 		thisDevice: 'This device',
 		thisDeviceIs: (device: string) => `This device: ${device}`,
@@ -135,6 +142,8 @@ export const en = {
 			night: (name: string | null) => (name ? `Still up, ${name}?` : 'Still up?')
 		},
 		today: 'today',
+		/** After today's hours when a daily goal is set: "2.2h / 4h today". */
+		ofGoalToday: (goal: string) => `/ ${goal} today`,
 		thisWeek: (hours: string) => `${hours} this week`,
 		budgetBar: "Share of this week's quest budget used",
 		blockFailed:
@@ -261,6 +270,14 @@ export const en = {
 			autoStart: 'Start breaks and the next round automatically',
 			hint: 'Changes apply from the next phase. After a long break the next round always waits for you.'
 		},
+		/** Short line under the state when a target is reached or a break starts (`name` or null). */
+		cheer: {
+			targetReached: (name: string | null, min: number) =>
+				`Nice work${name ? `, ${name}` : ''} — ${min} ${plural(min, 'minute', 'minutes')} done.`,
+			shortBreak: (name: string | null) => (name ? `Take a breath, ${name}.` : 'Take a breath.'),
+			longBreak: (name: string | null) =>
+				name ? `Long break — well earned, ${name}.` : 'Long break — well earned.'
+		},
 		switchDialog: {
 			title: 'Switch timer?',
 			isRunning: ' is running',
@@ -338,7 +355,6 @@ export const en = {
 	},
 	review: {
 		title: 'Weekly review',
-		subtitle: 'How much of the week moved your quests forward.',
 		keyFigures: 'Key figures',
 		questHours: 'Quest hours',
 		noBudget: 'No weekly budget set',
@@ -370,17 +386,49 @@ export const en = {
 		split: (quest: string, pct: number | null, other: string) =>
 			`Quest work ${quest} (${pct}%), other ${other}`,
 		noTimeThisWeek: 'No time logged this week',
-		questWorkLegend: 'Quest work'
+		questWorkLegend: 'Quest work',
+		/** Personal headline under the title (vocative only). */
+		yourWeek: (name: string | null) => (name ? `Your week, ${name}.` : 'Your week.'),
+		/** One-sentence summary after `yourWeek` (`#lib/review.ts` → `weekSummary`). */
+		summary: {
+			future: 'It hasn’t started yet.',
+			emptyCurrent: 'Nothing logged yet.',
+			empty: 'Nothing logged.',
+			logged: (total: string) => `${total} logged.`,
+			more: (total: string, delta: string, partial: boolean) =>
+				`${total} logged — ${delta} more than ${partial ? 'the same days last week' : 'last week'}.`,
+			less: (total: string, delta: string, partial: boolean) =>
+				`${total} logged — ${delta} less than ${partial ? 'the same days last week' : 'last week'}.`,
+			same: (total: string, partial: boolean) =>
+				`${total} logged — about the same as ${partial ? 'the same days last week' : 'last week'}.`
+		}
 	},
 	settings: {
 		title: 'Settings',
-		subtitle: 'Profile, paired devices, focus timer and language.',
+		subtitle: 'Profile, daily goal, paired devices, focus timer and language.',
 		profile: 'Profile',
-		profileDesc: 'Your name and avatar colour — the same on all your devices.',
+		profileDesc: 'Your name and avatar — the same on all your devices.',
 		displayName: 'Name',
 		displayNamePlaceholder: 'Your name',
 		displayNameHint: `Optional, up to ${DISPLAY_NAME_MAX} characters. Leave it empty for no name.`,
 		avatarColour: 'Avatar colour',
+		avatarStyle: 'Avatar shows',
+		avatarStyles: { initials: 'Initials', emoji: 'Emoji' },
+		avatarEmoji: 'Avatar emoji',
+		avatarEmojiHint: 'One emoji instead of your initials. Leave it empty to use your initials.',
+		suggestedEmoji: 'Suggested emoji',
+		useAvatarEmoji: (emoji: string) => `Use ${emoji} as avatar`,
+		dailyGoal: 'Daily goal',
+		dailyGoalDesc:
+			'How much time you want to log each day. A ring around your avatar fills up as you go.',
+		goal: 'Goal',
+		goalOff: 'No daily goal',
+		goalCustom: 'Custom…',
+		goalHours: 'Hours',
+		goalMinutes: 'Minutes',
+		goalHint: `From ${duration(0, DAILY_GOAL_MIN)} to ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-minute steps.`,
+		saveGoal: 'Save goal',
+		goalSaved: 'Daily goal saved.',
 		saveProfile: 'Save profile',
 		profileSaved: 'Profile saved.',
 		devices: 'Devices',
@@ -634,7 +682,15 @@ export const en = {
 		// settings
 		languageInvalid: 'Pick one of the languages.',
 		profileNameTooLong: `Keep the name to at most ${DISPLAY_NAME_MAX} characters.`,
-		profileColorInvalid: 'Pick one of the colours.'
+		profileColorInvalid: 'Pick one of the colours.',
+		profileEmojiInvalid: 'Use exactly one emoji.',
+		dailyGoalInvalid: `Pick a goal from ${duration(0, DAILY_GOAL_MIN)} to ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-minute steps.`
+	},
+	/** Daily goal (avatar ring, Home, Settings). */
+	goal: {
+		duration,
+		/** Accessible progress of the avatar ring: "2 h 10 min of 4 h today". */
+		progress: (logged: string, goal: string) => `${logged} of ${goal} today`
 	}
 };
 

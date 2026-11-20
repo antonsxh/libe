@@ -23,6 +23,7 @@
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import { isApplePlatform } from '#lib/palette.ts';
 	import { PROFILE_HREF } from '#lib/profile.ts';
+	import { goalProgress, liveLoggedMin, runningSpan, splitMinutes } from '#lib/daily-goal.ts';
 
 	const timer = useTimer();
 	const t = useI18n();
@@ -41,6 +42,30 @@
 	const deviceName = $derived(page.data.device?.name ?? t.nav.thisDevice);
 	const profile = $derived(page.data.profile ?? null);
 	const displayName = $derived(profile?.displayName ?? null);
+
+	/**
+	 * Daily-goal ring: today's minutes from the layout data (server, completed sessions) plus
+	 * the active session's running time from the timer snapshot — moves live while it runs.
+	 */
+	const goal = $derived.by(() => {
+		const goalMin = page.data.dailyGoalMin ?? null;
+		const log = page.data.todayLog ?? null;
+		if (!goalMin || !log) return null;
+		const logged = liveLoggedMin(log, runningSpan(timer.timer, timer.view), timer.serverNow);
+		return goalProgress(logged, goalMin);
+	});
+	const duration = (min: number) => {
+		const { h, m } = splitMinutes(min);
+		return t.goal.duration(h, m);
+	};
+	const accountLabel = $derived.by(() => {
+		const base = displayName ? t.nav.accountOf(displayName) : t.nav.account;
+		if (!goal) return base;
+		return t.nav.withProgress(
+			base,
+			t.goal.progress(duration(goal.loggedMin), duration(goal.goalMin))
+		);
+	});
 
 	/** ⌘ vs Ctrl: decided after mount — SSR can't know, and hydration must not keep its guess. */
 	let isMac = $state(false);
@@ -112,12 +137,22 @@
 			trigger={searchButton}
 			apple={isMac}
 		/>
-		<Menu label={displayName ? t.nav.accountOf(displayName) : t.nav.account}>
-			{#snippet trigger()}<Avatar name={displayName} color={profile?.avatarColor} />{/snippet}
+		<Menu label={accountLabel}>
+			{#snippet trigger()}<Avatar
+					name={displayName}
+					color={profile?.avatarColor}
+					emoji={profile?.avatarEmoji}
+					ring={goal}
+				/>{/snippet}
 			{#snippet children(close)}
 				<div class="menu-head">
 					{#if displayName}
-						<Avatar name={displayName} color={profile?.avatarColor} size="sm" />
+						<Avatar
+							name={displayName}
+							color={profile?.avatarColor}
+							emoji={profile?.avatarEmoji}
+							size="sm"
+						/>
 						<p class="who">
 							<span class="person">{displayName}</span>
 							<span class="muted device">{t.nav.thisDeviceIs(deviceName)}</span>

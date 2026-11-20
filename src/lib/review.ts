@@ -17,6 +17,7 @@ import {
 	endOfQuarter,
 	formatDayLabel,
 	formatDecimal,
+	formatHours,
 	hourUnit,
 	startOfQuarter,
 	startOfWeek,
@@ -385,4 +386,48 @@ export function comparisonLabel(days: number, t: I18n): string {
 	const name = (i: number) =>
 		formatDayLabel(addDays('2024-01-01', i), { weekday: 'short' }, t.intl);
 	return t.review.vsLastDays(days <= 1 ? name(0) : `${name(0)}–${name(days - 1)}`);
+}
+
+/** What the personal headline says about the week (`weekSummaryText`). */
+export type WeekSummary =
+	| { kind: 'future' }
+	| { kind: 'empty'; current: boolean }
+	| {
+			kind: 'logged';
+			totalMin: number;
+			/** Against the same days of the previous week (null: nothing to compare). */
+			compare: { deltaMin: number; partial: boolean } | null;
+	  };
+
+/**
+ * The week in one sentence: nothing elapsed yet, nothing logged (yet), or the total logged
+ * and how it compares with the same days of the previous week (the KPIs' comparison span).
+ */
+export function weekSummary(week: ReviewWeek): WeekSummary {
+	if (week.daysElapsed === 0) return { kind: 'future' };
+	if (week.totalMin <= 0) return { kind: 'empty', current: week.daysElapsed < 7 };
+	const prev = week.previous;
+	return {
+		kind: 'logged',
+		totalMin: week.totalMin,
+		compare: prev ? { deltaMin: week.totalMin - prev.totalMin, partial: prev.days < 7 } : null
+	};
+}
+
+/**
+ * `weekSummary` as text: "12.5h logged — 2.1h more than last week." A difference that rounds
+ * to 0.0h reads "about the same".
+ */
+export function weekSummaryText(summary: WeekSummary, t: I18n): string {
+	const s = t.review.summary;
+	if (summary.kind === 'future') return s.future;
+	if (summary.kind === 'empty') return summary.current ? s.emptyCurrent : s.empty;
+	const hours = (min: number) => formatHours(min / 60, t.intl);
+	const total = hours(summary.totalMin);
+	const c = summary.compare;
+	if (!c) return s.logged(total);
+	const delta = Math.round((Math.abs(c.deltaMin) / 60) * 10) / 10;
+	if (delta === 0) return s.same(total, c.partial);
+	const text = formatHours(delta, t.intl);
+	return c.deltaMin > 0 ? s.more(total, text, c.partial) : s.less(total, text, c.partial);
 }

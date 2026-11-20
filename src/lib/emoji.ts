@@ -35,3 +35,23 @@ export const SUGGESTED_EMOJIS = [
 	'🏠',
 	'💰'
 ] as const;
+
+/** Suggestions for the profile's avatar emoji (Settings → Profile). */
+export const AVATAR_EMOJIS = [
+	'🦊',
+	'🐻',
+	'🐼',
+	'🦉',
+	'🐙',
+	'🐢',
+	'🦄',
+	'🐧',
+	'🌻',
+	'🌙',
+	'⭐',
+	'🔥',
+	'🍀',
+	'🌊',
+	'🎧',
+	'☕'
+] as const;

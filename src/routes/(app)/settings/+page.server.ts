@@ -9,10 +9,12 @@ import { parsePomodoroSettings } from '#lib/timer.ts';
 import {
 	getLanguageSetting,
 	pomodoroSettingsFailure,
+	saveDailyGoal,
 	saveLanguageSetting,
 	saveProfile
 } from '#lib/server/settings.ts';
-import { normalizeDisplayName, parseAvatarColor } from '#lib/profile.ts';
+import { normalizeDisplayName, parseAvatarColor, parseAvatarEmoji } from '#lib/profile.ts';
+import { parseDailyGoal } from '#lib/daily-goal.ts';
 import { i18n, isLanguageSetting } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -67,31 +69,59 @@ export const actions = {
 	},
 
 	/**
-	 * Profile (Settings → Profile): display name (blank = no name) and avatar colour, for
-	 * every device. `locals.profile` is updated too, so a no-JS submit renders the new avatar.
+	 * Profile (Settings → Profile): display name (blank = no name), avatar colour and the
+	 * optional avatar emoji (style `initials` or a blank emoji = initials), for every device.
+	 * `locals.profile` is updated too, so a no-JS submit renders the new avatar.
 	 */
 	profile: async ({ request, locals }) => {
 		const form = await request.formData();
 		const values = {
 			displayName: String(form.get('displayName') ?? ''),
-			avatarColor: String(form.get('avatarColor') ?? '')
+			avatarColor: String(form.get('avatarColor') ?? ''),
+			avatarStyle: String(form.get('avatarStyle') ?? ''),
+			avatarEmoji: String(form.get('avatarEmoji') ?? '')
 		};
 		const t = i18n(locals.locale);
 		const name = normalizeDisplayName(values.displayName);
 		const color = parseAvatarColor(values.avatarColor);
-		if (!name.ok || !color.ok)
+		const emoji = parseAvatarEmoji(values.avatarStyle, values.avatarEmoji);
+		if (!name.ok || !color.ok || !emoji.ok)
 			return fail(400, {
 				intent: 'profile' as const,
 				values,
 				errors: {
 					displayName: name.ok ? undefined : t.errors[name.error],
-					avatarColor: color.ok ? undefined : t.errors[color.error]
+					avatarColor: color.ok ? undefined : t.errors[color.error],
+					avatarEmoji: emoji.ok ? undefined : t.errors[emoji.error]
 				}
 			});
-		const profile = { displayName: name.value, avatarColor: color.value };
+		const profile = { displayName: name.value, avatarColor: color.value, avatarEmoji: emoji.value };
 		await saveProfile(profile);
 		locals.profile = profile;
 		return { intent: 'profile' as const, saved: true };
+	},
+
+	/**
+	 * Daily goal (Settings → Daily goal): `preset` = `off` | preset minutes | `custom` with
+	 * `hours` + `minutes`. `locals.dailyGoalMin` is updated so a no-JS submit shows the ring.
+	 */
+	goal: async ({ request, locals }) => {
+		const form = await request.formData();
+		const values = {
+			preset: String(form.get('preset') ?? ''),
+			hours: String(form.get('hours') ?? ''),
+			minutes: String(form.get('minutes') ?? '')
+		};
+		const goal = parseDailyGoal(values);
+		if (!goal.ok)
+			return fail(400, {
+				intent: 'goal' as const,
+				values,
+				error: i18n(locals.locale).errors[goal.error]
+			});
+		await saveDailyGoal(goal.value);
+		locals.dailyGoalMin = goal.value;
+		return { intent: 'goal' as const, saved: true };
 	},
 
 	/** UI language for every device: `auto` (each browser's `Accept-Language`), `en`, `de`. */

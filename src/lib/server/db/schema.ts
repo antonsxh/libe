@@ -26,6 +26,7 @@ import {
 } from 'drizzle-orm/pg-core';
 // Relative (not `#lib/…`): drizzle-kit loads this file outside Vite.
 import { QUEST_COLORS } from '../../quest-colors.ts';
+import { DAILY_GOAL_MAX, DAILY_GOAL_MIN, DAILY_GOAL_STEP } from '../../daily-goal.ts';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
@@ -199,6 +200,10 @@ export const settings = pgTable(
 		displayName: text('display_name'),
 		/** Profile: avatar colour, a key of `QUEST_COLORS`. */
 		avatarColor: text('avatar_color').notNull().default('amber'),
+		/** Profile: a single emoji shown instead of the initials (null = initials). */
+		avatarEmoji: text('avatar_emoji'),
+		/** Daily goal in minutes (null = no goal): 15–960, a multiple of 15 (`#lib/daily-goal.ts`). */
+		dailyGoalMin: integer('daily_goal_min'),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(t) => [
@@ -212,6 +217,16 @@ export const settings = pgTable(
 		check(
 			'settings_avatar_color_chk',
 			sql`${t.avatarColor} in (${sql.raw(QUEST_COLORS.map((c) => `'${c}'`).join(', '))})`
+		),
+		// One grapheme can be several code points (ZWJ sequences, tag flags); the app checks
+		// "exactly one emoji" (`isSingleEmoji`), the database only bounds the length.
+		check(
+			'settings_avatar_emoji_chk',
+			sql`${t.avatarEmoji} IS NULL OR (char_length(${t.avatarEmoji}) BETWEEN 1 AND 16 AND ${t.avatarEmoji} = btrim(${t.avatarEmoji}))`
+		),
+		check(
+			'settings_daily_goal_chk',
+			sql`${t.dailyGoalMin} IS NULL OR (${t.dailyGoalMin} BETWEEN ${sql.raw(String(DAILY_GOAL_MIN))} AND ${sql.raw(String(DAILY_GOAL_MAX))} AND ${t.dailyGoalMin} % ${sql.raw(String(DAILY_GOAL_STEP))} = 0)`
 		)
 	]
 );

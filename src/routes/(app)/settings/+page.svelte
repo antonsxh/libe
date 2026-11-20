@@ -17,6 +17,7 @@
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Button from '#lib/components/Button.svelte';
 	import ColorSwatches from '#lib/components/ColorSwatches.svelte';
+	import EmojiPicker from '#lib/components/EmojiPicker.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
@@ -27,7 +28,23 @@
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { LanguageSetting } from '#lib/i18n/index.ts';
-	import { DEFAULT_PROFILE, PROFILE_ANCHOR } from '#lib/profile.ts';
+	import {
+		AVATAR_STYLES,
+		DEFAULT_PROFILE,
+		PROFILE_ANCHOR,
+		type AvatarStyle
+	} from '#lib/profile.ts';
+	import { AVATAR_EMOJIS, isSingleEmoji } from '#lib/emoji.ts';
+	import {
+		DAILY_GOAL_MAX,
+		DAILY_GOAL_MINUTE_STEPS,
+		DAILY_GOAL_PRESETS,
+		GOAL_ANCHOR,
+		GOAL_CUSTOM,
+		GOAL_OFF,
+		goalChoice,
+		splitMinutes
+	} from '#lib/daily-goal.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -82,6 +99,21 @@
 	// rejected input; typing overrides them locally.
 	let displayName = $derived(profileForm?.values.displayName ?? profile.displayName ?? '');
 	let avatarColor = $derived(profileForm?.values.avatarColor ?? profile.avatarColor);
+	let avatarStyle = $derived<AvatarStyle>(
+		profileForm
+			? profileForm.values.avatarStyle === 'emoji'
+				? 'emoji'
+				: 'initials'
+			: profile.avatarEmoji
+				? 'emoji'
+				: 'initials'
+	);
+	let avatarEmoji = $derived(profileForm?.values.avatarEmoji ?? profile.avatarEmoji ?? '');
+	/** Live preview: a valid emoji while "Emoji" is chosen, else the initials. */
+	const previewEmoji = $derived.by(() => {
+		const e = avatarEmoji.trim();
+		return avatarStyle === 'emoji' && e && isSingleEmoji(e) ? e : null;
+	});
 	let profileSaved = $state(false);
 	const onProfile: SubmitFunction = () => {
 		profileSaved = false;
@@ -89,6 +121,41 @@
 			// Reloads the layout data → the nav avatar shows the new profile.
 			await update({ reset: false });
 			profileSaved = result.type === 'success';
+		};
+	};
+
+	/* ── Daily goal ───────────────────────────────────────────────────────── */
+	const goalForm = $derived(
+		form?.intent === 'goal' && 'error' in form && form.values
+			? { error: form.error, values: form.values }
+			: null
+	);
+	const storedGoal = $derived(data.dailyGoalMin ?? null);
+	const goalDuration = (min: number) => {
+		const { h, m } = splitMinutes(min);
+		return t.goal.duration(h, m);
+	};
+	// Follow the stored goal (or the rejected input); the user's choices override locally.
+	let goalPreset = $derived(goalForm?.values.preset ?? goalChoice(storedGoal));
+	let goalHours = $derived(goalForm?.values.hours ?? String(splitMinutes(storedGoal ?? 60).h));
+	let goalMinutes = $derived(goalForm?.values.minutes ?? String(splitMinutes(storedGoal ?? 60).m));
+	let goalSaved = $state(false);
+	function pickPreset(value: string) {
+		// "Custom…" starts from the goal chosen so far.
+		if (value === GOAL_CUSTOM && goalPreset !== GOAL_OFF && goalPreset !== GOAL_CUSTOM) {
+			const { h, m } = splitMinutes(Number(goalPreset));
+			goalHours = String(h);
+			goalMinutes = String(m);
+		}
+		goalPreset = value;
+		goalSaved = false;
+	}
+	const onGoal: SubmitFunction = () => {
+		goalSaved = false;
+		return async ({ result, update }) => {
+			// Reloads the layout data → the nav avatar ring follows at once.
+			await update({ reset: false });
+			goalSaved = result.type === 'success';
 		};
 	};
 
@@ -153,7 +220,7 @@
 			</div>
 		</div>
 		<form class="profile" method="POST" action="?/profile" use:enhance={onProfile}>
-			<Avatar name={displayName} color={avatarColor} size="lg" />
+			<Avatar name={displayName} color={avatarColor} emoji={previewEmoji} size="lg" />
 			<div class="profile-fields">
 				<div class="field">
 					<label class="field-label" for="profile-name">{t.settings.displayName}</label>
@@ -179,6 +246,55 @@
 					{/if}
 				</div>
 				<div class="field">
+					<span class="field-label" id="avatar-style-label">{t.settings.avatarStyle}</span>
+					<div class="segments" role="radiogroup" aria-labelledby="avatar-style-label">
+						{#each AVATAR_STYLES as style (style)}
+							<label class:on={avatarStyle === style}>
+								<input
+									type="radio"
+									name="avatarStyle"
+									value={style}
+									checked={avatarStyle === style}
+									onchange={() => {
+										avatarStyle = style;
+										profileSaved = false;
+									}}
+								/>
+								<span>{t.settings.avatarStyles[style]}</span>
+							</label>
+						{/each}
+					</div>
+				</div>
+				{#if avatarStyle === 'emoji' || !hydrated}
+					<div class="field">
+						<span class="field-label" id="avatar-emoji-label">{t.settings.avatarEmoji}</span>
+						<EmojiPicker
+							name="avatarEmoji"
+							bind:value={
+								() => avatarEmoji,
+								(v) => {
+									avatarEmoji = v;
+									profileSaved = false;
+								}
+							}
+							labelledby="avatar-emoji-label"
+							describedby="avatar-emoji-hint"
+							suggestions={AVATAR_EMOJIS}
+							groupLabel={t.settings.suggestedEmoji}
+							pickLabel={t.settings.useAvatarEmoji}
+							placeholder="🦊"
+							invalid={Boolean(profileForm?.errors.avatarEmoji)}
+						/>
+						{#if profileForm?.errors.avatarEmoji}
+							<span class="error" role="alert" id="avatar-emoji-hint">
+								{profileForm.errors.avatarEmoji}
+							</span>
+						{:else}
+							<span class="hint muted" id="avatar-emoji-hint">{t.settings.avatarEmojiHint}</span>
+						{/if}
+					</div>
+				{/if}
+				<div class="field">
 					<span class="field-label">{t.settings.avatarColour}</span>
 					<ColorSwatches
 						name="avatarColor"
@@ -201,6 +317,81 @@
 						{profileSaved ? t.settings.profileSaved : ''}
 					</span>
 				</div>
+			</div>
+		</form>
+	</section>
+
+	<section class="card section" id={GOAL_ANCHOR} aria-labelledby="goal-title">
+		<div class="section-head">
+			<div>
+				<h2 id="goal-title" class="label">{t.settings.dailyGoal}</h2>
+				<p class="muted desc">{t.settings.dailyGoalDesc}</p>
+			</div>
+		</div>
+		<form class="goal" method="POST" action="?/goal" use:enhance={onGoal}>
+			<div class="goal-fields">
+				<div class="field">
+					<label class="field-label" for="goal-preset">{t.settings.goal}</label>
+					<select
+						id="goal-preset"
+						name="preset"
+						value={goalPreset}
+						onchange={(e) => pickPreset(e.currentTarget.value)}
+						aria-describedby="goal-hint"
+						aria-invalid={goalForm ? 'true' : undefined}
+					>
+						<option value={GOAL_OFF}>{t.settings.goalOff}</option>
+						{#each DAILY_GOAL_PRESETS as min (min)}
+							<option value={String(min)}>{goalDuration(min)}</option>
+						{/each}
+						<option value={GOAL_CUSTOM}>{t.settings.goalCustom}</option>
+					</select>
+				</div>
+				{#if goalPreset === GOAL_CUSTOM || !hydrated}
+					<div class="field">
+						<label class="field-label" for="goal-hours">{t.settings.goalHours}</label>
+						<input
+							id="goal-hours"
+							class="goal-hours"
+							name="hours"
+							type="number"
+							inputmode="numeric"
+							min="0"
+							max={DAILY_GOAL_MAX / 60}
+							step="1"
+							value={goalHours}
+							oninput={(e) => {
+								goalHours = e.currentTarget.value;
+								goalSaved = false;
+							}}
+						/>
+					</div>
+					<div class="field">
+						<label class="field-label" for="goal-minutes">{t.settings.goalMinutes}</label>
+						<select
+							id="goal-minutes"
+							name="minutes"
+							value={goalMinutes}
+							onchange={(e) => {
+								goalMinutes = e.currentTarget.value;
+								goalSaved = false;
+							}}
+						>
+							{#each DAILY_GOAL_MINUTE_STEPS as m (m)}
+								<option value={String(m)}>{m}</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
+			</div>
+			{#if goalForm}
+				<p class="error" role="alert" id="goal-hint">{goalForm.error}</p>
+			{:else}
+				<p class="hint muted" id="goal-hint">{t.settings.goalHint}</p>
+			{/if}
+			<div class="profile-actions">
+				<Button variant="primary" type="submit">{t.settings.saveGoal}</Button>
+				<span class="saved muted" role="status">{goalSaved ? t.settings.goalSaved : ''}</span>
 			</div>
 		</form>
 	</section>
@@ -547,8 +738,35 @@
 		color: var(--text);
 		font-size: var(--fs-md);
 	}
-	.field input:hover {
+	.field input:hover,
+	.field select:hover {
 		border-color: var(--border-strong);
+	}
+	.field select {
+		height: 40px;
+		padding: 0 var(--space-3);
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		color: var(--text);
+		font-size: var(--fs-md);
+	}
+	.field select[aria-invalid='true'] {
+		border-color: var(--danger);
+	}
+	.goal {
+		display: grid;
+		gap: var(--space-3);
+		margin-top: var(--space-6);
+	}
+	.goal-fields {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		gap: var(--space-4);
+	}
+	.field .goal-hours {
+		width: 96px;
 	}
 	.field input[aria-invalid='true'] {
 		border-color: var(--danger);
@@ -604,6 +822,7 @@
 	/* Segmented control (same look as the desktop app's update track). */
 	.segments {
 		display: inline-flex;
+		justify-self: start;
 		flex-wrap: wrap;
 		max-width: 100%;
 		padding: 3px;

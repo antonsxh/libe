@@ -14,6 +14,8 @@ declare global {
 			locale: Locale;
 			/** The owner's profile (`settings` row) — null without a paired device. */
 			profile: Profile | null;
+			/** Daily goal in minutes (`settings.daily_goal_min`; null = none or no paired device). */
+			dailyGoalMin: number | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

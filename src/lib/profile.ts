@@ -8,8 +8,11 @@
  *   `char_length` in the `settings_display_name_chk` constraint and as device names — a
  *   grapheme limit could accept a name the database rejects (combining marks, ZWJ emoji).
  * - `initials`: up to two graphemes (first and last word) for the avatar.
+ * - `parseAvatarEmoji`: an optional single emoji shown instead of the initials (validated like
+ *   quest icons, `isSingleEmoji`).
  * - `greetingPart`: the part of the day for Home's greeting.
  */
+import { isSingleEmoji } from '#lib/emoji.ts';
 import { OTHER_COLOR, isQuestColor, type QuestColor } from '#lib/quest-colors.ts';
 import type { ErrorCode } from '#lib/i18n/index.ts';
 
@@ -28,9 +31,15 @@ export interface Profile {
 	displayName: string | null;
 	/** A key of `QUEST_COLORS`. */
 	avatarColor: QuestColor;
+	/** A single emoji shown instead of the initials; null = initials. */
+	avatarEmoji: string | null;
 }
 
-export const DEFAULT_PROFILE: Profile = { displayName: null, avatarColor: DEFAULT_AVATAR_COLOR };
+export const DEFAULT_PROFILE: Profile = {
+	displayName: null,
+	avatarColor: DEFAULT_AVATAR_COLOR,
+	avatarEmoji: null
+};
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: ErrorCode };
 
@@ -56,12 +65,31 @@ export function parseAvatarColor(raw: unknown): Parsed<QuestColor> {
 	return isQuestColor(raw) ? { ok: true, value: raw } : { ok: false, error: 'profileColorInvalid' };
 }
 
+/** How the avatar shows the person (Settings → Profile): initials (default) or an emoji. */
+export const AVATAR_STYLES = ['initials', 'emoji'] as const;
+export type AvatarStyle = (typeof AVATAR_STYLES)[number];
+
+/**
+ * The avatar emoji from user input: style `initials` or a blank field → `null` (initials);
+ * otherwise exactly one emoji (trimmed, NFC) or `profileEmojiInvalid`.
+ */
+export function parseAvatarEmoji(style: unknown, raw: unknown): Parsed<string | null> {
+	if (style !== 'emoji' || typeof raw !== 'string') return { ok: true, value: null };
+	const value = raw.normalize('NFC').trim();
+	if (!value) return { ok: true, value: null };
+	return isSingleEmoji(value) ? { ok: true, value } : { ok: false, error: 'profileEmojiInvalid' };
+}
+
 /** A stored row's values as a `Profile` (unknown colours fall back to slate, like quests). */
-export function toProfile(row: { displayName: string | null; avatarColor: string } | undefined) {
+export function toProfile(
+	row: { displayName: string | null; avatarColor: string; avatarEmoji?: string | null } | undefined
+) {
 	if (!row) return { ...DEFAULT_PROFILE };
+	const emoji = row.avatarEmoji?.trim() ?? '';
 	return {
 		displayName: row.displayName?.trim() || null,
-		avatarColor: isQuestColor(row.avatarColor) ? row.avatarColor : OTHER_COLOR
+		avatarColor: isQuestColor(row.avatarColor) ? row.avatarColor : OTHER_COLOR,
+		avatarEmoji: emoji && isSingleEmoji(emoji) ? emoji : null
 	} satisfies Profile;
 }
 
