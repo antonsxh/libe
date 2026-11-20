@@ -2,8 +2,11 @@ name: Release
 
 # Three channels, modelled on pingdotgg/t3code (docs/RELEASING.md has the full runbook):
 #
-#   nightly  hourly check; publishes when main moved since the last nightly and that one is at
-#            least 6 h old. GitHub prerelease + image tags `<version>` and `nightly`.
+#   nightly  automatic gate check after every green CI run on main and on the schedule (twice an
+#            hour, the catch-up). GitHub delivers scheduled runs best effort (many are delayed or
+#            dropped, new schedules may get none), so the schedule alone is not enough. Publishes
+#            when main moved since the last nightly and that one is at least 6 h old. GitHub
+#            prerelease + image tags `<version>` and `nightly`.
 #   preview  manual (`channel=preview`, any branch): the whole pipeline for a commit nobody
 #            should install. Draft release, image tag `<version>` only.
 #   stable   manual (`channel=stable` on main): promotes the commit of the latest nightly, version
@@ -14,7 +17,7 @@ name: Release
 # Nothing is published unless every check, the desktop builds and the image smoke tests pass.
 # The checks run here only when no passed run exists for the commit: nightlies and tags reuse
 # ci.yml's run of the same commit, stable-by-dispatch the nightly it promotes (`verified`,
-# see checksDecision in scripts/release.ts). A scheduled nightly waits for CI and skips red
+# see checksDecision in scripts/release.ts). An automatic nightly waits for CI and skips red
 # commits.
 
 on:
@@ -23,9 +26,15 @@ on:
       - 'v*.*.*'
       - '!v*-nightly.*'
       - '!v*-preview.*'
+  # Nightly gate check as soon as CI passed on main (the push run; PR runs have other branches).
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   schedule:
-    # Hourly gate check (not at minute 0, GitHub's busiest). Cheap when nothing is due.
-    - cron: '17 * * * *'
+    # Catch-up gate check for a main that moved while the last nightly was younger than 6 h.
+    # Avoids minute 0 (GitHub's busiest). Best effort: GitHub delays or drops scheduled runs.
+    - cron: '8,38 * * * *'
   workflow_dispatch:
     inputs:
       channel:
@@ -39,11 +48,14 @@ on:
         required: false
 
 # Nightlies and previews queue behind each other so two runs never build the same version or
-# publish out of order; stable has its own group so a nightly never blocks it. Running
-# publishers are never cancelled.
+# publish out of order; stable (tag push or dispatch) has its own group so a nightly never
+# blocks it. Running publishers are never cancelled, and `queue: max` keeps every pending run
+# (the default keeps one and cancels the older), so a queued preview or tag is never dropped.
+# Queued automatic checks are harmless: the gate is evaluated once the run starts.
 concurrency:
-  group: release-${{ (github.event_name == 'schedule' || inputs.channel == 'nightly' || inputs.channel == 'preview') && 'prerelease' || 'stable' }}
+  group: release-${{ (github.event_name == 'push' || inputs.channel == 'stable') && 'stable' || 'prerelease' }}
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: read
@@ -51,8 +63,14 @@ permissions:
 jobs:
   plan:
     name: Plan release
-    # Forks never release; PAUSE_NIGHTLY=true (repository variable) pauses the schedule only.
-    if: ${{ !github.event.repository.fork && (github.event_name != 'schedule' || vars.PAUSE_NIGHTLY != 'true') }}
+    # Forks never release; PAUSE_NIGHTLY=true (repository variable) pauses the automatic nightly
+    # checks only (see isAutomaticNightly). A red or cancelled CI run starts no plan.
+    if: >-
+      !github.event.repository.fork &&
+      ((github.event_name != 'schedule' && github.event_name != 'workflow_run') ||
+       vars.PAUSE_NIGHTLY != 'true') &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

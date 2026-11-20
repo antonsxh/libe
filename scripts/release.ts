@@ -7,16 +7,18 @@
  *                                               (env VERSION, TAG, GH_REPO) → <dir>/latest.json
  *
  * Channels:
- *   nightly  scheduled (hourly check): only when main moved since the last nightly AND that one
- *            is at least six hours old. Version `<next patch>-nightly.<YYYYMMDD>.<run>`.
+ *   nightly  automatic (`isAutomaticNightly`): checked after every green CI run on main, on the
+ *            schedule (the catch-up; GitHub drops many scheduled runs); publishes only when main moved since the last nightly AND that one is at
+ *            least six hours old.
+ *            Version `<next patch>-nightly.<YYYYMMDD>.<run>`.
  *   preview  manual test train from any branch. Same versioning under `preview`; the GitHub
  *            release stays a draft and the image only gets its exact version tag.
  *   stable   manual dispatch (promotes the commit of the latest nightly; version defaults to the
  *            one that nightly previewed) or a pushed `vX.Y.Z` tag (builds exactly that commit).
  *
  * Checks: `plan` outputs `verified=true` when the commit already passed `ci.yml` (or, for
- * stable, shipped as a nightly), and release.yml then skips its own run of checks.yml. A
- * scheduled nightly waits for CI and never ships a commit whose CI failed (see `checksDecision`).
+ * stable, shipped as a nightly), and release.yml then skips its own run of checks.yml. An
+ * automatic nightly waits for CI and never ships a commit whose CI failed (see `checksDecision`).
  *
  * The pure functions are exported for `scripts/release.test.ts`; everything that talks to
  * GitHub goes through the `gh` CLI (GH_TOKEN) and lives below them.
@@ -26,6 +28,15 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 export type Channel = 'stable' | 'nightly' | 'preview';
+
+/**
+ * Events that start an automatic nightly check: the completion of a `ci.yml` run on main
+ * (`workflow_run`) and the schedule. Both go through `nightlyGate`; a dispatched nightly
+ * (`workflow_dispatch`, channel=nightly) does not.
+ */
+export function isAutomaticNightly(event: string): boolean {
+	return event === 'workflow_run' || event === 'schedule';
+}
 
 /** Minimum time between two nightlies. */
 export const NIGHTLY_GAP_MS = 6 * 60 * 60 * 1000;
@@ -153,7 +164,7 @@ export function dockerTags(image: string, channel: Channel, version: string): st
 export type NightlyGate = { release: boolean; reason: string };
 
 /**
- * Whether a scheduled run publishes a nightly. `ahead` is the comparison status of the
+ * Whether an automatic run (`isAutomaticNightly`) publishes a nightly. `ahead` is the comparison status of the
  * candidate commit against the last nightly's tag (GitHub compare API: ahead/identical/behind/diverged).
  */
 export function nightlyGate(
@@ -199,8 +210,8 @@ export type ChecksDecision = { release: boolean; verified: boolean; reason: stri
  *   preview            always runs the checks (any branch, nothing to rely on)
  *   stable (dispatch)  verified: it promotes a nightly, which only shipped after every check
  *   nightly, tag       verified when `ci.yml` passed on the commit; otherwise runs the checks —
- *                      except a scheduled nightly, which waits while CI runs (the next hourly
- *                      check retries) and skips a commit whose CI failed. A dispatched nightly
+ *                      except an automatic nightly, which waits while CI runs (CI's completion
+ *                      triggers the next check) and skips a commit whose CI failed. A dispatched nightly
  *                      refuses a red commit (re-run CI first if it was a flake).
  */
 export function checksDecision(channel: Channel, event: string, ci: () => CiState): ChecksDecision {
@@ -216,15 +227,15 @@ export function checksDecision(channel: Channel, event: string, ci: () => CiStat
 	if (state === 'passed')
 		return { release: true, verified: true, reason: 'CI passed on this commit; checks skipped.' };
 	if (channel === 'nightly' && state === 'failed') {
-		if (event === 'schedule')
+		if (isAutomaticNightly(event))
 			return { release: false, verified: false, reason: 'CI failed on this commit; no nightly.' };
 		throw new Error('CI failed on this commit. Fix main (or re-run CI if it was a flake) first.');
 	}
-	if (channel === 'nightly' && state === 'running' && event === 'schedule')
+	if (channel === 'nightly' && state === 'running' && isAutomaticNightly(event))
 		return {
 			release: false,
 			verified: false,
-			reason: 'CI is still running on this commit; the next hourly check retries.'
+			reason: 'CI is still running on this commit; its completion triggers the next check.'
 		};
 	return {
 		release: true,
@@ -411,12 +422,11 @@ function plan() {
 	const image = env('IMAGE');
 	const run = Number(env('GITHUB_RUN_NUMBER'));
 
-	const channel: Channel =
-		event === 'schedule'
-			? 'nightly'
-			: event === 'workflow_dispatch'
-				? (env('INPUT_CHANNEL', 'preview') as Channel)
-				: 'stable';
+	const channel: Channel = isAutomaticNightly(event)
+		? 'nightly'
+		: event === 'workflow_dispatch'
+			? (env('INPUT_CHANNEL', 'preview') as Channel)
+			: 'stable';
 	if (!['stable', 'nightly', 'preview'].includes(channel))
 		throw new Error(`Unknown channel ${channel}`);
 
@@ -433,7 +443,7 @@ function plan() {
 	let ref = sha;
 	let version: string;
 
-	if (event === 'schedule') {
+	if (isAutomaticNightly(event)) {
 		const last = latestNightly(releases);
 		const gate = nightlyGate(
 			last && { tag: last.tagName, publishedAt: last.publishedAt },

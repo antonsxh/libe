@@ -225,8 +225,8 @@ failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 GitHub Actions (`.github/workflows/`), runbook in [`docs/RELEASING.md`](docs/RELEASING.md).
 `ci.yml` runs `checks.yml` (check/lint/unit/build, e2e desktop + iPhone/iPad against a Postgres
 service on :54330, Tauri clippy + e2e) and `docker.yml` (amd64 + arm64 image build + smoke test)
-on every PR and push to `main`. `release.yml` publishes **nightly** (hourly check: `main` moved and
-the last nightly is ≥ 6 h old), **preview** (manual, any branch, draft) and **stable** (manual
+on every PR and push to `main`. `release.yml` publishes **nightly** (gate checked after every green CI
+run on `main` and on a twice-hourly best-effort schedule: `main` moved and the last nightly is ≥ 6 h old), **preview** (manual, any branch, draft) and **stable** (manual
 promotion of the latest nightly, or a `vX.Y.Z` tag): GitHub release with desktop installers +
 `ghcr.io/antonsxh/libe` tags (`nightly` / `stable`, `latest`, versions).
 
@@ -239,13 +239,13 @@ promotion of the latest nightly, or a `vX.Y.Z` tag): GitHub release with desktop
   from a clean checkout.
 - Bun's version is pinned by `packageManager` in `package.json` (used by CI); keep the
   Dockerfile's `oven/bun` tag on the same minor. Actions are pinned by commit SHA.
-- Validate workflow edits with `actionlint` before pushing.
+- Validate workflow edits with `actionlint` before pushing (config: `.github/actionlint.yaml`).
 - CI time goes mostly to apt mirror downloads, not builds: the Tauri job caches its `.deb`s
   (`~/apt-archives`), the e2e job installs no system packages (the runner image has Chromium's
   libraries). Rust and Docker layer caches are saved from `main` only (10 GB repo quota);
   PRs and releases restore them. Desktop and iPhone/iPad e2e run in one job.
 - Releases skip `checks.yml` when the commit already passed it (`ci.yml` push run, or the
-  nightly a stable promotes); scheduled nightlies wait for CI and never ship a red commit
+  nightly a stable promotes); automatic nightlies (`isAutomaticNightly`) wait for CI and never ship a red commit
   (`checksDecision` in `scripts/release.ts`). Jobs after the optional `checks` need explicit
   `if: !cancelled() && …` conditions, or a skipped job skips the whole release.
 - Desktop auto-update: release builds sign updater payloads with the secret
