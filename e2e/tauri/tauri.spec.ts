@@ -32,7 +32,11 @@ const CREDS = `${STATE}credentials.json`;
 const DRIVER_PORT = 4444;
 const FEED = `${STATE}feed/`;
 const TAURI_CLI = `${ROOT}node_modules/.bin/tauri`;
-/** What the fake update feed announces per track (the debug build is 0.0.0 → stable track). */
+/** The version the app reports: the committed one, which every stable release bumps. */
+const APP_VERSION: string = JSON.parse(
+	readFileSync(`${ROOT}src-tauri/tauri.conf.json`, 'utf8')
+).version;
+/** What the fake update feed announces per track (a plain `x.y.z` build → stable track). */
 const RELEASES = { stable: '9.9.9', nightly: '9.9.10-nightly.20261119.1' } as const;
 
 let driver: ChildProcess;
@@ -320,7 +324,9 @@ const trackRadio = (d: WebDriver, track: 'stable' | 'nightly') =>
 test('Settings → Desktop app: the update is downloaded and verified; the track persists', async () => {
 	const d = wd!; // paired and on Home (previous test)
 	await desktopSettings(d);
-	expect(await d.findElement(By.css('[data-testid=app-version]')).getText()).toBe('libe 0.0.0');
+	expect(await d.findElement(By.css('[data-testid=app-version]')).getText()).toBe(
+		`libe ${APP_VERSION}`
+	);
 	expect(await trackRadio(d, 'stable').isSelected()).toBe(true);
 
 	await d.findElement(By.xpath('//button[contains(., "Check for updates")]')).click();
