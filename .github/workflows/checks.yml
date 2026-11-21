@@ -224,10 +224,11 @@ jobs:
           grep -q GIO_EXTRA_MODULES result/bin/libe
           nix path-info -Sh ./result # closure size
 
-      # Only the package (paths on cache.nixos.org are skipped), only from main's own pushes:
-      # not for PRs, not when release.yml checks a commit (`inputs.ref`).
+      # Only the package (paths on cache.nixos.org are skipped), only from CI on main (pushes,
+      # and the dispatch release.yml starts after a version bump): not for PRs, not when
+      # release.yml checks a commit (`github.workflow` is the caller's name).
       - name: Push to Cachix
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && inputs.ref == ''
+        if: github.workflow == 'CI' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: cachix push libe "$(readlink result)"
         env:
           CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}

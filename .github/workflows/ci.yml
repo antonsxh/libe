@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # release.yml starts it for the stable version bump it pushes to main: pushes made with
+  # GITHUB_TOKEN trigger no workflows, dispatches do.
+  workflow_dispatch:
 
 permissions:
   contents: read
