@@ -4,7 +4,7 @@
 
 A dark, calm planner that ties every hour to a few **quests** (long-running goals). You plan tasks
 per day/week, time-box them on a timeline, run focus sessions against them and review where the
-week went. Visual blueprint: `docs/reference/*.png|jpg`.
+week went. Visual reference: the existing pages and `/styleguide`.
 
 ## Data model
 

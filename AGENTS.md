@@ -1,9 +1,8 @@
 # libe — agent guide
 
 Personal quest/time planner. Read this file fully before changing code. The milestone plan and
-data model live in [`docs/ROADMAP.md`](docs/ROADMAP.md); reference screenshots in
-[`docs/reference/`](docs/reference/) are the visual blueprint (match layout, spacing and colours,
-but use the name **libe** and our own logo — never "Quest" branding).
+data model live in [`docs/ROADMAP.md`](docs/ROADMAP.md). The look is defined by the app itself:
+match the existing pages, `/styleguide` and the tokens in `src/lib/styles/tokens.css`.
 
 ## Stack
 

@@ -20,7 +20,7 @@ short issue first saves everyone time (see below).
 - **Small** (bug fix, typo, translation, a test, a minor UI polish): just open a PR.
 - **Bigger** (a new feature, a new page, a schema change, a new dependency, changes to CI or the
   release pipeline): please open an issue or a draft PR first and describe the plan. libe has a
-  deliberately small stack and a specific look (see [`docs/reference/`](docs/reference/)), so a
+  deliberately small stack and a specific look (see `/styleguide` in the running app), so a
   quick check before you invest a weekend avoids surprises in review.
 
 ## Development setup
