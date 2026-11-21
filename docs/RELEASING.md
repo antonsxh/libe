@@ -135,8 +135,12 @@ apps that already installed it only move on with the next, newer release.
 (`nixos-26.11`, …) once it is out.
 
 - **CI** (`checks.yml`, job "Nix flake"): `nix flake check` (evaluates every output, builds the
-  package) and an inspection of the result, on x86_64 only. It reads `libe.cachix.org` but
-  never pushes. Like every check it gates the nightlies (`checksDecision`).
+  package) and an inspection of the result, on x86_64 only. Unreleased builds are versioned
+  `+src.<hash of the client source>`, so commits that leave `src-tauri/` alone share main's
+  derivation and substitute it from `libe.cachix.org` instead of compiling. Only pushes to
+  `main` push the package there (`ci.yml` passes `CACHIX_AUTH_TOKEN`, the push step checks the
+  event); PRs, forks and release checks never get the token. Like every check it gates the
+  nightlies (`checksDecision`).
 - **Releases** (`release.yml`, nightly and plain stable only — `nixTrack`): after the GitHub
   release is published, `nix` recreates the release's **Nix commit** on top of the released
   commit (`release.ts nix-commit`: `set-version` + `nix/release.json`, author/dates from the
@@ -149,7 +153,8 @@ apps that already installed it only move on with the next, newer release.
   the pin to the release notes.
 - **Cache**: [libe.cachix.org](https://app.cachix.org/cache/libe), public, signing managed by
   Cachix (public key in `flake.nix`'s `nixConfig`). The repository secret
-  **`CACHIX_AUTH_TOKEN`** (read + write, scoped to that cache) is only used by the `nix` job.
+  **`CACHIX_AUTH_TOKEN`** (read + write, scoped to that cache) is only used by the release's `nix`
+  job and by CI's Nix job on pushes to `main`.
   Cachix keeps everything until the cache's storage limit, then garbage-collects the least
   recently used paths — old nightlies age out, the channels' current paths stay hot.
 - **If the Nix job fails**, the release itself is out (image, installers, update feed); only
@@ -165,7 +170,7 @@ apps that already installed it only move on with the next, newer release.
 
 Two secrets: **`TAURI_SIGNING_PRIVATE_KEY`** (the updater signing key, see docs/TAURI.md;
 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only if the key has one) — without it the desktop builds
-fail — and **`CACHIX_AUTH_TOKEN`** (pushes the NixOS builds, see above). Everything else uses
+fail — and **`CACHIX_AUTH_TOKEN`** (pushes the NixOS builds of releases and of `main`, see above). Everything else uses
 the workflow's `GITHUB_TOKEN` (`contents: write` for the release, the update feed, the version
 bump and the `channel/*` branches, `packages: write` for GHCR). If `main` gets branch protection
 that blocks direct pushes, the `finalize` job needs an exception for `github-actions[bot]`.
