@@ -16,6 +16,9 @@ jobs:
   checks:
     name: Checks
     uses: ./.github/workflows/checks.yml
+    # Used only by the Nix job's push step, which runs on pushes to main only.
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   # Builds and smoke-tests the image on both architectures; nothing is pushed.
   docker:

@@ -173,7 +173,7 @@ timer.serverNow)` so today moves live with the timer.
   `src-tauri/src/shortcuts.js` (injected into every page) handles Ctrl+R / Ctrl+Q.
   Nix builds compile with `LIBE_DISTRIBUTION=nix` (`updates::Distribution`): no self-updates,
   `update_state` reports `managedBy: "nix"` and Settings explains the flake input instead.
-  The Nix package's source is a `lib.fileset` of `src-tauri/` files: a new file the client
+  The Nix package's source is a `lib.fileset` of `src-tauri/` files (`nix/source.nix`): a new file the client
   build reads must be added there.
 - **PWA**: the service worker (`src/service-worker/`, production only) must never cache
   `/api/**`, page data or authenticated HTML — only build assets, `static/` files and
@@ -299,7 +299,9 @@ promotion of the latest nightly, or a `vX.Y.Z` tag): GitHub release with desktop
   from a clean checkout.
 - Bun's version is pinned by `packageManager` in `package.json` (used by CI); keep the
   Dockerfile's `oven/bun` tag on the same minor. Actions are pinned by commit SHA.
-- NixOS: `checks.yml` runs `nix flake check` (read-only Cachix). After a nightly or plain
+- NixOS: `checks.yml` runs `nix flake check`; pushes to `main` also push the package to Cachix.
+  Unreleased builds are versioned `+src.<source hash>`, not by commit, so commits that leave
+  the client source alone substitute main's build instead of compiling it. After a nightly or plain
   stable release, `release.yml` builds the release's Nix commit (`release.ts nix-commit`:
   released commit + version files + `nix/release.json`, deterministic) on x86_64 and aarch64,
   pushes it to Cachix (secret `CACHIX_AUTH_TOKEN`) and only then moves `channel/<track>` and

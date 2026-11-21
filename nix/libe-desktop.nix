@@ -19,7 +19,8 @@
   librsvg,
   glib-networking,
   dbus,
-  # Version the app reports (Settings → Desktop app); see `flake.nix`.
+  # `nix/source.nix`, and the version the app reports (Settings → Desktop app); see `flake.nix`.
+  src,
   version,
 }:
 
@@ -30,21 +31,7 @@ rustPlatform.buildRustPackage {
   pname = "libe-desktop";
   inherit version;
 
-  # Only what the client build reads: changes to the web app (src/, e2e/, …) leave this
-  # derivation, and therefore the cached store path, untouched.
-  src = lib.fileset.toSource {
-    root = ../.;
-    fileset = lib.fileset.unions [
-      ../src-tauri/Cargo.toml
-      ../src-tauri/Cargo.lock
-      ../src-tauri/build.rs
-      ../src-tauri/tauri.conf.json
-      ../src-tauri/capabilities
-      ../src-tauri/icons
-      ../src-tauri/src
-      ../src-tauri/ui
-    ];
-  };
+  inherit src;
 
   # Every crate comes from the committed lock file (fixed-output fetches by checksum), so
   # there is no cargoHash to keep in sync.

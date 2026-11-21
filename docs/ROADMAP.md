@@ -884,8 +884,11 @@ serverNow)` → `liveStreak(base, liveLoggedMin(…))`: a running session crossi
   `nix/release.json` (version, channel, tag, released commit), created deterministically by
   `nix-commit` in `release.ts` (author and dates from the released commit), so every job and
   the channel branch share one SHA. Any other commit reports
-  `<committed version>+git.<shortRev>` (`-dirty` for a dirty tree; semver build metadata,
-  accepted by Tauri, `Track::of_version` → stable). The `v*` release tags themselves stay on
+  `<committed version>+src.<7 chars of the client source's store hash>` (semver build
+  metadata, accepted by Tauri, `Track::of_version` → stable). Originally `+git.<shortRev>`;
+  changed because it made every commit a new derivation, so CI rebuilt the client (~6 min)
+  even for docs-only PRs. With the source hash, commits that leave `src-tauri/` alone share
+  main's derivation, which `checks.yml` pushes to Cachix on every push to `main`. The `v*` release tags themselves stay on
   `main`'s commits (the nightly gate and the stable promotion compare them with `main`).
 - Decision — updates: Nix builds are compiled with `LIBE_DISTRIBUTION=nix`
   (`updates::Distribution`): no background checks, `update_check` is a no-op,
