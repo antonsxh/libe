@@ -78,8 +78,7 @@ export const de: Messages = {
 		thisDeviceIs: (device) => `Dieses Gerät: ${device}`,
 		editProfile: 'Profil bearbeiten',
 		settings: 'Einstellungen',
-		pairNewDevice: 'Neues Gerät koppeln',
-		signOut: 'Dieses Gerät abmelden'
+		pairNewDevice: 'Neues Gerät koppeln'
 	},
 	palette: {
 		title: 'Befehlspalette',
@@ -453,7 +452,6 @@ export const de: Messages = {
 		signOut: 'Abmelden',
 		revokeMenu: 'Entfernen …',
 		revoke: 'Entfernen',
-		signOutDevice: 'Dieses Gerät abmelden',
 		kinds: { browser: 'Browser', pwa: 'Home-Bildschirm-App', tauri: 'Desktop-App' },
 		focusTimer: 'Fokus-Timer',
 		pomodoroSummary: (focus, short, long, every) =>

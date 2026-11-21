@@ -421,8 +421,10 @@ Decisions during M6:
   `/pair/session#token=…&next=…`), `DELETE /api/pair/session` (sign out = revoke);
   `POST /api/devices/codes` (new code + `<ORIGIN>/pair?code=` URL), `GET /api/devices/codes/[id]`
   (status for the dialog: active / used + device name / expired / locked).
-- `/settings` (route group `(app)`, avatar menu in `AppNav`: Settings · Pair new device · Sign
-  out this device): device list (kind icon, paired, last seen, "This device"), rename, revoke
+- `/settings` (route group `(app)`, avatar menu in `AppNav`: Settings · Pair new device; signing
+  out = this device's row → Sign out, with confirmation — the unconfirmed "Sign out this
+  device" in the avatar menu and below the device list are gone: one stray tap signed the
+  device out): device list (kind icon, paired, last seen, "This device"), rename, revoke
   (self = sign out), pomodoro settings summary + dialog. "Pair a new device" dialog
   (`components/settings/PairDeviceDialog.svelte`): large code, countdown + bar, auto-renew on
   expiry, "New code", QR code of the pairing URL, polls the code and shows "X is paired".

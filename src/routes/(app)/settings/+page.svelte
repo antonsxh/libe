@@ -577,13 +577,6 @@
 				</li>
 			{/each}
 		</ul>
-
-		<form class="signout" method="POST" action="/settings?/signout">
-			<Button variant="ghost" type="submit">
-				<LogOut size={16} />
-				{t.settings.signOutDevice}
-			</Button>
-		</form>
 	</section>
 
 	<section class="card section" aria-labelledby="focus-title">
@@ -723,6 +716,10 @@
 		padding: var(--space-4) 0;
 		border-bottom: 1px solid var(--border);
 		min-width: 0;
+	}
+	.device:last-child {
+		border-bottom: none;
+		padding-bottom: 0;
 	}
 	.icon {
 		flex: none;
@@ -937,12 +934,6 @@
 	}
 	.saved {
 		font-size: var(--fs-sm);
-	}
-
-	.signout {
-		margin-top: var(--space-4);
-		display: flex;
-		justify-content: flex-end;
 	}
 
 	.item {
