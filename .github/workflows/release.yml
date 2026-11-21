@@ -469,6 +469,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      actions: write # start CI for the bump commit (below)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -479,6 +480,7 @@ jobs:
           bun-version-file: package.json
 
       - name: Commit and push
+        id: bump
         env:
           VERSION: ${{ needs.plan.outputs.version }}
           BRANCH: ${{ github.event.repository.default_branch }}
@@ -493,8 +495,19 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -am "chore(release): v$VERSION"
           for attempt in 1 2 3 4 5; do
-            git push origin "HEAD:$BRANCH" && exit 0
+            git push origin "HEAD:$BRANCH" && echo "pushed=true" >> "$GITHUB_OUTPUT" && exit 0
             echo "Push rejected (attempt $attempt), rebasing onto $BRANCH."
             git pull --rebase origin "$BRANCH"
           done
           exit 1
+
+      # The bump changes the version files, so main's new commit is unchecked and, since the
+      # version is part of the Nix source, not in the binary cache: run CI on it (checks it and
+      # pushes the Nix package, see checks.yml). Its completion is no `push` run, so it starts
+      # no nightly gate.
+      - name: Run CI on main
+        if: steps.bump.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"

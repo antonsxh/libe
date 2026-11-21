@@ -299,7 +299,8 @@ promotion of the latest nightly, or a `vX.Y.Z` tag): GitHub release with desktop
   from a clean checkout.
 - Bun's version is pinned by `packageManager` in `package.json` (used by CI); keep the
   Dockerfile's `oven/bun` tag on the same minor. Actions are pinned by commit SHA.
-- NixOS: `checks.yml` runs `nix flake check`; pushes to `main` also push the package to Cachix.
+- NixOS: `checks.yml` runs `nix flake check`; CI on `main` also pushes the package to Cachix
+  (also after a stable release: `finalize` dispatches `ci.yml` for its version bump).
   Unreleased builds are versioned `+src.<source hash>`, not by commit, so commits that leave
   the client source alone substitute main's build instead of compiling it. After a nightly or plain
   stable release, `release.yml` builds the release's Nix commit (`release.ts nix-commit`:

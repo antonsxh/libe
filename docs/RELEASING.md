@@ -48,7 +48,9 @@ Desktop builds and the image builds + smoke tests always run.
   and defaults to the version that nightly previewed (`0.2.1-nightly.*` → `0.2.1`). Pass
   `version` (e.g. `0.3.0`) for a minor/major bump. Afterwards the `finalize` job commits the
   version files to `main` (`chore(release): v0.2.1`, as `github-actions[bot]`), so the next
-  nightlies become `0.2.2-nightly.*`.
+  nightlies become `0.2.2-nightly.*`, and dispatches `ci.yml` on `main` (pushes with
+  `GITHUB_TOKEN` start no workflows): the bump is checked, and its Nix package lands in the
+  cache before the next PR needs it.
 - **Stable by tag** builds exactly the tagged commit (`git tag v0.2.1 <sha> && git push origin v0.2.1`).
   A suffix (`v0.3.0-rc.1`) makes it a GitHub prerelease whose image only gets its exact tag.
 - A stable version must be newer than the newest stable release and must not exist yet.
