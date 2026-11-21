@@ -11,6 +11,10 @@ on:
         description: 'Commit to check (default: the triggering commit)'
         type: string
         default: ''
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        description: 'Write token for libe.cachix.org; used only on pushes to main (job `nix`)'
+        required: false
 
 permissions:
   contents: read
@@ -176,18 +180,19 @@ jobs:
         run: cargo test --locked
 
   # The NixOS package of the desktop app (flake.nix, docs/NIXOS.md), built exactly as releases
-  # build it. Reads the binary cache libe.cachix.org but never pushes (forks have no secret;
-  # release.yml pushes the releases). As part of this file it gates nightlies like every check.
+  # build it. Unreleased builds are versioned by their source (`+src.<hash>`), so a commit that
+  # leaves `src-tauri/` alone has the same derivation as main and substitutes it from
+  # libe.cachix.org instead of compiling (~6 min). Only pushes to main write to the cache (PRs
+  # and forks never get the token); release.yml pushes the releases. As part of this file it
+  # gates nightlies like every check.
   nix:
     name: Nix flake (desktop app)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      # Full history: the flake reads the commit (version `<last stable>+git.<rev>`).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: 0
           persist-credentials: false
 
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
@@ -212,6 +217,17 @@ jobs:
           test -x result/bin/libe
           test -f result/share/applications/libe.desktop
           ls result/share/icons/hicolor/*/apps/libe.png
-          grep -aqF "+git.$(git rev-parse --short=7 HEAD)" result/bin/.libe-wrapped
+          # the version Settings shows is compiled into the binary
+          version=$(nix eval --raw .#desktop.version)
+          echo "$version"
+          grep -aqF "$version" result/bin/.libe-wrapped
           grep -q GIO_EXTRA_MODULES result/bin/libe
           nix path-info -Sh ./result # closure size
+
+      # Only the package (paths on cache.nixos.org are skipped), only from main's own pushes:
+      # not for PRs, not when release.yml checks a commit (`inputs.ref`).
+      - name: Push to Cachix
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && inputs.ref == ''
+        run: cachix push libe "$(readlink result)"
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}

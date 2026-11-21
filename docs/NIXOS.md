@@ -21,19 +21,19 @@ on a multi-user install add the cache to the system configuration instead (below
 
 ## Channels and pins
 
-| Flake reference                                     | What you get                                                        |
-| --------------------------------------------------- | ------------------------------------------------------------------- |
-| `github:antonsxh/libe/channel/stable`               | the newest stable release                                           |
-| `github:antonsxh/libe/channel/nightly`              | the newest nightly (at most every 6 h when `main` changed)          |
-| `github:antonsxh/libe/nix-v0.2.1`                   | exactly that release (every release's notes name its tag)           |
-| `github:antonsxh/libe` (or a branch / commit of it) | built from source, reports `<last stable>+git.<commit>`, not cached |
+| Flake reference                                     | What you get                                                                        |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `github:antonsxh/libe/channel/stable`               | the newest stable release                                                           |
+| `github:antonsxh/libe/channel/nightly`              | the newest nightly (at most every 6 h when `main` changed)                          |
+| `github:antonsxh/libe/nix-v0.2.1`                   | exactly that release (every release's notes name its tag)                           |
+| `github:antonsxh/libe` (or a branch / commit of it) | reports `<last stable>+src.<hash>`; cached when `main` built the same client source |
 
 Each branch appears with the first release of its kind after the flake was added (no stable
 release yet → use `channel/nightly`). The release pipeline moves `channel/stable` /
 `channel/nightly` only after both architectures are in the binary cache. Their commits are the
 released commit plus its version files and `nix/release.json`, so the app reports the real
 version (Settings → Desktop app). Don't pin the plain release tag (`v0.2.1`): it predates those
-files, so it builds from source and reports `<previous stable>+git.<commit>`. Pin `nix-v0.2.1`
+files, so it reports `<previous stable>+src.<hash>`. Pin `nix-v0.2.1`
 instead.
 
 ## NixOS configuration (flake)

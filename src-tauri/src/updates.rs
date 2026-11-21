@@ -647,7 +647,7 @@ mod tests {
     #[test]
     fn update_state_names_the_manager_only_when_there_is_one() {
         let state = |managed_by| UpdateState {
-            version: "0.2.0+git.1a2b3c4".into(),
+            version: "0.2.0+src.1a2b3c4".into(),
             track: Track::Stable,
             phase: Phase::Idle,
             checked_at: None,
@@ -661,12 +661,8 @@ mod tests {
 
     #[test]
     fn nix_versions_of_unreleased_commits_are_valid_and_count_as_stable() {
-        // flake.nix: `<committed version>+git.<shortRev>` (`-dirty` for a dirty work tree)
-        for raw in [
-            "0.2.0+git.1a2b3c4",
-            "0.0.0+git.1a2b3c4-dirty",
-            "0.0.0+git.unknown",
-        ] {
+        // flake.nix: `<committed version>+src.<7 characters of the source's store hash>`
+        for raw in ["0.2.0+src.1a2b3c4", "0.0.0+src.0z9yx8w"] {
             let version = v(raw);
             assert_eq!(version.to_string(), raw);
             assert_eq!(Track::of_version(raw), Some(Track::Stable));

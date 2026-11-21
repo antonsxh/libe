@@ -31,16 +31,24 @@
       ];
       forAllSystems = f: lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
 
+      # The files the client build reads (nix/source.nix).
+      src = import ./nix/source.nix { inherit lib; };
+
       # Release commits (`channel/*`, written by release.yml) carry `nix/release.json` and the
       # release version in their version files. Any other commit reports the committed version
-      # (the last stable release) plus its git revision, e.g. `0.2.0+git.1a2b3c4`.
+      # (the last stable release) plus the first 7 characters of the source's store hash, e.g.
+      # `0.2.0+src.1a2b3c4`. Not the git revision: then every commit would be a new derivation,
+      # and the cache (CI pushes main's builds) could never serve a commit that leaves
+      # `src-tauri/` alone.
       committed = (lib.importJSON ./src-tauri/tauri.conf.json).version;
       release =
         if builtins.pathExists ./nix/release.json then lib.importJSON ./nix/release.json else null;
-      revision = self.shortRev or self.dirtyShortRev or "unknown";
+      sourceHash = builtins.substring 0 7 (
+        builtins.unsafeDiscardStringContext (baseNameOf "${src}")
+      );
       version =
         if release == null then
-          "${committed}+git.${revision}"
+          "${committed}+src.${sourceHash}"
         else if release.version == committed then
           release.version
         else
@@ -50,7 +58,7 @@
       packages = forAllSystems (
         pkgs:
         let
-          desktop = pkgs.callPackage ./nix/libe-desktop.nix { inherit version; };
+          desktop = pkgs.callPackage ./nix/libe-desktop.nix { inherit src version; };
         in
         {
           inherit desktop;
