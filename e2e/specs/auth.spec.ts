@@ -289,7 +289,7 @@ test('Settings: rename a device; revoking it closes its live stream and sends it
 	await ctxB.close();
 });
 
-test('Signing out this device revokes it: back to /pair, its token stops working', async ({
+test('Signing out this device revokes it: back to /pair, its token stops working @mobile', async ({
 	browser,
 	sql
 }) => {
