@@ -43,9 +43,8 @@
       committed = (lib.importJSON ./src-tauri/tauri.conf.json).version;
       release =
         if builtins.pathExists ./nix/release.json then lib.importJSON ./nix/release.json else null;
-      sourceHash = builtins.substring 0 7 (
-        builtins.unsafeDiscardStringContext (baseNameOf "${src}")
-      );
+      sourceName = builtins.unsafeDiscardStringContext (baseNameOf "${src}");
+      sourceHash = builtins.substring 0 7 sourceName;
       version =
         if release == null then
           "${committed}+src.${sourceHash}"
