@@ -63,13 +63,6 @@ export const actions = {
 		return { intent: 'revoke' as const };
 	},
 
-	/** "Sign out this device" (avatar menu, no JS needed). */
-	signout: async ({ locals, cookies, url }) => {
-		await revokeDevice(locals.device!.id);
-		clearDeviceCookie(cookies, url);
-		redirect(303, '/pair');
-	},
-
 	/**
 	 * Profile (Settings → Profile): display name (blank = no name), avatar colour and the
 	 * optional avatar emoji (style `initials` or a blank emoji = initials), for every device.

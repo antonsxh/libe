@@ -77,8 +77,7 @@ export const en = {
 		thisDeviceIs: (device: string) => `This device: ${device}`,
 		editProfile: 'Edit profile',
 		settings: 'Settings',
-		pairNewDevice: 'Pair new device',
-		signOut: 'Sign out this device'
+		pairNewDevice: 'Pair new device'
 	},
 	palette: {
 		title: 'Command palette',
@@ -459,7 +458,6 @@ export const en = {
 		signOut: 'Sign out',
 		revokeMenu: 'Revoke…',
 		revoke: 'Revoke',
-		signOutDevice: 'Sign out this device',
 		kinds: { browser: 'Browser', pwa: 'Home-screen app', tauri: 'Desktop app' },
 		focusTimer: 'Focus timer',
 		pomodoroSummary: (focus: number, short: number, long: number, every: number) =>

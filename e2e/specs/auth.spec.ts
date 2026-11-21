@@ -289,7 +289,7 @@ test('Settings: rename a device; revoking it closes its live stream and sends it
 	await ctxB.close();
 });
 
-test('"Sign out this device" revokes it: back to /pair, its token stops working', async ({
+test('Signing out this device revokes it: back to /pair, its token stops working', async ({
 	browser,
 	sql
 }) => {
@@ -300,10 +300,12 @@ test('"Sign out this device" revokes it: back to /pair, its token stops working'
 		serviceWorkers: 'block'
 	});
 	const page = await ctx.newPage();
-	await gotoLive(page, '/');
-	await page.getByRole('button', { name: 'Account and devices' }).click();
-	await page.getByRole('menuitem', { name: 'Sign out this device' }).click();
-	await expect(page).toHaveURL(`${BASE}/pair`);
+	await gotoLive(page, '/settings');
+	await page.getByRole('button', { name: `Actions for ${name}` }).click();
+	await page.getByRole('menuitem', { name: 'Sign out' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Sign out' }).click();
+	// The action redirects to /pair; the revoked SSE stream may get there first (with `next`).
+	await expect(page).toHaveURL(/\/pair(\?next=%2Fsettings)?$/);
 	expect(await cookieOf(page)).toBeUndefined();
 	expect(
 		(await sql`select revoked_at from devices where name = ${name}`)[0].revoked_at

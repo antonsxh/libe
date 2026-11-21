@@ -6,7 +6,6 @@
 		Flag,
 		Flame,
 		House,
-		LogOut,
 		QrCode,
 		Search,
 		Settings,
@@ -198,12 +197,6 @@
 					<QrCode size={14} />
 					{t.nav.pairNewDevice}
 				</a>
-				<form method="POST" action="/settings?/signout">
-					<button type="submit" class="item danger" role="menuitem">
-						<LogOut size={14} />
-						{t.nav.signOut}
-					</button>
-				</form>
 			{/snippet}
 		</Menu>
 	</div>
@@ -422,10 +415,6 @@
 		background: var(--surface-hover);
 		color: var(--text);
 	}
-	.item.danger {
-		color: var(--danger);
-	}
-
 	@media (max-width: 1180px) {
 		.search span,
 		.search kbd {
