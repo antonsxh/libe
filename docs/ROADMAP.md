@@ -606,7 +606,8 @@ Fix found by the suite:
 - German copy: informal „du“, glossary Quest, Backlog, Fokus, Planen (nav) / „Woche planen“,
   Rückblick, Kalender, Einstellungen, Heute, Start (Home), Pomodoro, Aufgabe (task), Sitzung
   (session), Zeit erfassen (log time), Zeitblock, koppeln / Kopplungscode (pair), Setup-Secret,
-  Update-Kanal (update track), Sonstiges (other), Serie (streak), Ruhetag (rest day).
+  Update-Kanal (update track), Sonstiges (other), Serie (streak), Ruhetag (rest day),
+  überfällig (overdue).
 - e2e: `e2e/specs/i18n.spec.ts` (setting persists and applies, `auto` per browser locale,
   translated validation errors, German phone layout). The config pins `locale: 'en-US'`;
   the spec resets the setting to `auto` around every test.
@@ -1193,7 +1194,7 @@ WHERE last_event_key IS DISTINCT FROM key` — only the winner sends, so recompu
   and restarts never send twice (plus an in-memory last key to skip the query on repeated
   overtime snapshots). Sending is fire-and-forget; no timer request waits for a push service.
 - **Payload** (JSON, encrypted): `{ title, body, tag, url: '/focus', badge }` — `badge` =
-  today's open tasks at send time. **Exact texts** (body = the task's title):
+  today's open tasks at send time (since "Overdue tasks": open + overdue, see below). **Exact texts** (body = the task's title):
 
   | Event                     | English                                                                    | German                                                                            |
   | ------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -1263,3 +1264,82 @@ WHERE last_event_key IS DISTINCT FROM key` — only the winner sends, so recompu
   our VAPID JWT and payloads (format verified against RFC 8291 and `web-push`, not against the
   live services), several server instances (each would arm its own timeout; the DB claim
   still prevents duplicate sends).
+
+## Overdue tasks (after Mobile polish — Phase 3)
+
+Goal: a task planned for a day that passed without being done just stayed on that past day —
+Home lists only today and Plan only the current week, so it was findable only through search.
+Missed tasks are now visible on Home, Plan, the nav and the app icon until the user decides
+what to do with them.
+
+- **Definition** (`#lib/overdue.ts` `isOverdue`; SQL twin `overdueCondition` in
+  `server/tasks.ts`): `day < today` (server `TZ` — a task turns overdue right after midnight),
+  `done_at IS NULL`, and `kind = 'other'` or the quest is open (a closed quest's tasks stay
+  hidden, like its backlog). **Computed, never stored**: no migration, no nightly job, no
+  automatic rollover — the planned day changes only through an explicit action.
+- **Resolving** — explicit actions only: **Today** · **Tomorrow** · **Backlog** · **Done**
+  (checkbox; the day stays) · **Delete**. No "dismiss", no special handling for very old tasks.
+  `rescheduleOverdue(ids | 'all', day, today)` (`server/tasks.ts`, one transaction, rows locked)
+  moves only tasks that are still overdue (a stale form can't move anything else) and appends
+  them to the end of the target day's lists in their display order (each kind continues its
+  own list: `appendOrders`). Shared form action `overdueTo` in `task-actions.ts` (fields `to` =
+  `today|tomorrow`, and `all=1` or one or more `taskId`; invalid input does nothing) on Home and
+  Plan; the palette uses `POST /api/overdue` (`{ to, all: true }` or `{ to, taskIds }` →
+  `{ moved }`, 400 otherwise). Backlog / Done / Delete reuse `toBacklog` / `toggle` /
+  `deleteTask`. Nothing is deleted behind the timer's back by the moves, so no
+  `broadcastTimer()` is needed (`deleteTask` already broadcasts).
+- **Order**: most recent day first ("yesterday" on top), then list order, then creation
+  (`compareOverdue`, `listOverdue`). Age label: "yesterday" / "since Wed, Nov 18" (with the
+  year once it lies in another year), German „gestern“ / „seit Mi., 18. Nov.“ (`Intl`).
+- **Home** (`components/home/OverdueCard.svelte`, only while there is ≥ 1 overdue task,
+  above Next up): desktop/iPad — a card lined up with the task column, "Overdue · N", the first
+  5 rows (`OVERDUE_PREVIEW`) + "Show all N", a secondary **All to today** in the header. Rows
+  (`components/tasks/OverdueList.svelte`, shared with Plan): done check, title, quest pill (or
+  Other/slate), age, an inline **Today** and ⋯ (Move to tomorrow, Move to backlog, Delete); rows
+  carry `data-task` (palette scroll target). Phones — one quiet row "N tasks overdue · View ›"
+  (Next up stays the screen's primary action) opening a bottom sheet with every row and a
+  full-width primary **All to today** in the sticky `.dialog-actions`; the sheet closes itself
+  once the list is empty. No swipe gestures.
+- **Nav dot**: root layout data `overdueCount` → a small `--overdue` dot on the Home item
+  (top nav and the phone capsule), no number; the link's accessible name becomes
+  "Home, N overdue".
+- **Plan**: the backlog rail starts with an **Overdue** group (all weeks; 3 rows +
+  "Show all N" so the backlog stays in reach — `OVERDUE_RAIL_PREVIEW`). Its rows drag onto any
+  day (the existing `?/moveTo` drag & drop; dropping on the rail moves to the backlog) and have
+  Today + ⋯ as the keyboard/touch equivalent. They carry no `data-task` (the same task can have a
+  card in the shown week). Open cards on past days of the shown week get a small overdue dot
+  (`DayTaskCard overdue`, sr text "Overdue"). Phones: the day strip's dot turns `--overdue` for
+  days holding overdue tasks (`DayStrip alerts`, "overdue tasks" for screen readers) and the
+  backlog sheet shows the same group (all rows, no drag).
+- **App icon badge** (decision: overdue tasks count): `badge` = open tasks of today **and**
+  overdue ones, closed quests left out — also aligning today's count with the closed-quest
+  rule. One query on `tasks_day_idx` (`taskCounts(today)` → `{ badge, overdue }`) feeds the
+  root layout (`badge`, `overdueCount`; was `openToday`) and push payloads (`badgeCount()` in
+  `server/push.ts`, was `openTodayCount()`).
+- **Command palette**: "Move overdue tasks to today" (detail "N tasks") under Actions, only
+  while `overdueCount > 0`; runs `POST /api/overdue` then `refreshAll()`.
+- **Midnight**: the root layout gets the server's `today` and `dayEndsAt` (`nextDayStart` in
+  `#lib/dates.ts`, DST-safe). A timeout at `dayEndsAt` (+ 2 s) and a check on
+  `visibilitychange` → visible (timeouts freeze in the background on iOS) call `refreshAll()`
+  once the server clock (`Date.now()` + the timer store's offset) has passed it — Home moves to
+  the new day and yesterday's open tasks turn overdue without a manual reload. The timer
+  store's existing "long absence" refresh stays as it was.
+- **Colour**: token `--overdue` (`color-mix` of `--danger` and `--text-muted`) — dots, the age
+  text and markers only, never a large red surface.
+- Streaks, Review and stats are session-based and unchanged.
+- Tests: unit — `overdue.test.ts` (definition incl. done/closed/other, display order,
+  ages en/de incl. the year, preview, targets/selection parsing, `appendOrders`, days),
+  `dates.test.ts` (`nextDayStart` incl. both DST switches). e2e `overdue.spec.ts`: Today from
+  Home's card (DB + reload, end of today's list), done/closed-quest tasks never shown and the
+  nav dot = the SQL count (Done keeps the day), Tomorrow/Backlog from ⋯ and **All to today**
+  keeping display order across days, Plan's past-day marker and dragging a rail row onto a day,
+  the palette action, the phone row + sheet (`@mobile`), `POST /api/overdue` validation and
+  "only overdue tasks move". "All to today" and the palette move the seed's past tasks too, so
+  those tests restore every other task's day and position; quests created there are closed
+  afterwards. `push.spec.ts` now adds an overdue task and expects it in the payload's badge.
+  `plan.spec.ts`' rail drop scrolls its quest group into view first (the new group and other
+  runs' leftovers can push it below the rail). Checked against reintroduced bugs: no
+  closed-quest filter (closed quest's task shows → fails), ascending day order in
+  `rescheduleOverdue` (order test fails).
+- **Not tested**: the midnight refresh in a browser (the server clock can't be shifted in e2e;
+  `nextDayStart` is unit-tested), the badge on a real iPhone home screen.

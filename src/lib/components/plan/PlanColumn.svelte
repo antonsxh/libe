@@ -34,8 +34,10 @@
 		ontoggleother: (day: string, open: boolean) => void;
 		/** Phones (≤ 720px) show only the selected day, full width (the day view). */
 		selected?: boolean;
+		/** Overdue tasks (`listOverdue`): their cards on past days get the overdue marker. */
+		overdueIds?: ReadonlySet<string>;
 	};
-	let { col, quests, form = null, ontoggleother, selected = false }: Props = $props();
+	let { col, quests, form = null, ontoggleother, selected = false, overdueIds }: Props = $props();
 	const t = useI18n();
 
 	const otherCount = $derived(col.otherTasks.length + col.otherDone.length);
@@ -104,6 +106,7 @@
 		last={i === group.length - 1}
 		dropBefore={over?.beforeId === task.id}
 		dragging={drag.task?.id === task.id}
+		overdue={overdueIds?.has(task.id) ?? false}
 		ondragstart={cardDragstart}
 		ondragend={cardDragend}
 	/>

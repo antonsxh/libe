@@ -6,6 +6,7 @@ import {
 	listDayTasks,
 	listOpenBacklog,
 	listOtherBacklog,
+	listOverdue,
 	moveTaskToDay
 } from '#lib/server/tasks.ts';
 import {
@@ -33,7 +34,7 @@ export const load = (async ({ url, locals }) => {
 	const day = todayISO();
 	const intl = intlLocale(locals.locale);
 
-	const [quests_, questTasksAll, otherTasksAll, backlog, otherBacklog, blocks, time] =
+	const [quests_, questTasksAll, otherTasksAll, backlog, otherBacklog, blocks, time, overdue] =
 		await Promise.all([
 			listOpenQuests(),
 			listDayTasks(day, 'quest'),
@@ -41,7 +42,8 @@ export const load = (async ({ url, locals }) => {
 			listOpenBacklog(),
 			listOtherBacklog(),
 			listDayBlocks(day),
-			homeTime()
+			homeTime(),
+			listOverdue(day)
 		]);
 
 	// `?q=<id>,<id>` — a *proper subset* of the open quest ids filters the quest
@@ -87,6 +89,8 @@ export const load = (async ({ url, locals }) => {
 		backlog,
 		/** "Other" tasks without a day (shown as their own group in the backlog card). */
 		otherBacklog,
+		/** Open tasks planned before today (`#lib/overdue.ts`), most recent day first. */
+		overdue,
 		blocks
 	};
 }) satisfies PageServerLoad;

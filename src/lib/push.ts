@@ -250,7 +250,7 @@ export interface PushPayload {
 	tag: string;
 	/** In-app path the notification opens. */
 	url: string;
-	/** Today's open tasks → the app icon badge (0 clears it); null = leave it. */
+	/** Today's open + overdue tasks → the app icon badge (0 clears it); null = leave it. */
 	badge: number | null;
 }
 

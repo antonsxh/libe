@@ -222,7 +222,9 @@ test('drag & drop to and from the backlog; a task never changes its kind', async
 		`Wed quest ${id}`
 	]);
 
-	// Day → backlog rail: the quest task joins its quest's backlog group.
+	// Day → backlog rail: the quest task joins its quest's backlog group (scrolled into the
+	// rail's view first — other runs' groups and the Overdue group may push it below).
+	await rail(page).locator('.group', { hasText: quest.name }).scrollIntoViewIfNeeded();
 	done = actionDone(page, 'moveTo');
 	const railBox = (await rail(page).boundingBox())!;
 	await card(page, qt.title).dragTo(rail(page), {

@@ -41,6 +41,9 @@
 		'/review': ChartColumn
 	} as Record<string, typeof House>;
 
+	/** Overdue tasks (root layout `overdueCount`): a dot on the Home item while there are any. */
+	const overdue = $derived(page.data.overdueCount ?? 0);
+
 	const deviceName = $derived(page.data.device?.name ?? t.nav.thisDevice);
 	const profile = $derived(page.data.profile ?? null);
 	const displayName = $derived(profile?.displayName ?? null);
@@ -164,11 +167,17 @@
 				class:active
 				class:wide-only={item.key === 'focus'}
 				aria-current={active ? 'page' : undefined}
+				aria-label={item.key === 'home' && overdue > 0
+					? t.overdue.navLabel(t.nav.home, overdue)
+					: undefined}
 			>
 				<span class="tab-icon" aria-hidden="true">
 					<Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
 				</span>
 				<span class="tab-label">{t.nav[item.key]}</span>
+				{#if item.key === 'home' && overdue > 0}
+					<span class="overdue-dot" aria-hidden="true" transition:fadeScale></span>
+				{/if}
 			</a>
 		{/each}
 		<span class="tab-account">
@@ -285,6 +294,22 @@
 
 	nav a:hover {
 		color: var(--text);
+	}
+
+	/* Overdue tasks: a small dot at the Home item's top right (no number — Home has the list). */
+	nav a {
+		position: relative;
+	}
+	.overdue-dot {
+		position: absolute;
+		top: var(--space-1);
+		right: var(--space-1);
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--overdue);
+		box-shadow: 0 0 0 2px var(--bg-nav);
+		pointer-events: none;
 	}
 
 	nav a.active {
@@ -580,6 +605,13 @@
 		}
 		nav a:active .tab-icon {
 			scale: var(--press-scale);
+		}
+		/* The dot sits on the icon's top right corner. */
+		.overdue-dot {
+			top: calc(50% - var(--tab-icon) / 2 - 1px);
+			right: auto;
+			left: calc(50% + var(--tab-icon) / 2 - 5px);
+			box-shadow: 0 0 0 2px var(--glass-bg-solid);
 		}
 		/* Icons only: the label names the link for screen readers (like .sr-only). */
 		.tab-label {

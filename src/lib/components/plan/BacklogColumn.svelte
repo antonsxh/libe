@@ -4,6 +4,8 @@
 	import { CalendarArrowDown, Check, ChevronLeft, ChevronRight, Trash2 } from '@lucide/svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import TaskAddForm from '#lib/components/tasks/TaskAddForm.svelte';
+	import OverdueList from '#lib/components/tasks/OverdueList.svelte';
+	import { OVERDUE_RAIL_PREVIEW, previewOverdue } from '#lib/overdue.ts';
 	import { formatDayLabel, formatDuration } from '#lib/dates.ts';
 	import { fadeScale } from '#lib/motion.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
@@ -23,6 +25,11 @@
 	}
 
 	type Props = {
+		/**
+		 * Overdue tasks of any week (`listOverdue`): the group on top — rows drag onto a day
+		 * (the rail), or move with "Today" / ⋯ (rail and sheet).
+		 */
+		overdue?: TaskWithQuest[];
 		groups: BacklogGroup[];
 		/** Quests for the "Add to backlog…" picker (respects the `?q=` filter). */
 		quests: Quest[];
@@ -39,7 +46,16 @@
 		sheet?: boolean;
 		day?: string;
 	};
-	let { groups, quests, count, today, form = null, sheet = false, day }: Props = $props();
+	let {
+		overdue = [],
+		groups,
+		quests,
+		count,
+		today,
+		form = null,
+		sheet = false,
+		day
+	}: Props = $props();
 	const t = useI18n();
 
 	/** Where "Move to …" sends a row: the sheet's day, else today. */
@@ -54,6 +70,12 @@
 	/** In the sheet, a row pulled into the day gives way softly (the rail stays as it was). */
 	const rowOut = (node: Element) => (sheet ? fadeScale(node) : { duration: 0 });
 	const targetShort = $derived(day ? formatDayLabel(day, { weekday: 'short' }, t.intl) : '');
+
+	/** The rail shows a few overdue rows (its backlog stays in reach); the sheet shows all. */
+	let overdueExpanded = $state(false);
+	const overduePreview = $derived(
+		previewOverdue(overdue, sheet || overdueExpanded, OVERDUE_RAIL_PREVIEW)
+	);
 
 	/** Client-only UI state: whether the rail is expanded (not worth a URL param). */
 	let expanded = $state(true);
@@ -108,6 +130,35 @@
 
 {#snippet groupList()}
 	<div class="body">
+		{#if overdue.length > 0}
+			<div class="group overdue" style:--q="var(--overdue)" data-testid="overdue-group">
+				<h3 class="group-head">
+					<span class="dot" aria-hidden="true"></span>
+					<span class="gname">{t.overdue.label}</span>
+					<span class="count tabular">{overdue.length}</span>
+				</h3>
+				<!-- The same tasks have cards in the week's columns: no `data-task` here. -->
+				<OverdueList
+					tasks={overduePreview.shown}
+					{today}
+					compact={!sheet}
+					mark={false}
+					ondragstart={sheet ? undefined : (e, task) => startDrag(e, task)}
+					ondragend={sheet ? undefined : rowDragend}
+					draggingId={drag.task?.id ?? null}
+				/>
+				{#if !sheet && (overduePreview.hidden > 0 || overdueExpanded)}
+					<button
+						type="button"
+						class="more"
+						aria-expanded={overdueExpanded}
+						onclick={() => (overdueExpanded = !overdueExpanded)}
+					>
+						{overdueExpanded ? t.overdue.showLess : t.overdue.showAll(overdue.length)}
+					</button>
+				{/if}
+			</div>
+		{/if}
 		{#each groups as group (group.key)}
 			<div class="group" style:--q={questColorVar(group.color)}>
 				<h3 class="group-head">
@@ -463,6 +514,19 @@
 		flex: none;
 		font-size: var(--fs-xs);
 		color: var(--text-muted);
+	}
+	.more {
+		justify-self: start;
+		padding: var(--space-1) var(--space-2);
+		border: none;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+	}
+	.more:hover {
+		color: var(--text);
+		background: var(--surface-hover);
 	}
 	.drop-end {
 		height: 2px;

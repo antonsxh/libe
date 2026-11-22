@@ -17,6 +17,7 @@ import {
 	type PushSubscriptionRow
 } from '#lib/server/db/schema.ts';
 import { getLanguageSetting } from '#lib/server/settings.ts';
+import { taskCounts } from '#lib/server/tasks.ts';
 import { todayISO } from '#lib/dates.ts';
 import { i18n, isLocale, type Locale } from '#lib/i18n/index.ts';
 import {
@@ -140,13 +141,12 @@ export async function hasSubscriptions(): Promise<boolean> {
 
 // ─── Badge ──────────────────────────────────────────────────────────────────
 
-/** Today's open tasks (quest + other, scheduled for today, not done) — the app icon badge. */
-export async function openTodayCount(): Promise<number> {
-	const [row] = await db
-		.select({ n: count() })
-		.from(tasks)
-		.where(and(eq(tasks.day, todayISO()), isNull(tasks.doneAt)));
-	return row?.n ?? 0;
+/**
+ * The app icon badge: today's open tasks plus the overdue ones (quest + other, not done,
+ * closed quests left out) — see `taskCounts`.
+ */
+export async function badgeCount(): Promise<number> {
+	return (await taskCounts(todayISO())).badge;
 }
 
 // ─── Sending ────────────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ function localeFor(sub: PushSubscriptionRow, language: string): Locale {
 export async function sendTestPush(deviceId: string): Promise<SendOutcome | 'none'> {
 	const sub = await getDeviceSubscription(deviceId);
 	if (!sub) return 'none';
-	const [language, badge] = await Promise.all([getLanguageSetting(), openTodayCount()]);
+	const [language, badge] = await Promise.all([getLanguageSetting(), badgeCount()]);
 	const t = i18n(localeFor(sub, language));
 	return sendToSubscription(
 		sub,
@@ -268,7 +268,7 @@ export async function sendTimerPush(event: PushEvent): Promise<SendOutcome[]> {
 	if (subs.length === 0) return [];
 	const [language, badge, task] = await Promise.all([
 		getLanguageSetting(),
-		openTodayCount(),
+		badgeCount(),
 		db.select({ title: tasks.title }).from(tasks).where(eq(tasks.id, event.taskId))
 	]);
 	const title = task[0]?.title ?? 'libe';

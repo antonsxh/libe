@@ -100,7 +100,7 @@
 				await sub.unsubscribe().catch(() => false);
 				throw new Error(`subscribe: ${res.status}`);
 			}
-			void syncAppBadge(page.data.openToday ?? null);
+			void syncAppBadge(page.data.badge ?? null);
 		} catch {
 			error = n.failed;
 		} finally {

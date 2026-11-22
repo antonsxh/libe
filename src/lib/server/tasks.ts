@@ -6,11 +6,26 @@
  *   - backlog (day null): the tasks of one quest (or all "other" tasks) without a day.
  * Top/bottom inserts and move up/down operate within that list only.
  */
-import { and, asc, eq, gte, isNotNull, isNull, lte, sql } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	isNull,
+	lt,
+	lte,
+	or,
+	sql
+} from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
 import { quests, tasks, type Task } from '#lib/server/db/schema.ts';
 import { dropIntoList, moveWithinGroup, orderAtBottom, orderAtTop } from '#lib/ordering.ts';
 import { addDays } from '#lib/dates.ts';
+import { appendOrders } from '#lib/overdue.ts';
 import { broadcastTimer } from '#lib/server/timer.ts';
 
 export type MoveDirection = 'up' | 'down';
@@ -87,6 +102,95 @@ export async function listWeekTasks(monday: string): Promise<TaskWithQuest[]> {
 		.where(and(gte(tasks.day, monday), lte(tasks.day, addDays(monday, 6))))
 		.orderBy(asc(tasks.day), asc(tasks.order), asc(tasks.createdAt));
 	return rows.map(flattenTask);
+}
+
+/**
+ * SQL twin of `isOverdue` (`#lib/overdue.ts`): planned before `today`, not done, and of kind
+ * `other` or of an open quest. Needs `quests` left-joined on the task's quest.
+ */
+function overdueCondition(today: string) {
+	return and(
+		lt(tasks.day, today),
+		isNull(tasks.doneAt),
+		or(eq(tasks.kind, 'other'), isNull(quests.closedAt))
+	);
+}
+
+/**
+ * Overdue tasks (see `#lib/overdue.ts`) with the quest joined, in display order: most recent
+ * day first, then list order (`compareOverdue`).
+ */
+export async function listOverdue(today: string): Promise<TaskWithQuest[]> {
+	const rows = await db
+		.select(taskWithQuestSelect)
+		.from(tasks)
+		.leftJoin(quests, eq(quests.id, tasks.questId))
+		.where(overdueCondition(today))
+		.orderBy(desc(tasks.day), asc(tasks.order), asc(tasks.createdAt));
+	return rows.map(flattenTask);
+}
+
+/**
+ * Root layout counts in one query on `tasks_day_idx`: `overdue` (the nav dot) and `badge` =
+ * today's open tasks + overdue ones (the app icon badge, also sent in push payloads). Both
+ * leave out closed quests' tasks, like the lists.
+ */
+export async function taskCounts(today: string): Promise<{ overdue: number; badge: number }> {
+	const [row] = await db
+		.select({
+			badge: count(),
+			overdue: sql<number>`count(*) filter (where ${tasks.day} < ${today})`.mapWith(Number)
+		})
+		.from(tasks)
+		.leftJoin(quests, eq(quests.id, tasks.questId))
+		.where(
+			and(
+				lte(tasks.day, today),
+				isNull(tasks.doneAt),
+				or(eq(tasks.kind, 'other'), isNull(quests.closedAt))
+			)
+		);
+	return { overdue: row?.overdue ?? 0, badge: row?.badge ?? 0 };
+}
+
+/**
+ * Explicit reschedule of overdue tasks (Home's "Today" / "All to today", Plan's Overdue group,
+ * the palette): `ids` (only those still overdue move — a stale form can't move anything
+ * else) or `'all'`, onto `day`, appended to the end of the target day's lists in their
+ * overdue display order. One transaction. Returns how many tasks moved.
+ */
+export async function rescheduleOverdue(
+	ids: readonly string[] | 'all',
+	day: string,
+	today: string
+): Promise<number> {
+	return db.transaction(async (tx) => {
+		const rows = await tx
+			.select({ id: tasks.id, kind: tasks.kind })
+			.from(tasks)
+			.leftJoin(quests, eq(quests.id, tasks.questId))
+			.where(
+				ids === 'all'
+					? overdueCondition(today)
+					: and(overdueCondition(today), inArray(tasks.id, [...ids]))
+			)
+			.orderBy(desc(tasks.day), asc(tasks.order), asc(tasks.createdAt))
+			.for('update', { of: tasks });
+		if (rows.length === 0) return 0;
+		const bounds = await tx
+			.select({ kind: tasks.kind, max: sql<number | null>`max(${tasks.order})` })
+			.from(tasks)
+			.where(eq(tasks.day, day))
+			.groupBy(tasks.kind);
+		const orders = appendOrders(
+			rows,
+			Object.fromEntries(bounds.map((b) => [b.kind, b.max === null ? null : Number(b.max)]))
+		);
+		for (const [id, order] of orders) {
+			await tx.update(tasks).set({ day, order }).where(eq(tasks.id, id));
+		}
+		return rows.length;
+	});
 }
 
 /** A task's sibling scope — see the module comment. */

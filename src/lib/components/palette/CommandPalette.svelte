@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import {
+		CalendarArrowDown,
 		CalendarDays,
 		ChartColumn,
 		Clock,
@@ -219,9 +221,39 @@
 
 	/**
 	 * Timer actions: only what the app already offers for the active timer (Focus screen,
-	 * task cards) — then "Edit profile".
+	 * task cards) — then "Move overdue tasks to today" and "Edit profile".
 	 */
-	const actions = $derived.by<PaletteItem[]>(() => [...timerActions(), profileAction]);
+	const actions = $derived.by<PaletteItem[]>(() => [
+		...timerActions(),
+		...overdueActions(),
+		profileAction
+	]);
+
+	/** "Move overdue tasks to today" — only while there are any (root layout `overdueCount`). */
+	function overdueActions(): PaletteItem[] {
+		const n = page.data.overdueCount ?? 0;
+		if (n <= 0) return [];
+		return [
+			{
+				key: 'action:overdue',
+				kind: 'action',
+				label: t.overdue.paletteAction,
+				detail: t.overdue.paletteDetail(n),
+				icon: CalendarArrowDown,
+				run: () => void overdueToToday()
+			}
+		];
+	}
+
+	/** Same server flow as Home's "All to today" (`rescheduleOverdue`), then fresh data everywhere. */
+	async function overdueToToday() {
+		const res = await fetch('/api/overdue', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ to: 'today', all: true })
+		}).catch(() => null);
+		if (res?.ok) await refreshAll().catch(() => {});
+	}
 
 	function timerActions(): PaletteItem[] {
 		const view = timer.view;

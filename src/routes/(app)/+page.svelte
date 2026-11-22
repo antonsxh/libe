@@ -13,6 +13,7 @@
 	import BlockDialog from '#lib/components/home/BlockDialog.svelte';
 	import StreakStatus from '#lib/components/home/StreakStatus.svelte';
 	import NextUpCard from '#lib/components/home/NextUpCard.svelte';
+	import OverdueCard from '#lib/components/home/OverdueCard.svelte';
 	import { prefersReducedMotion, tickIn } from '#lib/motion.ts';
 	import { groupEdges } from '#lib/ordering.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
@@ -163,6 +164,10 @@
 		{t.home.blockFailed}
 	</p>
 {/if}
+
+<div class="overdue-slot">
+	<OverdueCard tasks={data.overdue} today={data.day} />
+</div>
 
 <NextUpCard questTasks={data.questTasks} otherTasks={data.otherTasks} onadd={focusAdd} />
 
@@ -319,6 +324,12 @@
 		margin: calc(-1 * var(--space-6)) 0 var(--space-4);
 	}
 
+	/* The overdue card lines up with the task column (desktop), above the grid. */
+	.overdue-slot {
+		display: grid;
+		grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+		column-gap: var(--space-10);
+	}
 	.today-grid {
 		display: grid;
 		grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
@@ -384,7 +395,8 @@
 	}
 
 	@media (max-width: 1000px) {
-		.today-grid {
+		.today-grid,
+		.overdue-slot {
 			grid-template-columns: 1fr;
 		}
 	}

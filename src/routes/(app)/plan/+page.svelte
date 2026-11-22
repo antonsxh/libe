@@ -13,6 +13,7 @@
 	import { addDays } from '#lib/dates.ts';
 	import { dayHref, resolveDay, stepDay } from '#lib/day-view.ts';
 	import { isPhoneViewport } from '#lib/motion.ts';
+	import { overdueDays } from '#lib/overdue.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
@@ -102,6 +103,10 @@
 		)
 	);
 
+	/** Overdue tasks: marked cards on past days, the strip's overdue dot (phones). */
+	const overdueIds = $derived(new Set(data.overdue.map((task) => task.id)));
+	const overdueOn = $derived(overdueDays(data.overdue));
+
 	/** Backlog bottom sheet; its content mounts on open and unmounts after the exit animation. */
 	let backlogOpen = $state(false);
 	let backlogMounted = $state(false);
@@ -171,6 +176,8 @@
 	today={data.today}
 	marked={openDays}
 	markLabel={t.plan.hasOpenTasks}
+	alerts={overdueOn}
+	alertLabel={t.overdue.stripMark}
 	hrefFor={dayLink}
 	onselect={selectDay}
 />
@@ -179,6 +186,7 @@
 	<div class="board" bind:this={board}>
 		<div class="rail-slot">
 			<BacklogColumn
+				overdue={data.overdue}
 				groups={data.backlogGroups}
 				quests={data.visibleQuests}
 				count={data.backlogCount}
@@ -192,6 +200,7 @@
 				quests={data.visibleQuests}
 				form={taskForm}
 				ontoggleother={toggleOther}
+				{overdueIds}
 				selected={col.day === selected}
 			/>
 		{/each}
@@ -203,6 +212,7 @@
 		<BacklogColumn
 			sheet
 			day={selected}
+			overdue={data.overdue}
 			groups={data.backlogGroups}
 			quests={data.visibleQuests}
 			count={data.backlogCount}
