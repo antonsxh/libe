@@ -487,7 +487,10 @@
 	 */
 	@media (max-width: 720px) {
 		.cal.day-view {
-			height: max(360px, calc(100dvh - var(--nav-h-compact) - var(--tabbar-h) - 260px));
+			height: max(
+				360px,
+				calc(100dvh - var(--nav-h-compact) - var(--tabbar-h) - var(--tabbar-lift) - 248px)
+			);
 			overflow-x: hidden;
 			border-radius: var(--radius-lg);
 			touch-action: pan-y pinch-zoom;

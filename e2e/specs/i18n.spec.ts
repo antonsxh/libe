@@ -122,13 +122,14 @@ test('German UI: the main pages fit a phone without sideways scrolling @mobile',
 		await expectNoHorizontalScroll(page);
 	}
 	if (viewport!.width <= 720) {
-		// Bottom tab bar: every German label fits its tab (no ellipsis).
+		// The icon-only tab bar still names its tabs (in German) and navigates by them.
 		await gotoLive(page, '/');
-		const clipped = await page
-			.locator('.tab-label')
-			.evaluateAll((els) =>
-				els.filter((el) => el.scrollWidth > el.clientWidth).map((el) => el.textContent)
-			);
-		expect(clipped).toEqual([]);
+		const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+		await nav.getByRole('link', { name: 'Rückblick' }).tap();
+		await expect(page).toHaveURL(/\/review$/);
+		await expect(nav.getByRole('link', { name: 'Rückblick' })).toHaveAttribute(
+			'aria-current',
+			'page'
+		);
 	}
 });

@@ -1074,3 +1074,54 @@ and iPad (> 720px) are unchanged. Phase 3 (Web Push + app badge) is not part of 
   `overflow-x: clip` support is iOS 16+), iOS long-press drag on cards (disabled by
   `-webkit-user-drag: none` on phones — unverified on WebKit), the slide-in under a slow
   cross-week load (the content waits aside until the new week renders).
+
+## Mobile polish — floating tab bar (after Phase 2)
+
+Goal: the phone tab bar was wide and text-heavy (six labelled tabs edge to edge). Phones
+(≤ 720px) now get a compact floating capsule like current iOS apps; desktop/tablet (> 720px)
+keep the top bar exactly as before (incl. Focus and the avatar menu top-right).
+
+- **Capsule** (`AppNav.svelte`, same `<nav aria-label="Main">` as the desktop links): fixed,
+  inset `--tabbar-inset` from the sides and `--tabbar-lift` from the bottom (`max(12px,
+safe-bottom − 8px)`, so it sits just above the home indicator), at most `--tabbar-max-w`
+  wide, `--tabbar-h` tall, fully rounded. Translucent "glass" (`--glass-bg` +
+  `backdrop-filter: var(--glass-blur)`, solid `--glass-bg-solid` via `@supports not`), hairline
+  `--glass-border`, `--shadow-float`; content scrolls visibly underneath.
+- **Slots**: Home, Plan, Calendar, Quests, Review (icons only, `--tab-icon`; the labels stay in
+  the DOM as visually hidden text, so every link keeps its translated accessible name and
+  `aria-current="page"`), then the **avatar** (`Avatar sm` with the daily-goal ring) as a `Menu`
+  trigger filling its slot. The account menu content is one snippet shared by both avatars; on
+  phones it is placed against the capsule (`Menu` props `anchor` / `gap`): right-aligned with
+  it, opening upwards, clamped to the viewport. The top bar on phones keeps brand + search
+  (`--nav-h-compact` 56px).
+- **Active indicator**: one pill (`--tab-pill`, a soft light tint) that slides between slots
+  (`translateX(index × slot width)`, `--dur-sheet` + `--ease-spring`); the active icon turns
+  `--text` with a heavier stroke, the others stay muted. `activeTab()` (`#lib/nav.ts`): the
+  index in `TAB_ITEMS`, the avatar slot on `/settings` (reached through the avatar menu), else
+  -1 → the pill fades out (`fadeScale`) and fades back in where it belongs. Press feedback
+  shrinks the icon (`--press-scale`); the avatar button takes the global touch press. Under
+  reduced motion the pill jumps (global rule + `motionMs` → 0).
+- **Mini-player**: floats a `--space-2` gap above the capsule with the same insets, max width
+  and glass; capsule-shaped (`--player-h` 56px), the quest colour as a short bar at the start,
+  the progress line inset from the rounded ends. `main` pads for capsule + lift (+ player +
+  gap while a timer is active). z-order unchanged: dialogs/palette (top layer) > menus (40) >
+  tab bar (20) > mini-player (19).
+- Decisions: **Focus is not a phone tab** — the Focus page is about the running timer, and
+  on phones that is already the mini-player (tap → Focus), Home's Next up card, ▶ on task
+  cards and the command palette (which lists Focus among its pages, so nothing new was added
+  to the account menu). Five sections + avatar fit 375px without labels; a sixth icon would
+  make every slot narrower for the least-needed destination. The pill is neutral, not amber:
+  the accent stays reserved for today and the primary action (as in the day strip).
+  `/settings` rests the pill on the avatar instead of hiding it — it is where the avatar leads.
+- Tests: unit — `nav.test.ts` (`TAB_ITEMS` without Focus, `activeTab` indices, the avatar
+  slot, no slot). e2e `mobile.spec.ts` (`@mobile-only`, iPhone): the five tabs navigate by
+  accessible name with `aria-current` on exactly one; the tab-bar avatar opens the account
+  menu above the bar and on screen, Settings navigates. `i18n.spec.ts` (phones): the German
+  accessible names navigate (replaces the old "labels aren't ellipsised" check — there are no
+  visible labels now). Profile/streak `@mobile` tests use the same locators (the hidden avatar
+  isn't in the accessibility tree). Checked against reintroduced bugs: a menu that never
+  flips upwards (avatar test fails), labels `display: none` (no accessible names: tab-bar and
+  German tests fail).
+- **Not tested**: a real iPhone — `backdrop-filter` in iOS Safari/standalone (headless
+  Chromium only renders the blur with GPU flags; the shots use them), the lift above the
+  home indicator with a real `safe-area-inset-bottom`, the pill spring's feel, landscape.

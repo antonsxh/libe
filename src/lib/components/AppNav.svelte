@@ -13,7 +13,8 @@
 		Timer,
 		UserRound
 	} from '@lucide/svelte';
-	import { NAV_ITEMS, isActive } from '#lib/nav.ts';
+	import { NAV_ITEMS, TAB_ITEMS, activeTab, isActive } from '#lib/nav.ts';
+	import { fadeScale } from '#lib/motion.ts';
 	import Avatar from './Avatar.svelte';
 	import Logo from './Logo.svelte';
 	import Menu from './Menu.svelte';
@@ -30,7 +31,7 @@
 	const t = useI18n();
 	const timerState = $derived(timer.view ? timerLabelText(timer.view.label, t) : '');
 
-	/** Icons for the compact bottom tab bar (phones). */
+	/** Icons for the floating bottom tab bar (phones). */
 	const ICONS = {
 		'/': House,
 		'/plan': SquareKanban,
@@ -81,6 +82,10 @@
 		isMac = isApplePlatform(navigator as Parameters<typeof isApplePlatform>[0]);
 	});
 
+	/** Phones: slot of the tab bar's sliding indicator (-1 = none; after the tabs = avatar). */
+	const tab = $derived(activeTab(page.url.pathname));
+	let navEl = $state<HTMLElement>();
+
 	let searchButton = $state<HTMLButtonElement>();
 	let palette = $state<ReturnType<typeof CommandPalette>>();
 	let paletteOpen = $state(false);
@@ -97,24 +102,87 @@
 	{/if}
 {/snippet}
 
+<!-- The account menu: one content for the top-bar avatar (desktop/tablet) and the tab bar's (phones). -->
+{#snippet accountMenu(close: () => void)}
+	<div class="menu-head">
+		{#if displayName}
+			<Avatar
+				name={displayName}
+				color={profile?.avatarColor}
+				emoji={profile?.avatarEmoji}
+				size="sm"
+			/>
+			<p class="who">
+				<span class="person">{displayName}</span>
+				<span class="muted device">{t.nav.thisDeviceIs(deviceName)}</span>
+				{@render streakLine()}
+			</p>
+		{:else}
+			<p class="who">
+				<span class="muted">{t.nav.signedInAs}</span>
+				<span class="person">{deviceName}</span>
+				{@render streakLine()}
+			</p>
+		{/if}
+	</div>
+	<a class="item" role="menuitem" href={PROFILE_HREF} onclick={close}>
+		<UserRound size={14} />
+		{t.nav.editProfile}
+	</a>
+	<a class="item" role="menuitem" href="/settings" onclick={close}>
+		<Settings size={14} />
+		{t.nav.settings}
+	</a>
+	<a class="item" role="menuitem" href="/settings?pair" onclick={close}>
+		<QrCode size={14} />
+		{t.nav.pairNewDevice}
+	</a>
+{/snippet}
+
 <header class="nav">
 	<a class="brand" href="/" aria-label={t.nav.brandHome}>
 		<Logo />
 		<span>libe</span>
 	</a>
 
-	<nav aria-label={t.nav.main}>
+	<!--
+		Desktop/tablet: the section links in the top bar. Phones (≤ 720px): a floating capsule at
+		the bottom — icons only (labels stay for screen readers), Focus left out (mini-player,
+		Next up, ▶, palette), the account avatar as the last slot, one pill sliding to the active slot.
+	-->
+	<nav aria-label={t.nav.main} bind:this={navEl} style:--tabs={TAB_ITEMS.length + 1}>
+		{#if tab >= 0}
+			<span class="tab-pill" style:--i={tab} aria-hidden="true">
+				<span transition:fadeScale></span>
+			</span>
+		{/if}
 		{#each NAV_ITEMS as item (item.href)}
 			{@const Icon = ICONS[item.href]}
+			{@const active = isActive(page.url.pathname, item.href)}
 			<a
 				href={item.href}
-				class:active={isActive(page.url.pathname, item.href)}
-				aria-current={isActive(page.url.pathname, item.href) ? 'page' : undefined}
+				class:active
+				class:wide-only={item.key === 'focus'}
+				aria-current={active ? 'page' : undefined}
 			>
-				<span class="tab-icon" aria-hidden="true"><Icon size={20} strokeWidth={1.75} /></span>
+				<span class="tab-icon" aria-hidden="true">
+					<Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
+				</span>
 				<span class="tab-label">{t.nav[item.key]}</span>
 			</a>
 		{/each}
+		<span class="tab-account">
+			<Menu label={accountLabel} anchor={navEl} gap={8}>
+				{#snippet trigger()}<Avatar
+						name={displayName}
+						color={profile?.avatarColor}
+						emoji={profile?.avatarEmoji}
+						size="sm"
+						ring={goal}
+					/>{/snippet}
+				{#snippet children(close)}{@render accountMenu(close)}{/snippet}
+			</Menu>
+		</span>
 	</nav>
 
 	<div class="right">
@@ -156,49 +224,17 @@
 			trigger={searchButton}
 			apple={isMac}
 		/>
-		<Menu label={accountLabel}>
-			{#snippet trigger()}<Avatar
-					name={displayName}
-					color={profile?.avatarColor}
-					emoji={profile?.avatarEmoji}
-					ring={goal}
-				/>{/snippet}
-			{#snippet children(close)}
-				<div class="menu-head">
-					{#if displayName}
-						<Avatar
-							name={displayName}
-							color={profile?.avatarColor}
-							emoji={profile?.avatarEmoji}
-							size="sm"
-						/>
-						<p class="who">
-							<span class="person">{displayName}</span>
-							<span class="muted device">{t.nav.thisDeviceIs(deviceName)}</span>
-							{@render streakLine()}
-						</p>
-					{:else}
-						<p class="who">
-							<span class="muted">{t.nav.signedInAs}</span>
-							<span class="person">{deviceName}</span>
-							{@render streakLine()}
-						</p>
-					{/if}
-				</div>
-				<a class="item" role="menuitem" href={PROFILE_HREF} onclick={close}>
-					<UserRound size={14} />
-					{t.nav.editProfile}
-				</a>
-				<a class="item" role="menuitem" href="/settings" onclick={close}>
-					<Settings size={14} />
-					{t.nav.settings}
-				</a>
-				<a class="item" role="menuitem" href="/settings?pair" onclick={close}>
-					<QrCode size={14} />
-					{t.nav.pairNewDevice}
-				</a>
-			{/snippet}
-		</Menu>
+		<span class="top-account">
+			<Menu label={accountLabel}>
+				{#snippet trigger()}<Avatar
+						name={displayName}
+						color={profile?.avatarColor}
+						emoji={profile?.avatarEmoji}
+						ring={goal}
+					/>{/snippet}
+				{#snippet children(close)}{@render accountMenu(close)}{/snippet}
+			</Menu>
+		</span>
 	</div>
 </header>
 
@@ -439,9 +475,18 @@
 		}
 	}
 
+	/* Phone-only parts of the nav (the tab bar's pill and avatar). */
+	.tab-pill,
+	.tab-account {
+		display: none;
+	}
+	.top-account {
+		display: flex;
+	}
+
 	/*
-	 * Phones: the sections move into a bottom tab bar (thumb reach, no scrolling strip);
-	 * the top bar keeps brand, timer chip, search and the account menu.
+	 * Phones: the sections move into a floating capsule at the bottom (thumb reach, icons only);
+	 * the top bar keeps only brand and search. The avatar is the capsule's last slot.
 	 */
 	@media (max-width: 720px) {
 		.nav {
@@ -451,76 +496,111 @@
 			display: inline;
 		}
 		/* The mini-player above the tab bar shows the timer (MiniPlayer.svelte). */
-		.chip {
+		.chip,
+		.top-account,
+		nav a.wide-only {
 			display: none;
 		}
 		nav {
 			position: fixed;
 			z-index: 20;
-			left: 0;
-			right: 0;
-			bottom: 0;
+			left: calc(var(--tabbar-inset) + var(--safe-left));
+			right: calc(var(--tabbar-inset) + var(--safe-right));
+			bottom: var(--tabbar-lift);
+			max-width: var(--tabbar-max-w);
+			height: var(--tabbar-h);
+			margin-inline: auto;
 			display: grid;
-			grid-template-columns: repeat(6, minmax(0, 1fr));
+			grid-template-columns: repeat(var(--tabs), minmax(0, 1fr));
 			gap: 0;
 			overflow: visible;
-			padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
-			background: var(--bg-nav);
-			border-top: 1px solid var(--border);
-		}
-		nav a {
-			flex-direction: column;
-			justify-content: center;
-			gap: 2px;
-			min-width: 0;
-			height: var(--tabbar-h);
-			padding: 0;
-			border-radius: 0;
-			font-size: var(--fs-tab);
-		}
-		nav a.active {
-			background: transparent;
-			color: var(--accent);
-		}
-		nav a {
+			padding: var(--tabbar-pad);
+			border: 1px solid var(--glass-border);
+			border-radius: var(--radius-pill);
+			background: var(--glass-bg);
+			-webkit-backdrop-filter: var(--glass-blur);
+			backdrop-filter: var(--glass-blur);
+			box-shadow: var(--shadow-float);
 			-webkit-touch-callout: none;
 			-webkit-user-select: none;
 			user-select: none;
 		}
-		/* Active tab: a soft accent pill springs in behind the icon. */
-		.tab-icon {
-			position: relative;
-			isolation: isolate;
+		@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+			nav {
+				background: var(--glass-bg-solid);
+			}
+		}
+
+		/* One indicator for the whole bar: it slides to the active slot (springy, on the tap). */
+		.tab-pill {
+			position: absolute;
+			top: var(--tabbar-pad);
+			bottom: var(--tabbar-pad);
+			left: var(--tabbar-pad);
+			display: block;
+			width: calc((100% - 2 * var(--tabbar-pad)) / var(--tabs));
+			transform: translateX(calc(var(--i) * 100%));
+			transition: transform var(--dur-sheet) var(--ease-spring);
+			pointer-events: none;
+		}
+		.tab-pill > span {
+			display: block;
+			height: 100%;
+			border-radius: var(--radius-pill);
+			background: var(--tab-pill);
+		}
+
+		nav a,
+		.tab-account {
+			position: relative; /* above the pill */
 			display: grid;
 			place-items: center;
-			width: var(--space-12);
-			height: var(--space-6);
-			transition: scale var(--dur-pop) var(--ease-spring);
-		}
-		.tab-icon::before {
-			content: '';
-			position: absolute;
-			inset: 0;
-			z-index: -1;
+			min-width: 0;
+			padding: 0;
 			border-radius: var(--radius-pill);
-			background: var(--accent-soft);
-			opacity: 0;
-			scale: 0.5 0.8;
-			transition:
-				scale var(--dur-pop) var(--ease-spring),
-				opacity var(--dur) var(--ease);
+			-webkit-tap-highlight-color: transparent;
 		}
-		nav a.active .tab-icon::before {
-			opacity: 1;
-			scale: 1;
+		nav a {
+			color: var(--text-muted);
+			transition: color var(--dur) var(--ease);
+		}
+		nav a.active {
+			background: transparent;
+			color: var(--text);
+		}
+		.tab-icon {
+			display: grid;
+			place-items: center;
+			transition: scale var(--dur-press) var(--ease-out);
+		}
+		.tab-icon :global(svg) {
+			width: var(--tab-icon);
+			height: var(--tab-icon);
+			transition: stroke-width var(--dur-pop) var(--ease-out);
 		}
 		nav a:active .tab-icon {
 			scale: var(--press-scale);
 		}
+		/* Icons only: the label names the link for screen readers (like .sr-only). */
 		.tab-label {
-			max-width: 100%;
+			position: absolute;
+			width: 1px;
+			height: 1px;
 			overflow: hidden;
-			text-overflow: ellipsis;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+
+		/* The avatar slot: the whole slot is the menu button (hit area), the avatar centred. */
+		.tab-account :global(.menu),
+		.tab-account :global(.trigger-custom) {
+			width: 100%;
+			height: 100%;
+		}
+		.tab-account :global(.trigger-custom) {
+			justify-content: center;
+			border-radius: var(--radius-pill);
+			-webkit-tap-highlight-color: transparent;
 		}
 	}
 </style>

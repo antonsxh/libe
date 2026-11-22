@@ -7,7 +7,7 @@
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	/*
-	 * Phones: the active timer as a compact bar just above the bottom tab bar — the task, its
+	 * Phones: the active timer as a compact capsule floating just above the tab bar — the task, its
 	 * clock and one big pause/resume button; the rest of the bar opens Focus. Everything comes
 	 * from the server snapshot (`timer.view`); the button only sends a command.
 	 */
@@ -94,22 +94,23 @@
 		align-items: center;
 		gap: var(--space-2);
 		height: var(--player-h);
-		padding: 0 var(--space-2) 0 0;
+		padding: 0 var(--space-1) 0 var(--space-4);
 		overflow: hidden;
 		background: var(--surface-2);
 		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-pill);
 		box-shadow: var(--shadow-pop);
 	}
-	/* Quest colour on the left edge, like the task cards. */
+	/* Quest colour as a short bar at the start, like the task cards' edge. */
 	.player::before {
 		content: '';
 		flex: none;
-		align-self: stretch;
 		width: 3px;
+		height: var(--space-6);
+		border-radius: var(--radius-pill);
 		background: var(--q);
 	}
-	/* The real one: phones only, fixed just above the bottom tab bar. */
+	/* The real one: phones only, floating just above the tab bar capsule (same insets/glass). */
 	.player.live {
 		display: none;
 	}
@@ -117,10 +118,22 @@
 		.player.live {
 			position: fixed;
 			z-index: 19; /* under the tab bar/top bar (20), menus (40) and dialogs (top layer) */
-			left: calc(var(--space-2) + var(--safe-left));
-			right: calc(var(--space-2) + var(--safe-right));
-			bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-2));
+			left: calc(var(--tabbar-inset) + var(--safe-left));
+			right: calc(var(--tabbar-inset) + var(--safe-right));
+			bottom: calc(var(--tabbar-lift) + var(--tabbar-h) + var(--space-2));
+			max-width: var(--tabbar-max-w);
+			margin-inline: auto;
 			display: flex;
+			border-color: var(--glass-border);
+			background: var(--glass-bg);
+			-webkit-backdrop-filter: var(--glass-blur);
+			backdrop-filter: var(--glass-blur);
+			box-shadow: var(--shadow-float);
+		}
+		@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+			.player.live {
+				background: var(--glass-bg-solid);
+			}
 		}
 	}
 
@@ -131,7 +144,7 @@
 		display: grid;
 		align-content: center;
 		gap: 2px;
-		padding: 0 var(--space-2) 0 var(--space-3);
+		padding: 0 var(--space-2);
 		border-radius: var(--radius-md);
 		-webkit-touch-callout: none;
 		-webkit-user-select: none;
@@ -208,12 +221,14 @@
 		animation: pop-in var(--dur-pop) var(--ease-spring);
 	}
 
+	/* Inset from the rounded ends so the capsule's curve doesn't clip it. */
 	.progress {
 		position: absolute;
-		left: 0;
+		left: var(--space-6);
 		bottom: 0;
 		height: 2px;
-		width: calc(100% * var(--p));
+		width: calc((100% - 2 * var(--space-6)) * var(--p));
+		border-radius: var(--radius-pill);
 		background: var(--q);
 		pointer-events: none;
 		transition: width var(--dur-tick) linear;
