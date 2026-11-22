@@ -14,6 +14,7 @@
 		type CalendarWeek
 	} from '#lib/calendar.ts';
 	import { formatMinutes, todayISO } from '#lib/dates.ts';
+	import { isPhoneViewport } from '#lib/motion.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { layoutBlocks } from '#lib/timeline.ts';
 	import type { BlockWithTask } from '#lib/server/blocks.ts';
@@ -30,8 +31,13 @@
 		onedit: (session: CalendarSession) => void;
 		/** Empty slot clicked: day + minute-of-day (rounded down to 15 min). */
 		onlog: (day: string, minute: number) => void;
+		/**
+		 * Phones (≤ 720px): the one day shown full width (day view); the other columns are
+		 * hidden by CSS, so the grid renders the same on the server and needs no JS to switch.
+		 */
+		selected?: string;
 	};
-	let { days, week, blocks, timeZone, now, onedit, onlog }: Props = $props();
+	let { days, week, blocks, timeZone, now, onedit, onlog, selected }: Props = $props();
 	const t = useI18n();
 
 	/** Must match `--cal-hour` (px per hour) — click positions are converted with it. */
@@ -71,16 +77,24 @@
 		onlog(d.day, slotMinute(e.clientY - rect.top - PAD_PX, HOUR_PX, startHour));
 	}
 
-	/** Scroll target once per shown week: ~1 h before now in the current week, else the first entry. */
+	/**
+	 * Scroll target once per shown week: ~1 h before now in the current week, else the first
+	 * entry. Phones (day view): once per shown day — now on today, else that day's first
+	 * entry, else 8:00.
+	 */
 	let scroller = $state<HTMLDivElement | undefined>();
-	const weekKey = $derived(days[0]?.day ?? '');
+	const scrollKey = $derived(`${days[0]?.day ?? ''}|${selected ?? ''}`);
 	$effect(() => {
-		void weekKey;
+		void scrollKey;
 		const el = scroller;
 		if (!el) return;
 		untrack(() => {
-			const first = Math.min(...week.segments.flat().map((s) => s.startMin));
-			const target = showNow ? nowMin - 60 : Number.isFinite(first) ? first - 30 : 8 * 60;
+			const i = days.findIndex((d) => d.day === selected);
+			const dayView = i >= 0 && isPhoneViewport();
+			const segs = dayView ? week.segments[i] : week.segments.flat();
+			const nowHere = dayView ? selected === nowDay && showNow : showNow;
+			const first = Math.min(...segs.map((s) => s.startMin));
+			const target = nowHere ? nowMin - 60 : Number.isFinite(first) ? first - 30 : 8 * 60;
 			el.scrollTop = Math.max(0, ((target - startHour * 60) * HOUR_PX) / 60);
 		});
 	});
@@ -88,9 +102,11 @@
 
 <div
 	class="cal card"
+	class:day-view={!!selected}
 	role="group"
 	aria-label={t.calendar.grid}
 	bind:this={scroller}
+	style:--days={days.length}
 	style:--start={startHour * 60}
 	style:--hours={hours}
 	style:--pad={`${PAD_PX}px`}
@@ -98,7 +114,12 @@
 	<div class="grid">
 		<div class="corner" aria-hidden="true"></div>
 		{#each days as d, i (d.day)}
-			<div class="head" class:today={d.isToday} style:grid-column={i + 2}>
+			<div
+				class="head"
+				class:today={d.isToday}
+				class:sel={d.day === selected}
+				style:grid-column={i + 2}
+			>
 				<span class="wd">{d.weekday} <span class="num">{d.dayNum}</span></span>
 				<span class="total tabular" data-testid="day-total">{formatHM(week.dayMs[i], t.intl)}</span>
 			</div>
@@ -111,7 +132,13 @@
 		</div>
 
 		{#each days as d, i (d.day)}
-			<div class="col" class:today={d.isToday} data-day={d.day} style:grid-column={i + 2}>
+			<div
+				class="col"
+				class:today={d.isToday}
+				class:sel={d.day === selected}
+				data-day={d.day}
+				style:grid-column={i + 2}
+			>
 				<button
 					type="button"
 					class="slot"
@@ -191,7 +218,7 @@
 		{/each}
 
 		{#if showNow}
-			<div class="now-layer" aria-hidden="true">
+			<div class="now-layer" class:elsewhere={!!selected && selected !== nowDay} aria-hidden="true">
 				<div class="now" style:--now={nowMin} title={formatMinutes(Math.floor(nowMin))}>
 					<span class="now-dot"></span>
 				</div>
@@ -211,9 +238,9 @@
 	}
 	.grid {
 		display: grid;
-		grid-template-columns: var(--cal-gutter) repeat(7, minmax(var(--cal-col-min), 1fr));
+		grid-template-columns: var(--cal-gutter) repeat(var(--days), minmax(var(--cal-col-min), 1fr));
 		grid-template-rows: auto calc(var(--pad) + var(--hours) * var(--cal-hour) + var(--space-2));
-		min-width: calc(var(--cal-gutter) + 7 * var(--cal-col-min));
+		min-width: calc(var(--cal-gutter) + var(--days) * var(--cal-col-min));
 	}
 
 	/* ── Sticky header row + hour gutter ───────────────────── */
@@ -307,6 +334,15 @@
 	}
 	.slot:hover {
 		background: color-mix(in srgb, var(--text) 2%, transparent);
+	}
+	/*
+	 * No touch press scale here: the tapped time is read from the slot's rect, and a whole
+	 * day column shrinking under the finger moved it by ~20 px (13:22 became 13:00).
+	 */
+	.slot:active {
+		scale: none;
+		filter: none;
+		background: color-mix(in srgb, var(--text) 4%, transparent);
 	}
 
 	/* Shared placement: --t/--b = drawn range (minutes of day), --col/--cols = overlap lane. */
@@ -443,5 +479,42 @@
 		height: 8px;
 		border-radius: 50%;
 		background: var(--accent);
+	}
+
+	/*
+	 * Phones: the day view — only the selected day, full width (no sideways scrolling); its
+	 * header is one compact line (day + total); the now line only on today.
+	 */
+	@media (max-width: 720px) {
+		.cal.day-view {
+			height: max(360px, calc(100dvh - var(--nav-h-compact) - var(--tabbar-h) - 260px));
+			overflow-x: hidden;
+			border-radius: var(--radius-lg);
+			touch-action: pan-y pinch-zoom;
+		}
+		.day-view .grid {
+			grid-template-columns: var(--cal-gutter) minmax(0, 1fr);
+			min-width: 0;
+		}
+		.day-view .head:not(.sel),
+		.day-view .col:not(.sel) {
+			display: none;
+		}
+		.day-view .head.sel,
+		.day-view .col.sel {
+			grid-column: 2 !important;
+		}
+		.day-view .head {
+			display: flex;
+			align-items: baseline;
+			justify-content: space-between;
+			padding: var(--space-2) var(--space-3);
+		}
+		.day-view .total {
+			font-size: var(--fs-sm);
+		}
+		.day-view .now-layer.elsewhere {
+			display: none;
+		}
 	}
 </style>

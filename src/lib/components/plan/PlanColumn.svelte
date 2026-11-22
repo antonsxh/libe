@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { formAction } from '#lib/form-action.ts';
 	import { enhance } from '$app/forms';
-	import { ChevronRight } from '@lucide/svelte';
+	import { ChevronRight, Plus } from '@lucide/svelte';
+	import Button from '#lib/components/Button.svelte';
 	import DayTaskCard from '#lib/components/tasks/DayTaskCard.svelte';
 	import TaskAddForm from '#lib/components/tasks/TaskAddForm.svelte';
 	import { drag, endDrag, rowBefore, startDrag, submitMove } from './drag.svelte.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
+	import { formatDayLabel } from '#lib/dates.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	export interface Column {
@@ -30,11 +32,21 @@
 		form?: TaskFormResult | null;
 		/** Expand/collapse this day's Other zone (state lives in the page URL). */
 		ontoggleother: (day: string, open: boolean) => void;
+		/** Phones (≤ 720px) show only the selected day, full width (the day view). */
+		selected?: boolean;
 	};
-	let { col, quests, form = null, ontoggleother }: Props = $props();
+	let { col, quests, form = null, ontoggleother, selected = false }: Props = $props();
 	const t = useI18n();
 
 	const otherCount = $derived(col.otherTasks.length + col.otherDone.length);
+	const empty = $derived(otherCount + col.questTasks.length + col.questDone.length === 0);
+
+	/** Phones' empty day: the add input is the one thing to do — the button leads there. */
+	function focusAdd() {
+		const input = colEl?.querySelector<HTMLInputElement>('form.add input[name=title]');
+		input?.focus();
+		input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+	}
 
 	/* ── Drag & drop ─────────────────────────────────────────────────────────── */
 
@@ -99,6 +111,7 @@
 
 <div
 	class="col"
+	class:sel={selected}
 	class:today={col.isToday}
 	class:past={col.isPast}
 	role="group"
@@ -129,6 +142,19 @@
 	/>
 
 	<div class="body">
+		{#if empty}
+			<!-- Phones only: a calm empty day whose one action is the add input above. -->
+			<div class="empty-day">
+				<p class="empty-title">
+					{t.plan.emptyDay(formatDayLabel(col.day, { weekday: 'long' }, t.intl))}
+				</p>
+				<p class="muted">{t.plan.emptyDayHint}</p>
+				<Button variant="primary" onclick={focusAdd}>
+					<Plus size={16} />
+					{t.plan.addTask}
+				</Button>
+			</div>
+		{/if}
 		<ul class="cards" bind:this={questUl}>
 			{#each col.questTasks as task, i (task.id)}
 				{@render card(task, i, col.questTasks)}
@@ -306,5 +332,68 @@
 	}
 	.other-toggle .count {
 		color: var(--text-faint);
+	}
+
+	.empty-day {
+		display: none;
+	}
+
+	/*
+	 * Phones: the day view — only the selected day, full width, no column chrome (the day
+	 * strip names the day); the page scrolls instead of the column.
+	 */
+	@media (max-width: 720px) {
+		.col {
+			flex: none;
+			width: 100%;
+			gap: var(--space-4);
+			padding: 0;
+			border: none;
+			background: none;
+		}
+		.col:not(.sel) {
+			display: none;
+		}
+		.past,
+		.past:hover,
+		.past:focus-within {
+			opacity: 1;
+		}
+		.head {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+		.col :global(form.add) {
+			padding-left: var(--space-3);
+		}
+		.body {
+			overflow: visible;
+			gap: var(--space-3);
+		}
+		.cards {
+			gap: var(--space-3);
+		}
+		.cards:empty {
+			display: none;
+		}
+		.empty-day {
+			display: grid;
+			justify-items: start;
+			gap: var(--space-2);
+			padding: var(--space-6) var(--space-4);
+			border: 1px dashed var(--border-dashed);
+			border-radius: var(--radius-lg);
+		}
+		.empty-title {
+			font-size: var(--fs-lg);
+			font-weight: var(--fw-medium);
+		}
+		.empty-day :global(.btn) {
+			margin-top: var(--space-2);
+		}
 	}
 </style>

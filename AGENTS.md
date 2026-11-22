@@ -131,9 +131,16 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `server/streak.ts`); pages show `pageStreak(data.streak, data.todayLog, runningSpan(…),
 timer.serverNow)` so today moves live with the timer.
 - Week navigation (‹ range › + "This week", `?week=`) is the shared `WeekNav.svelte`
-  (Calendar, Review); extra controls go in its children snippet.
+  (Calendar, Review); extra controls go in its children snippet. Week links drop `?day=`.
+- **Phone day view** (Plan, Calendar ≤ 720px): `DayStrip.svelte` (Mon–Sun, sliding pill, one
+  dot per day) + `DaySwipe.svelte` (swipe ±1 day, slide-in) show one day of the week. The day
+  is `?day=` — client-only (the server never reads it, so a day change re-runs no `load`);
+  resolve/step/link it with `#lib/day-view.ts`, swipe rules in `#lib/swipe.ts`. The pages
+  still render the whole week; CSS hides the other days on phones (`PlanColumn selected`,
+  `WeekGrid selected`), so desktop/iPad are unchanged and SSR needs no viewport guess.
 - `Menu` popovers are `position: fixed` (placed from the trigger rect) so they escape
-  scrolling/clipping containers such as the plan board.
+  scrolling/clipping containers such as the plan board. Inside an open `<dialog>` they move
+  into it and open as a `popover` (top layer) — menus/`QuestPicker` work in sheets.
 - **Routes/layouts**: pages with the top nav live in the route group `src/routes/(app)/`
   (its `+layout.svelte` renders `AppNav` + `<main>`). `/focus` sits outside the group
   (full-screen, no nav). The root layout only loads global CSS, the timer snapshot and the
@@ -205,7 +212,8 @@ timer.serverNow)` so today moves live with the timer.
   chart needs a text alternative (aria-label or `.sr-only` text).
 - Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`,
   `Avatar`, `ColorSwatches`, `EmojiPicker`, `Dialog` (centred modal; bottom sheet on phones),
-  `MiniPlayer` (phone timer bar, rendered by the `(app)` layout).
+  `MiniPlayer` (phone timer bar, rendered by the `(app)` layout), `DayStrip` / `DaySwipe`
+  (phone day view).
   Look at `/styleguide` in the running app before building new UI.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
   Below 720px the nav is a fixed bottom tab bar (`main` already pads for it).
@@ -230,7 +238,7 @@ timer.serverNow)` so today moves live with the timer.
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n, palette, profile, streak, mobile-polish),
+i18n, palette, profile, streak, mobile-polish, day-view),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 

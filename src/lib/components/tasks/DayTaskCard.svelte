@@ -450,6 +450,22 @@
 		width: 24px;
 		height: 24px;
 	}
+	/*
+	 * Phones: a plan card is full width (day view) — ▶ ↑ ↓ ⋯ join the meta row instead of
+	 * a row of their own (one row less per card, nothing removed).
+	 */
+	@media (max-width: 720px) {
+		.plan .tail {
+			display: contents;
+		}
+		/* One line: a long quest name gives way (ellipsis) before the controls wrap. */
+		.plan .meta {
+			flex-wrap: nowrap;
+		}
+		.plan .meta > :global(.pill) {
+			flex: 0 1 auto;
+		}
+	}
 	.done {
 		opacity: 0.55;
 	}

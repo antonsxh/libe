@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { LayoutList } from '@lucide/svelte';
+	import DayStrip from '#lib/components/DayStrip.svelte';
+	import DaySwipe from '#lib/components/DaySwipe.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import WeekNav from '#lib/components/WeekNav.svelte';
 	import WeekGrid from '#lib/components/calendar/WeekGrid.svelte';
@@ -14,6 +17,7 @@
 		type PickTask
 	} from '#lib/calendar.ts';
 	import { addDays, formatHours, formatMinutes, todayISO } from '#lib/dates.ts';
+	import { dayHref, resolveDay, stepDay } from '#lib/day-view.ts';
 	import { clockElapsedMs } from '#lib/timer.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
@@ -79,6 +83,17 @@
 		return qs ? `?${qs}` : '?';
 	}
 	const planHref = $derived(href((p) => (data.showPlan ? p.delete('plan') : p.set('plan', '1'))));
+
+	/* ── Phones: day view (`?day=`, client-only — the server loads the whole week) ── */
+	const selected = $derived(
+		resolveDay(page.url.searchParams.get('day'), data.weekMonday, data.today)
+	);
+	const dayLink = (day: string) => dayHref(page.url.search, day, data.weekMonday);
+	function selectDay(day: string) {
+		return goto(dayLink(day), { reset: false, replace: true });
+	}
+	/** The strip's dot: days with logged time (incl. the running session). */
+	const loggedDays = $derived(new Set(dayList.filter((_, i) => week.dayMs[i] > 0)));
 
 	/* ── Dialog ────────────────────────────────────────────────────────────── */
 	let editor = $state<SessionEditor | null>(null);
@@ -163,15 +178,28 @@
 	{/snippet}
 </PageHeader>
 
-<WeekGrid
-	days={data.days}
-	{week}
-	blocks={data.blocks}
-	timeZone={data.timeZone}
-	{now}
-	onedit={openEdit}
-	onlog={openLog}
+<DayStrip
+	monday={data.weekMonday}
+	{selected}
+	today={data.today}
+	marked={loggedDays}
+	markLabel={t.calendar.hasLogged}
+	hrefFor={dayLink}
+	onselect={selectDay}
 />
+
+<DaySwipe day={selected} onstep={(delta) => selectDay(stepDay(selected, delta).day)}>
+	<WeekGrid
+		days={data.days}
+		{week}
+		blocks={data.blocks}
+		timeZone={data.timeZone}
+		{now}
+		{selected}
+		onedit={openEdit}
+		onlog={openLog}
+	/>
+</DaySwipe>
 
 {#if editor}
 	{#key editorKey}
@@ -259,6 +287,12 @@
 	@media (max-width: 900px) {
 		.nav-wrap {
 			margin-left: 0;
+		}
+	}
+	/* Phones: the day view's header line carries the day total; the week sums stay on wider screens. */
+	@media (max-width: 720px) {
+		.week-stats {
+			display: none;
 		}
 	}
 </style>

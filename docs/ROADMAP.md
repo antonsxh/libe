@@ -995,3 +995,82 @@ Calendar day view with swipe) and Phase 3 (Web Push + app badge) are not part of
   approximated in Chromium by a smaller viewport, haptics-like feel of the press feedback, the
   wake lock on iOS 16.4+ standalone, `:active` with the touch listener), Safari's rendering of
   the sheet/backdrop animations and `box-decoration-break` strike-through.
+
+## Mobile polish — Phase 2 (after Phase 1)
+
+Goal: Plan and Calendar on phones (≤ 720px) show **one day** instead of a sideways-scrolling
+week — the next tap is obvious, nothing is tiny, and moving between days is a swipe. Desktop
+and iPad (> 720px) are unchanged. Phase 3 (Web Push + app badge) is not part of this.
+
+- **Day strip** (`components/DayStrip.svelte`, phones only): Mon–Sun of the shown week under the
+  page header (weekday initial + date), today's number amber, the selected day on one pill that
+  slides between days (`--dur-pop`), press feedback on the days (`.press`). At most one dot per
+  day — Plan: open tasks, Calendar: logged time (incl. the running session); no counts. Links
+  work without JS; with JS the page navigates in place (`goto(…, { reset: false, replace: true })`).
+  Week navigation stays the existing header controls (Plan's ‹ › Today, Calendar's `WeekNav`);
+  week links drop `?day=`.
+- **`?day=YYYY-MM-DD`** (pure `#lib/day-view.ts`): `resolveDay` — a valid day inside the shown
+  week, else today if the week contains it, else its Monday; `stepDay` (±1, crossing into the
+  previous/next week); `dayHref` sets `day` + `week`, keeps every other param, drops
+  week-scoped ones (Plan's `other`) when the week changes; `dayDirection`. The server never reads
+  `?day=` (Kit tracks search params per key), so changing the day inside a week re-runs no
+  `load`; forms keep it through `formAction()`.
+- **Swipe** (`components/DaySwipe.svelte`, pure rules `#lib/swipe.ts`): pointer events on the
+  day content, `touch-action: pan-y pinch-zoom` (the browser keeps vertical scrolling; a
+  vertical start cancels the pointer), the axis locks after 10 px (`swipeAxis`: vertical or
+  diagonal starts stay scrolls — matters for mouse/pen), the content follows the finger at 35 %
+  (max 72 px, `swipeFollow`), a release steps after 80 px / 25 % of the width or a flick
+  ≥ 0.4 px/ms over ≥ 30 px in the drag direction (`swipeStep`, velocity via `releaseVelocity`
+  from `#lib/sheet.ts`). The new day slides in from its side (WAAPI, `--day-slide`,
+  `--dur-pop`, `--ease-out`) — also after a strip tap or week arrow. The click a mouse would
+  fire after a swipe is swallowed; native drag (`-webkit-user-drag`) is off inside the area on
+  phones; the area is at least `--day-swipe-min-h` tall so an empty day is swipeable below its
+  content; `overflow-x: clip` keeps the page from scrolling sideways. Off under reduced motion
+  (`motionMs` → 0, global CSS rule).
+- **Plan on phones**: the board renders all columns as before, CSS shows only the selected one
+  full width (`PlanColumn selected`: no column chrome, the heading kept for screen readers, no
+  past-day dimming, the page scrolls instead of the column); the scroll-to-today board effect
+  is skipped on phones. Cards put ▶ ↑ ↓ ⋯ into the meta row (one row less, nothing removed;
+  a long quest pill ellipsises first). An empty day shows "Nothing planned for Wednesday" with a
+  primary **Add a task** that focuses the day's add input. Drag & drop stays desktop-only (tap
+  equivalents: ⋯ Move to day / previous / next day, the backlog sheet).
+- **Backlog sheet**: the rail is hidden on phones; a secondary **Backlog** button next to the
+  quest filter opens it in the bottom sheet (`Dialog`, content mounted on open, unmounted via
+  `onclosed`). `BacklogColumn sheet day={selected}`: no rail chrome / DnD; each open row has a
+  direct **↧ <weekday>** button and its ⋯ menu says "Move to <selected day>" instead of "today"
+  (desktop rail unchanged); rows pulled out fade away (`fadeScale`, sheet only); add-to-backlog
+  with the quest picker works inside the sheet.
+- **Calendar on phones**: `WeekGrid` takes `selected` and `--days` (columns = `days.length`);
+  on phones CSS shows the selected column full width (no min-width, no sideways scrolling),
+  the header line is "Thu 19 ………… 1h 15m", the now line only on today, the week totals/bar in
+  the page header are hidden (the day total is in the grid). Overlap lanes, plan overlay, tap an
+  empty slot → "Log time" sheet, tap a session → edit sheet: unchanged. Scroll target per shown
+  day: ~1 h before now on today, else 30 min before the day's first entry, else 8:00.
+- **Menus in sheets** (`Menu.svelte`): inside an open modal `<dialog>` (everything outside is
+  inert, the dialog is in the top layer, the phone sheet is transformed and clips) the popover
+  is appended to the dialog and opened with `showPopover()` (its own top-layer entry, fixed to
+  the viewport); outside dialogs it stays portalled into `<body>`.
+- **Fix in passing**: the calendar slot button took the global touch press `scale` — the whole
+  day column shrank under the finger before the click, so a tap at 13:22 logged from 13:00 on
+  phones. `.slot:active` now has no scale (a faint tint instead).
+- Decisions: **CSS selects the day, not JS** — the server can't know the viewport, so rendering
+  7 columns and hiding 6 on phones avoids a hydration switch / flash and leaves desktop
+  unchanged (the cost: the week's other columns are in the DOM, hidden).
+  `?day=` is client-only and normalised in the pure helper. Day changes use `replace` (the
+  back button leaves the page instead of stepping through days); week links push as before.
+  Strip pill colour is `--surface-2` (the accent is reserved for today and the primary action).
+- Tests: unit — `day-view.test.ts` (clamping/defaults, steps across week/month/year/DST,
+  hrefs keep/drop params), `swipe.test.ts` (axis lock, follow, step thresholds, flicks). e2e
+  `e2e/specs/day-view.spec.ts` (`@mobile`, iPhone; skipped above 720px): strip → that day's
+  tasks, `?day=` survives a reload, adding lands on that day (DB) and stays there; touch swipe
+  left on Sunday → next week's Monday (URL `week` + `day`) and back, a vertical touch scroll
+  and a vertical-first mouse drag keep the day; backlog sheet moves a task to the selected day
+  (DB); Calendar strip → Thursday, one slot column, tap at 13:22 logs 13:15 there (DB), shown
+  after reload. Touch gestures use CDP `Input.dispatchTouchEvent` (Chromium;
+  `synthesizeScrollGesture` didn't scroll here). Checked against reintroduced bugs: ignoring
+  `?day=` (strip/add/sheet tests fail), no axis lock (swipe test fails), the slot press scale
+  (calendar test fails).
+- **Not tested**: a real iPhone (swipe feel and the pan-y hand-off in iOS Safari/standalone,
+  `overflow-x: clip` support is iOS 16+), iOS long-press drag on cards (disabled by
+  `-webkit-user-drag: none` on phones — unverified on WebKit), the slide-in under a slow
+  cross-week load (the content waits aside until the new week renders).
