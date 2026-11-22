@@ -1094,17 +1094,18 @@ safe-bottom − 8px)`, so it sits just above the home indicator), at most `--tab
   `--glass-border`, `--shadow-float`; content scrolls visibly underneath.
 - **Slots**: Home, Plan, Calendar, Quests, Review (icons only, `--tab-icon`; the labels stay in
   the DOM as visually hidden text, so every link keeps its translated accessible name and
-  `aria-current="page"`), then the **avatar** (`Avatar sm` with the daily-goal ring) as a `Menu`
-  trigger filling its slot. The account menu content is one snippet shared by both avatars; on
-  phones it is placed against the capsule (`Menu` props `anchor` / `gap`): right-aligned with
-  it, opening upwards, clamped to the viewport. The top bar on phones keeps brand + search
+  `aria-current="page"`), then the **avatar** (`Avatar sm` with the daily-goal ring) as a link
+  to `/settings` filling its slot (accessible name = the account label, `aria-current` there).
+  Phones have **no account menu** (owner's decision, 2026-11-22: one tap to Settings beats a
+  menu whose three items all lead there; pairing is Settings → Devices, the streak is on Home).
+  Desktop/iPad keep the top-bar avatar's menu. The top bar on phones keeps brand + search
   (`--nav-h-compact` 56px).
 - **Active indicator**: one pill (`--tab-pill`, a soft light tint) that slides between slots
   (`translateX(index × slot width)`, `--dur-sheet` + `--ease-spring`); the active icon turns
   `--text` with a heavier stroke, the others stay muted. `activeTab()` (`#lib/nav.ts`): the
-  index in `TAB_ITEMS`, the avatar slot on `/settings` (reached through the avatar menu), else
+  index in `TAB_ITEMS`, the avatar slot on `/settings` (where the avatar leads), else
   -1 → the pill fades out (`fadeScale`) and fades back in where it belongs. Press feedback
-  shrinks the icon (`--press-scale`); the avatar button takes the global touch press. Under
+  shrinks the icon (`--press-scale`), the avatar likewise. Under
   reduced motion the pill jumps (global rule + `motionMs` → 0).
 - **Mini-player**: floats a `--space-2` gap above the capsule with the same insets, max width
   and glass; capsule-shaped (`--player-h` 56px), the quest colour as a short bar at the start,
@@ -1120,12 +1121,11 @@ safe-bottom − 8px)`, so it sits just above the home indicator), at most `--tab
   `/settings` rests the pill on the avatar instead of hiding it — it is where the avatar leads.
 - Tests: unit — `nav.test.ts` (`TAB_ITEMS` without Focus, `activeTab` indices, the avatar
   slot, no slot). e2e `mobile.spec.ts` (`@mobile-only`, iPhone): the five tabs navigate by
-  accessible name with `aria-current` on exactly one; the tab-bar avatar opens the account
-  menu above the bar and on screen, Settings navigates. `i18n.spec.ts` (phones): the German
+  accessible name with `aria-current` on exactly one; the tab-bar avatar opens Settings
+  directly (no menu) and carries `aria-current` there. `i18n.spec.ts` (phones): the German
   accessible names navigate (replaces the old "labels aren't ellipsised" check — there are no
-  visible labels now). Profile/streak `@mobile` tests use the same locators (the hidden avatar
-  isn't in the accessibility tree). Checked against reintroduced bugs: a menu that never
-  flips upwards (avatar test fails), labels `display: none` (no accessible names: tab-bar and
+  visible labels now). Profile/streak `@mobile` tests find the avatar as button or link (the
+  hidden one isn't in the accessibility tree) and open the account menu only above 720px. Checked against reintroduced bugs: labels `display: none` (no accessible names: tab-bar and
   German tests fail).
 - **Not tested**: a real iPhone — `backdrop-filter` in iOS Safari/standalone (headless
   Chromium only renders the blur with GPU flags; the shots use them), the lift above the

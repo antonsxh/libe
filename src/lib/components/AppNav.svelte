@@ -87,7 +87,6 @@
 
 	/** Phones: slot of the tab bar's sliding indicator (-1 = none; after the tabs = avatar). */
 	const tab = $derived(activeTab(page.url.pathname));
-	let navEl = $state<HTMLElement>();
 
 	let searchButton = $state<HTMLButtonElement>();
 	let palette = $state<ReturnType<typeof CommandPalette>>();
@@ -105,7 +104,7 @@
 	{/if}
 {/snippet}
 
-<!-- The account menu: one content for the top-bar avatar (desktop/tablet) and the tab bar's (phones). -->
+<!-- The account menu of the top-bar avatar (desktop/tablet; phones link the avatar to Settings). -->
 {#snippet accountMenu(close: () => void)}
 	<div class="menu-head">
 		{#if displayName}
@@ -153,7 +152,7 @@
 		the bottom — icons only (labels stay for screen readers), Focus left out (mini-player,
 		Next up, ▶, palette), the account avatar as the last slot, one pill sliding to the active slot.
 	-->
-	<nav aria-label={t.nav.main} bind:this={navEl} style:--tabs={TAB_ITEMS.length + 1}>
+	<nav aria-label={t.nav.main} style:--tabs={TAB_ITEMS.length + 1}>
 		{#if tab >= 0}
 			<span class="tab-pill" style:--i={tab} aria-hidden="true">
 				<span transition:fadeScale></span>
@@ -180,17 +179,21 @@
 				{/if}
 			</a>
 		{/each}
+		<!-- Phones: the avatar goes straight to Settings (no account menu). -->
 		<span class="tab-account">
-			<Menu label={accountLabel} anchor={navEl} gap={8}>
-				{#snippet trigger()}<Avatar
-						name={displayName}
-						color={profile?.avatarColor}
-						emoji={profile?.avatarEmoji}
-						size="sm"
-						ring={goal}
-					/>{/snippet}
-				{#snippet children(close)}{@render accountMenu(close)}{/snippet}
-			</Menu>
+			<a
+				href="/settings"
+				aria-label={accountLabel}
+				aria-current={tab === TAB_ITEMS.length ? 'page' : undefined}
+			>
+				<Avatar
+					name={displayName}
+					color={profile?.avatarColor}
+					emoji={profile?.avatarEmoji}
+					size="sm"
+					ring={goal}
+				/>
+			</a>
 		</span>
 	</nav>
 
@@ -623,16 +626,13 @@
 			white-space: nowrap;
 		}
 
-		/* The avatar slot: the whole slot is the menu button (hit area), the avatar centred. */
-		.tab-account :global(.menu),
-		.tab-account :global(.trigger-custom) {
+		/* The avatar slot: the whole slot is the link (hit area), the avatar centred. */
+		.tab-account a {
 			width: 100%;
 			height: 100%;
 		}
-		.tab-account :global(.trigger-custom) {
-			justify-content: center;
-			border-radius: var(--radius-pill);
-			-webkit-tap-highlight-color: transparent;
+		.tab-account a:active :global(.wrap) {
+			scale: var(--press-scale);
 		}
 	}
 </style>
