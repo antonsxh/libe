@@ -9,6 +9,7 @@ import {
 	formatMinutes,
 	isISODay,
 	minuteOfDay,
+	nextDayStart,
 	startOfQuarter,
 	startOfWeek,
 	todayISO,
@@ -107,5 +108,35 @@ describe('dates', () => {
 		expect(formatDayLabel('2026-11-16', { weekday: 'short' }, 'de-DE')).toBe('Mo');
 		expect(formatHours(10.46, 'de-DE')).toBe('10,5\u202fh');
 		expect(formatHours(3, 'de-DE')).toBe('3\u202fh');
+	});
+});
+
+describe('nextDayStart', () => {
+	const zone = 'Europe/Berlin';
+	test('the next midnight in the zone, to the millisecond', () => {
+		// 2026-11-22 21:30:15.250 in Berlin (UTC+1) → 2026-11-23 00:00 Berlin = 23:00Z.
+		const now = new Date('2026-11-22T20:30:15.250Z');
+		expect(nextDayStart(now, zone)).toBe(Date.parse('2026-11-22T23:00:00Z'));
+		expect(todayISO(zone, new Date(nextDayStart(now, zone)))).toBe('2026-11-23');
+		expect(todayISO(zone, new Date(nextDayStart(now, zone) - 1))).toBe('2026-11-22');
+	});
+	test('right after midnight: a whole day ahead', () => {
+		const now = new Date('2026-11-22T23:00:00Z'); // 00:00 Berlin, Nov 23
+		expect(nextDayStart(now, zone)).toBe(Date.parse('2026-11-23T23:00:00Z'));
+	});
+	test('DST: a 23-hour and a 25-hour day', () => {
+		// 2026-03-29: clocks jump 02:00 → 03:00 in Berlin. 01:00 local (00:00Z) → midnight = 22:00Z.
+		expect(nextDayStart(new Date('2026-03-29T00:00:00Z'), zone)).toBe(
+			Date.parse('2026-03-29T22:00:00Z')
+		);
+		// 2026-10-25: 03:00 → 02:00. 01:00 local (23:00Z the day before) → midnight = 23:00Z.
+		expect(nextDayStart(new Date('2026-10-24T23:00:00Z'), zone)).toBe(
+			Date.parse('2026-10-25T23:00:00Z')
+		);
+	});
+	test('UTC', () => {
+		expect(nextDayStart(new Date('2026-11-22T10:00:00Z'), 'UTC')).toBe(
+			Date.parse('2026-11-23T00:00:00Z')
+		);
 	});
 });

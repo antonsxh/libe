@@ -150,6 +150,22 @@ export function minuteOfDay(now: Date = new Date(), timeZone?: string): number {
 	return m ? Number(m[1]) * 60 + Number(m[2]) : 0;
 }
 
+/**
+ * Epoch ms at which the next day starts in `timeZone` (default: the runtime's, i.e. `TZ` on
+ * the server) — the first instant whose `todayISO` differs from now's. DST-safe: the
+ * wall-clock estimate is corrected in whole hours until it sits on the boundary.
+ */
+export function nextDayStart(now: Date = new Date(), timeZone?: string): number {
+	const today = todayISO(timeZone, now);
+	const ms = now.getTime();
+	let at = ms + (1440 - minuteOfDay(now, timeZone)) * 60_000 - (ms % 60_000);
+	const HOUR = 3_600_000;
+	const dayAt = (t: number) => todayISO(timeZone, new Date(t));
+	for (let i = 0; i < 3 && dayAt(at) === today; i++) at += HOUR;
+	for (let i = 0; i < 3 && at - HOUR > ms && dayAt(at - HOUR) !== today; i++) at -= HOUR;
+	return at;
+}
+
 /** Milliseconds → `H:MM:SS` or `MM:SS` (timer display). */
 export function formatDuration(ms: number): string {
 	const total = Math.max(0, Math.round(ms / 1000));

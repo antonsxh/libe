@@ -66,7 +66,7 @@ export function subscriptionBody(sub: PushSubscription) {
 }
 
 /**
- * Keep the app icon badge at `count` (today's open tasks; 0 clears it) — only while this
+ * Keep the app icon badge at `count` (today's open + overdue tasks; 0 clears it) — only while this
  * device has notifications on: iOS shows badges only with notification permission, and the
  * badge belongs to the same opt-in.
  */

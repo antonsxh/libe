@@ -196,6 +196,24 @@ export const de: Messages = {
 		openBacklogSheet: 'Backlog öffnen',
 		hasOpenTasks: 'offene Aufgaben'
 	},
+	overdue: {
+		label: 'Überfällig',
+		heading: (n) => `Überfällig · ${n}`,
+		yesterday: 'gestern',
+		since: (day) => `seit ${day}`,
+		allToToday: 'Alle auf heute',
+		showAll: (n) => `Alle ${n} anzeigen`,
+		showLess: 'Weniger anzeigen',
+		todayAria: (title) => `Auf heute verschieben: ${title}`,
+		row: (n) => `${n} ${plural(n, 'Aufgabe', 'Aufgaben')} überfällig`,
+		view: 'Ansehen',
+		sheetTitle: 'Überfällige Aufgaben',
+		navLabel: (home, n) => `${home}, ${n} überfällig`,
+		marker: 'Überfällig',
+		stripMark: 'überfällige Aufgaben',
+		paletteAction: 'Überfällige Aufgaben auf heute verschieben',
+		paletteDetail: (n) => `${n} ${plural(n, 'Aufgabe', 'Aufgaben')}`
+	},
 	calendar: {
 		title: 'Kalender',
 		showPlan: 'Plan einblenden',

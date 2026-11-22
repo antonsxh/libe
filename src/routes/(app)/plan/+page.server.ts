@@ -13,6 +13,7 @@ import {
 	getTask,
 	listOpenBacklog,
 	listOtherBacklog,
+	listOverdue,
 	listWeekTasks,
 	moveTaskTo,
 	moveTaskToDay
@@ -37,11 +38,12 @@ export const load = (async ({ url, locals }) => {
 	const weekMonday = isISODay(weekParam) ? startOfWeek(weekParam) : startOfWeek(today);
 	const days = weekDays(weekMonday);
 
-	const [quests_, weekTasks, questBacklog, otherBacklog] = await Promise.all([
+	const [quests_, weekTasks, questBacklog, otherBacklog, overdue] = await Promise.all([
 		listOpenQuests(),
 		listWeekTasks(weekMonday),
 		listOpenBacklog(),
-		listOtherBacklog()
+		listOtherBacklog(),
+		listOverdue(today)
 	]);
 
 	// `?q=` — same semantics as Home: a proper subset of open quest ids filters the
@@ -116,6 +118,8 @@ export const load = (async ({ url, locals }) => {
 		monthLabel: weekMonthLabel(weekMonday, t.intl),
 		columns,
 		backlogGroups,
+		/** Open tasks planned before today, of any week (`#lib/overdue.ts`): the rail's top group. */
+		overdue,
 		quests: quests_,
 		visibleQuests,
 		questFilter: questFilter ? [...questFilter] : null,

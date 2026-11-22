@@ -5,7 +5,7 @@
 	/**
 	 * Phones only (≤ 720px): Mon–Sun of the shown week as weekday initial + date number. The
 	 * selected day sits on a pill that slides between days; today's number is amber; at most
-	 * one dot per day (`marked`). Links (`hrefFor`) work without JS; with JS `onselect`
+	 * one dot per day (`marked`; overdue days — `alerts` — in the overdue colour). Links (`hrefFor`) work without JS; with JS `onselect`
 	 * navigates in place (the page decides how).
 	 */
 	type Props = {
@@ -18,10 +18,15 @@
 		marked?: ReadonlySet<string>;
 		/** What the dot means, for screen readers ("open tasks"). */
 		markLabel?: string;
+		/** Days whose dot turns the overdue colour (past days with open tasks); wins over `marked`. */
+		alerts?: ReadonlySet<string>;
+		/** What an overdue dot means, for screen readers ("overdue tasks"). */
+		alertLabel?: string;
 		hrefFor: (day: string) => string;
 		onselect: (day: string) => void;
 	};
-	let { monday, selected, today, marked, markLabel, hrefFor, onselect }: Props = $props();
+	let { monday, selected, today, marked, markLabel, alerts, alertLabel, hrefFor, onselect }: Props =
+		$props();
 	const t = useI18n();
 
 	const days = $derived(weekDays(monday));
@@ -37,7 +42,8 @@
 <nav class="strip" aria-label={t.week.days} style:--i={index}>
 	<span class="pill" aria-hidden="true"></span>
 	{#each days as day (day)}
-		{@const mark = marked?.has(day) ?? false}
+		{@const alert = alerts?.has(day) ?? false}
+		{@const mark = alert || (marked?.has(day) ?? false)}
 		<a
 			class="day press"
 			class:sel={day === selected}
@@ -48,14 +54,14 @@
 			aria-label={t.week.dayAria(
 				formatDayLabel(day, { weekday: 'long', month: 'long', day: 'numeric' }, t.intl),
 				day === today,
-				mark ? (markLabel ?? null) : null
+				alert ? (alertLabel ?? null) : mark ? (markLabel ?? null) : null
 			)}
 			data-sveltekit-reset="false"
 			onclick={(e) => click(e, day)}
 		>
 			<span class="wd">{formatDayLabel(day, { weekday: 'narrow' }, t.intl)}</span>
 			<span class="num tabular">{Number(day.slice(8))}</span>
-			<span class="dot" class:on={mark} aria-hidden="true"></span>
+			<span class="dot" class:on={mark} class:alert aria-hidden="true"></span>
 		</a>
 	{/each}
 </nav>
@@ -134,6 +140,9 @@
 		}
 		.sel .dot.on {
 			background: var(--text-muted);
+		}
+		.dot.on.alert {
+			background: var(--overdue);
 		}
 	}
 </style>

@@ -204,6 +204,31 @@ export const en = {
 		openBacklogSheet: 'Open the backlog',
 		hasOpenTasks: 'open tasks'
 	},
+	/** Overdue tasks (planned before today, not done): Home's card/sheet, Plan, nav, palette. */
+	overdue: {
+		label: 'Overdue',
+		/** Card head: "Overdue · 3". */
+		heading: (n: number) => `Overdue · ${n}`,
+		/** Age of a row: "yesterday" / "since Wed, Nov 18". */
+		yesterday: 'yesterday',
+		since: (day: string) => `since ${day}`,
+		allToToday: 'All to today',
+		showAll: (n: number) => `Show all ${n}`,
+		showLess: 'Show less',
+		todayAria: (title: string) => `Move to today: ${title}`,
+		/** Phones: Home's compact row and its sheet. */
+		row: (n: number) => `${n} ${plural(n, 'task', 'tasks')} overdue`,
+		view: 'View',
+		sheetTitle: 'Overdue tasks',
+		/** The nav's Home item while it shows the dot (screen readers): "Home, 3 overdue". */
+		navLabel: (home: string, n: number) => `${home}, ${n} overdue`,
+		/** Plan: marker on an open card of a past day. */
+		marker: 'Overdue',
+		/** Plan's day strip (phones): a past day that still has open tasks. */
+		stripMark: 'overdue tasks',
+		paletteAction: 'Move overdue tasks to today',
+		paletteDetail: (n: number) => `${n} ${plural(n, 'task', 'tasks')}`
+	},
 	calendar: {
 		title: 'Calendar',
 		showPlan: 'Show plan',

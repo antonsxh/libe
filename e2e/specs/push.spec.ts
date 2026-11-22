@@ -7,7 +7,7 @@
  */
 import type { APIRequestContext } from '@playwright/test';
 import { test, expect, discardTimer, timerCmd } from '../support/fixtures.ts';
-import { createTask, today, uid, type Sql } from '../support/db.ts';
+import { addDays, createTask, today, uid, type Sql } from '../support/db.ts';
 import { BASE, FAKE_PUSH_ORIGIN } from '../support/env.ts';
 import { bearer, freshIp, pairWithSecret } from '../support/auth.ts';
 import { FakePushService, type PushRequest } from '../support/fake-push.ts';
@@ -49,10 +49,13 @@ async function payloadOf(req: PushRequest, keys: SubscriptionKeys) {
 	};
 }
 
-const openToday = async (sql: Sql) =>
+/** The app badge: open tasks of today and before (overdue), closed quests' tasks left out. */
+const badgeCount = async (sql: Sql) =>
 	Number(
 		(
-			await sql`select count(*)::int as n from tasks where day = ${await today(sql)} and done_at is null`
+			await sql`select count(*)::int as n from tasks t left join quests q on q.id = t.quest_id
+				where t.day <= ${await today(sql)} and t.done_at is null
+					and (t.kind = 'other' or q.closed_at is null)`
 		)[0].n
 	);
 
@@ -61,6 +64,8 @@ test('a countdown that reaches its target pushes "Time’s up" once — encrypte
 	sql
 }) => {
 	const task = await createTask(sql, { title: `Push countdown ${uid()}`, day: await today(sql) });
+	// An overdue task counts towards the badge as well.
+	await createTask(sql, { title: `Push overdue ${uid()}`, day: addDays(await today(sql), -1) });
 	const keys = await subscriptionKeys();
 	const endpoint = push.endpoint();
 	await subscribe(api, endpoint, keys);
@@ -92,7 +97,7 @@ test('a countdown that reaches its target pushes "Time’s up" once — encrypte
 		body: task.title,
 		tag: 'libe-timer',
 		url: '/focus',
-		badge: await openToday(sql)
+		badge: await badgeCount(sql)
 	});
 	await expect
 		.poll(

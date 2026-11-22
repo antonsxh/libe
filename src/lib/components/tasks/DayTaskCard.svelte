@@ -32,6 +32,7 @@
 		variant = 'home',
 		dropBefore = false,
 		dragging = false,
+		overdue = false,
 		ondragstart,
 		ondragend,
 		ontimeblock
@@ -48,6 +49,8 @@
 		dropBefore?: boolean;
 		/** This card is the one being dragged (rendered faded). */
 		dragging?: boolean;
+		/** Open card of a past day (`#lib/overdue.ts`): a small overdue marker by the title. */
+		overdue?: boolean;
 		/** When set, the card is an HTML5 drag source (plan board). */
 		ondragstart?: (e: DragEvent, task: TaskWithQuest) => void;
 		ondragend?: (e: DragEvent) => void;
@@ -106,6 +109,11 @@
 >
 	<div class="top">
 		<span class="title"><span class="strike">{task.title}</span></span>
+		{#if overdue}
+			<span class="overdue" title={t.overdue.marker}>
+				<span class="sr-only">{t.overdue.marker}</span>
+			</span>
+		{/if}
 	</div>
 
 	<div class="meta">
@@ -498,6 +506,15 @@
 		font-size: var(--fs-lg);
 		font-weight: var(--fw-medium);
 		overflow-wrap: anywhere;
+	}
+	/* Overdue marker: a small dot in the card's top right corner. */
+	.overdue {
+		flex: none;
+		width: 7px;
+		height: 7px;
+		margin-top: var(--space-2);
+		border-radius: 50%;
+		background: var(--overdue);
 	}
 	.menu-slot {
 		position: relative;

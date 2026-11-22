@@ -40,6 +40,8 @@
 	/* ── Semantic ─────────────────────────────────────────── */
 	--danger: #e5645f;
 	--success: #5dbe7a;
+	/* Overdue tasks: dots, markers and small accents only — never a large red surface. */
+	--overdue: color-mix(in srgb, var(--danger) 72%, var(--text-muted));
 
 	/* ── Quest colour family (see #lib/quest-colors.ts) ───── */
 	--quest-red: #e5645f;

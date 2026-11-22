@@ -163,9 +163,18 @@ timer.serverNow)` so today moves live with the timer.
   `publishTimer`, never a silent DB write. One push per event key (`claimEvent`, DB
   compare-and-set). New push services go into `PUSH_HOSTS` / `PUSH_HOST_SUFFIXES` (+ tests),
   never "any https URL". `revokeDevice()` deletes the device's subscriptions. The app icon
-  badge (today's open tasks, root layout `openToday`) is set by `syncAppBadge`
+  badge (today's open + overdue tasks, root layout `badge`; `taskCounts` / `badgeCount()`) is set by `syncAppBadge`
   (`#lib/push-client.ts`) only while this device has notifications on; badge/notification
   APIs are feature-detected and never throw or log.
+- **Overdue tasks**: `day < today` (server `TZ`), not done, kind `other` or an open quest —
+  computed, never stored; pure rules in `#lib/overdue.ts` (`isOverdue`, `compareOverdue`,
+  ages, `appendOrders`), SQL twin `overdueCondition` + `listOverdue` / `taskCounts` /
+  `rescheduleOverdue` in `server/tasks.ts`. The planned day only changes through explicit
+  actions (shared `overdueTo` action, `POST /api/overdue` for the palette, `toBacklog`,
+  `toggle`, `deleteTask`) — never auto-rollover. Rows: `components/tasks/OverdueList.svelte`
+  (Home's `OverdueCard`, Plan's rail group); nav dot from root layout `overdueCount`; colour
+  only via `--overdue` (dots/markers). The root layout refreshes all data once the server's
+  day ends (`dayEndsAt`, `nextDayStart`).
 - **Logged time by day**: stats (`stats-core.ts`), the Review (`#lib/review.ts`) and streaks
   (`loggedMinutesByDay`) attribute a whole session to the day of `started_at`; the Calendar (`#lib/calendar.ts`) draws/totals actual spans, split at midnight.
   Calendar edits/logs go through `/api/sessions` (`POST`, `PATCH /[id]`, `DELETE /[id]`), validated
@@ -255,7 +264,7 @@ timer.serverNow)` so today moves live with the timer.
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n, palette, profile, streak, mobile-polish, day-view, push),
+i18n, palette, profile, streak, mobile-polish, day-view, push, overdue),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 

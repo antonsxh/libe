@@ -14,10 +14,13 @@ import {
 	getTask,
 	moveTask,
 	moveTaskToDay,
+	rescheduleOverdue,
 	setTaskDone,
 	type TaskTarget
 } from '#lib/server/tasks.ts';
 import { parseTaskDuration, validateTaskTitle } from '#lib/task-form.ts';
+import { overdueTargetDay, parseOverdueSelection, parseOverdueTarget } from '#lib/overdue.ts';
+import { todayISO } from '#lib/dates.ts';
 import { i18n, type ErrorCode, type Locale } from '#lib/i18n/index.ts';
 
 export function formStr(form: FormData, name: string): string {
@@ -131,8 +134,23 @@ export async function deleteTaskAction({ request }: { request: Request }) {
 	if (id) await deleteTask(id);
 }
 
+/**
+ * Overdue tasks → `to` (today | tomorrow): `all=1` (every overdue task — "All to today"), or
+ * one or more `taskId` fields (a row's "Today" / "Tomorrow"). Invalid input does nothing;
+ * tasks that are no longer overdue stay where they are (`rescheduleOverdue`).
+ */
+export async function overdueToAction({ request }: { request: Request }) {
+	const form = await request.formData();
+	const to = parseOverdueTarget(form.get('to'));
+	const selection = parseOverdueSelection(form.get('all') === '1', form.getAll('taskId'));
+	if (!to || !selection) return;
+	const today = todayISO();
+	await rescheduleOverdue(selection, overdueTargetDay(to, today), today);
+}
+
 /** Actions with identical behaviour on every task list page. */
 export const sharedTaskActions = {
+	overdueTo: overdueToAction,
 	toggle: toggleTaskAction,
 	moveUp: moveUpTaskAction,
 	moveDown: moveDownTaskAction,
