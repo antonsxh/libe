@@ -222,6 +222,9 @@ test('Other: hideDone and the quest filter live in the URL and survive mutations
 	expect(new URL(page.url()).searchParams.get('q')?.split(',').sort()).toEqual(
 		[qa.id, qb.id].sort()
 	);
+	// Close the filter first: with many quests its list reaches over the Other column's eye.
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('dialog', { name: 'Quest filter' })).toBeHidden();
 	await page.getByRole('link', { name: 'Show done tasks' }).click();
 	await expect(otherList(page)).toContainText(`Other done ${id}`);
 	expect(new URL(page.url()).searchParams.has('hideDone')).toBe(false);
@@ -267,6 +270,8 @@ test('time blocks: server-side span check, create, edit and delete', async ({
 	await done;
 	await expect(block).toHaveAccessibleName(/21:00 to 21:30/);
 	expect(await blocks()).toEqual([{ start_min: 1260, end_min: 1290, day }]);
+	// The sheet must be gone (exit animation) before the block is clicked again.
+	await expect(dialog).toBeHidden();
 
 	await block.click();
 	done = actionDone(page, 'blockDelete');
