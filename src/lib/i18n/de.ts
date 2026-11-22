@@ -425,7 +425,8 @@ export const de: Messages = {
 	},
 	settings: {
 		title: 'Einstellungen',
-		subtitle: 'Profil, Tagesziel, Serie, gekoppelte Geräte, Fokus-Timer und Sprache.',
+		subtitle:
+			'Profil, Tagesziel, Serie, gekoppelte Geräte, Fokus-Timer, Benachrichtigungen und Sprache.',
 		profile: 'Profil',
 		profileDesc: 'Dein Name und dein Avatar – auf all deinen Geräten gleich.',
 		displayName: 'Name',
@@ -489,6 +490,24 @@ export const de: Messages = {
 			' wird abgemeldet. Um libe hier wieder zu nutzen, brauchst du einen Kopplungscode von einem anderen Gerät (oder das Setup-Secret).',
 		confirmRevoke:
 			' wird sofort abgemeldet und kann libe erst wieder öffnen, wenn es neu gekoppelt wurde.',
+		notifications: {
+			title: 'Benachrichtigungen',
+			desc: 'Ein kurzer Hinweis auf diesem Gerät, wenn eine Timer-Phase endet, und die offenen Aufgaben von heute am App-Symbol.',
+			turnOn: 'Benachrichtigungen einschalten',
+			turnOff: 'Ausschalten',
+			sendTest: 'Test senden',
+			sent: 'Gesendet',
+			on: 'Für dieses Gerät eingeschaltet.',
+			install:
+				'Füge libe zum Home-Bildschirm hinzu, um Benachrichtigungen zu bekommen: Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“.',
+			unsupported: 'Dieser Browser kann keine Benachrichtigungen von libe empfangen.',
+			deniedApple:
+				'Benachrichtigungen sind blockiert. Erlaube sie unter Einstellungen → Mitteilungen → libe.',
+			deniedBrowser:
+				'Benachrichtigungen sind blockiert. Erlaube sie für diese Seite in den Einstellungen deines Browsers.',
+			failed: 'Benachrichtigungen konnten nicht eingeschaltet werden. Versuch es noch einmal.',
+			testFailed: 'Die Testbenachrichtigung konnte nicht gesendet werden.'
+		},
 		language: 'Sprache',
 		languageDesc:
 			'Gilt für libe auf all deinen Geräten. „Systemstandard“ folgt den Spracheinstellungen des jeweiligen Browsers.',
@@ -514,6 +533,16 @@ export const de: Messages = {
 			locked: 'Zu viele falsche Versuche – dieser Code ist nicht mehr gültig.',
 			newDevice: 'Das neue Gerät'
 		}
+	},
+	push: {
+		countdownDone: 'Zeit ist um',
+		breakStarted: (min) => `Pause · ${min} Min.`,
+		longBreakStarted: (min) => `Lange Pause · ${min} Min.`,
+		breakWaiting: 'Runde geschafft – starte deine Pause',
+		focusStarted: 'Pause vorbei – zurück zum Fokus',
+		focusWaiting: 'Pause vorbei – starte die nächste Runde',
+		testTitle: 'Benachrichtigungen sind an',
+		testBody: 'So sagt dir libe, dass eine Timer-Phase zu Ende ist.'
 	},
 	desktop: {
 		title: 'Desktop-App',
@@ -749,7 +778,12 @@ export const de: Messages = {
 		profileEmojiInvalid: 'Verwende genau ein Emoji.',
 		dailyGoalInvalid: `Wähle ein Ziel von ${duration(0, DAILY_GOAL_MIN)} bis ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-Minuten-Schritten.`,
 		streakRestDayInvalid: 'Wähle Ruhetage von Montag bis Sonntag.',
-		streakRestDaysTooMany: `Wähle höchstens ${MAX_REST_DAYS} Ruhetage – mindestens ein Tag pro Woche muss zählen.`
+		streakRestDaysTooMany: `Wähle höchstens ${MAX_REST_DAYS} Ruhetage – mindestens ein Tag pro Woche muss zählen.`,
+		// notifications
+		pushEndpointInvalid: 'Dieser Push-Dienst wird nicht unterstützt.',
+		pushKeysInvalid: 'Ungültige Schlüssel des Push-Abos.',
+		pushNotSubscribed: 'Benachrichtigungen sind auf diesem Gerät nicht eingeschaltet.',
+		pushSendFailed: 'Der Push-Dienst hat die Benachrichtigung nicht angenommen.'
 	},
 	goal: {
 		duration,

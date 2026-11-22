@@ -13,7 +13,7 @@ import {
 	type DeviceKind
 } from '#lib/auth.ts';
 import { db } from './db/index.ts';
-import { devices, pairingCodes, type Device } from './db/schema.ts';
+import { devices, pairingCodes, pushSubscriptions, type Device } from './db/schema.ts';
 import { closeDeviceStreams } from './device-streams.ts';
 import { generatePairingCode, generateToken, sha256Hex } from './tokens.ts';
 import { i18n, type ErrorCode, type Locale } from '#lib/i18n/index.ts';
@@ -143,7 +143,10 @@ export async function renameDevice(id: string, name: string): Promise<boolean> {
 	return rows.length > 0;
 }
 
-/** Revoke a device: its token stops working, open streams close, its codes expire. */
+/**
+ * Revoke a device: its token stops working, open streams close, its codes expire and its
+ * push subscriptions are deleted (the row stays, so the FK cascade alone wouldn't).
+ */
 export async function revokeDevice(id: string, now = new Date()): Promise<boolean> {
 	const rows = await db.transaction(async (tx) => {
 		const revoked = await tx
@@ -161,6 +164,7 @@ export async function revokeDevice(id: string, now = new Date()): Promise<boolea
 					gt(pairingCodes.expiresAt, now)
 				)
 			);
+		await tx.delete(pushSubscriptions).where(eq(pushSubscriptions.deviceId, id));
 		return revoked;
 	});
 	lastTouch.delete(id);

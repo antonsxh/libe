@@ -62,6 +62,11 @@ The timer is a server-sent event stream: disable response buffering for `/api/ti
 The app runs full-screen (dark status bar, safe-area aware), keeps the timer in sync when you
 come back to it, and shows an offline page when the server can't be reached.
 
+**Notifications** (iOS 16.4+): in the home-screen app open Settings → Notifications → **Turn on
+notifications** and allow them. libe then tells you when a focus countdown or a pomodoro phase
+ends, and the app icon shows today's open tasks. Needs HTTPS; nothing to configure on the
+server (its push keys are generated on first use).
+
 ## Desktop app (Tauri 2)
 
 A thin native window around your server (macOS, Windows, Linux) that keeps its device token in

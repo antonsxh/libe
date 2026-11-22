@@ -6,6 +6,7 @@
 	import { setI18n, useI18n } from '#lib/i18n/context.svelte.ts';
 	import SwitchTimerDialog from '#lib/components/focus/SwitchTimerDialog.svelte';
 	import LogTimeDialog from '#lib/components/focus/LogTimeDialog.svelte';
+	import { syncAppBadge } from '#lib/push-client.ts';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -42,6 +43,13 @@
 		const noop = () => {};
 		document.addEventListener('touchstart', noop, { passive: true });
 		return () => document.removeEventListener('touchstart', noop);
+	});
+
+	// App icon badge = today's open tasks, while this device has notifications on (the service
+	// worker updates it from each push while the app is closed). Feature-detected, never throws.
+	$effect(() => {
+		const open = data.openToday;
+		if (open !== null) void syncAppBadge(open);
 	});
 
 	// PWA: offline fallback + cached app shell (production builds only; needs HTTPS or

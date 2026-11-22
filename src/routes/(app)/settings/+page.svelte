@@ -23,6 +23,7 @@
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import PomodoroSettingsDialog from '#lib/components/focus/PomodoroSettingsDialog.svelte';
 	import DesktopAppSection from '#lib/components/settings/DesktopAppSection.svelte';
+	import NotificationsSection from '#lib/components/settings/NotificationsSection.svelte';
 	import PairDeviceDialog from '#lib/components/settings/PairDeviceDialog.svelte';
 	import { formatAgo, type DeviceKind } from '#lib/auth.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
@@ -594,6 +595,8 @@
 			</Button>
 		</header>
 	</section>
+
+	<NotificationsSection />
 
 	<section class="card section" aria-labelledby="language-title">
 		<form

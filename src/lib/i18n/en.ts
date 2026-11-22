@@ -438,7 +438,8 @@ export const en = {
 	},
 	settings: {
 		title: 'Settings',
-		subtitle: 'Profile, daily goal, streak, paired devices, focus timer and language.',
+		subtitle:
+			'Profile, daily goal, streak, paired devices, focus timer, notifications and language.',
 		profile: 'Profile',
 		profileDesc: 'Your name and avatar — the same on all your devices.',
 		displayName: 'Name',
@@ -502,6 +503,23 @@ export const en = {
 		confirmSignOut:
 			' will be signed out. To use libe here again you’ll need a pairing code from another device (or the setup secret).',
 		confirmRevoke: ' will be signed out immediately and can’t open libe until it is paired again.',
+		notifications: {
+			title: 'Notifications',
+			desc: 'A short note on this device when a timer phase ends, and today’s open tasks on the app icon.',
+			turnOn: 'Turn on notifications',
+			turnOff: 'Turn off',
+			sendTest: 'Send test',
+			sent: 'Sent',
+			on: 'On for this device.',
+			install:
+				'Add libe to your Home Screen to get notifications: tap Share, then “Add to Home Screen”.',
+			unsupported: 'This browser can’t receive notifications from libe.',
+			deniedApple: 'Notifications are blocked. Allow them in Settings → Notifications → libe.',
+			deniedBrowser:
+				'Notifications are blocked. Allow them for this site in your browser’s settings.',
+			failed: 'Couldn’t turn on notifications. Try again.',
+			testFailed: 'The test notification couldn’t be sent.'
+		},
 		language: 'Language',
 		languageDesc:
 			'For libe on all your devices. “System default” follows each browser’s language settings.',
@@ -526,6 +544,17 @@ export const en = {
 			locked: 'Too many wrong attempts — this code is no longer valid.',
 			newDevice: 'The new device'
 		}
+	},
+	/** Web Push notifications (title = state, body = the task's title). Keep them short. */
+	push: {
+		countdownDone: 'Time’s up',
+		breakStarted: (min: number) => `Break time · ${min} min`,
+		longBreakStarted: (min: number) => `Long break · ${min} min`,
+		breakWaiting: 'Round done — start your break',
+		focusStarted: 'Break over — back to focus',
+		focusWaiting: 'Break over — start the next round',
+		testTitle: 'Notifications are on',
+		testBody: 'This is how libe tells you a timer phase has ended.'
 	},
 	desktop: {
 		title: 'Desktop app',
@@ -755,7 +784,12 @@ export const en = {
 		profileEmojiInvalid: 'Use exactly one emoji.',
 		dailyGoalInvalid: `Pick a goal from ${duration(0, DAILY_GOAL_MIN)} to ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-minute steps.`,
 		streakRestDayInvalid: 'Pick rest days from Monday to Sunday.',
-		streakRestDaysTooMany: `Pick at most ${MAX_REST_DAYS} rest days — at least one day a week has to count.`
+		streakRestDaysTooMany: `Pick at most ${MAX_REST_DAYS} rest days — at least one day a week has to count.`,
+		// notifications
+		pushEndpointInvalid: 'This push service is not supported.',
+		pushKeysInvalid: 'Invalid push subscription keys.',
+		pushNotSubscribed: 'Notifications are not turned on for this device.',
+		pushSendFailed: 'The push service did not accept the notification.'
 	},
 	/** Daily goal (avatar ring, Home, Settings). */
 	goal: {

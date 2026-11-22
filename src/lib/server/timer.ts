@@ -7,6 +7,11 @@
  * forward to `now` (lazily, from timestamps — see `rolloverPomodoro`), then validates the
  * transition against the current state using server timestamps. After each change the fresh
  * snapshot is published to all SSE subscribers (`timer-hub.ts`).
+ *
+ * Web Push hooks in through the hub: every published snapshot re-arms the push scheduler
+ * (`push-scheduler.ts`), and a committed pomodoro rollover publishes its phase end
+ * (`publishPhaseEnd`). Code that changes the timer behind these functions' back must call
+ * `broadcastTimer()`.
  */
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
@@ -19,7 +24,8 @@ import {
 	type Session
 } from '#lib/server/db/schema.ts';
 import { getPomodoroSettings, savePomodoroSettings } from '#lib/server/settings.ts';
-import { publishTimer } from '#lib/server/timer-hub.ts';
+import { publishPhaseEnd, publishTimer } from '#lib/server/timer-hub.ts';
+import { lastPhaseEnd, type PushEvent } from '#lib/push.ts';
 import type { ErrorCode } from '#lib/i18n/index.ts';
 import {
 	defaultPlannedMin,
@@ -136,16 +142,20 @@ async function writeRun(
 /**
  * Lock the active rows and roll an active pomodoro run forward to `now`: completes the focus
  * round's session at its exact end, inserts auto-started rounds and moves the run's phase.
+ * `ended` = the latest phase end of that rollover (for Web Push; publish it only after the
+ * transaction committed).
  */
 async function materialize(
 	tx: Tx,
 	now: number,
 	settings: PomodoroSettings
-): Promise<ActiveRows & { changed: boolean }> {
+): Promise<ActiveRows & { changed: boolean; ended: PushEvent | null }> {
 	const rows = await lockActive(tx);
-	if (!rows.run) return { ...rows, changed: false };
-	const result = rolloverPomodoro(runClockOf(rows.run, rows.session), settings, now);
-	if (!result.changed) return { ...rows, changed: false };
+	if (!rows.run) return { ...rows, changed: false, ended: null };
+	const before = runClockOf(rows.run, rows.session);
+	const result = rolloverPomodoro(before, settings, now);
+	if (!result.changed) return { ...rows, changed: false, ended: null };
+	const ended = lastPhaseEnd(before, rows.run.id, rows.run.taskId, settings, now);
 
 	if (result.completedCurrentAt !== null && rows.session) {
 		const end = result.completedCurrentAt;
@@ -165,7 +175,7 @@ async function materialize(
 		});
 	}
 	await writeRun(tx, rows.run, null, { ...result.run, session: null }, false);
-	return { ...(await lockActive(tx)), changed: true };
+	return { ...(await lockActive(tx)), changed: true, ended };
 }
 
 async function buildTimer(tx: Tx, rows: ActiveRows): Promise<ActiveTimer | null> {
@@ -209,14 +219,16 @@ async function buildTimer(tx: Tx, rows: ActiveRows): Promise<ActiveTimer | null>
  */
 export async function getTimerSnapshot(): Promise<TimerSnapshot> {
 	const now = Date.now();
-	const { snapshot, changed } = await db.transaction(async (tx) => {
+	const { snapshot, changed, ended } = await db.transaction(async (tx) => {
 		const settings = await getPomodoroSettings(tx);
 		const rows = await materialize(tx, now, settings);
 		return {
 			snapshot: { now, timer: await buildTimer(tx, rows), settings },
-			changed: rows.changed
+			changed: rows.changed,
+			ended: rows.ended
 		};
 	});
+	if (ended) publishPhaseEnd(ended);
 	if (changed) publishTimer(snapshot);
 	return snapshot;
 }
@@ -232,12 +244,14 @@ export async function broadcastTimer(): Promise<TimerSnapshot> {
 async function mutate(
 	fn: (tx: Tx, ctx: { rows: ActiveRows; now: number; settings: PomodoroSettings }) => Promise<void>
 ): Promise<TimerSnapshot> {
+	let ended: PushEvent | null = null;
 	try {
 		await db.transaction(async (tx) => {
 			const now = Date.now();
 			const settings = await getPomodoroSettings(tx);
 			const rows = await materialize(tx, now, settings);
 			await fn(tx, { rows, now, settings });
+			ended = rows.ended;
 		});
 	} catch (err) {
 		// Two concurrent starts: the partial unique index rejects the second one.
@@ -246,6 +260,8 @@ async function mutate(
 			throw new TimerError('conflict', 'timerConflict');
 		throw err;
 	}
+	// A phase that ended right before a user action is still announced (committed rollover).
+	if (ended) publishPhaseEnd(ended);
 	return broadcastTimer();
 }
 

@@ -1,5 +1,5 @@
 import { json, redirect } from '@sveltejs/kit';
-import type { Handle } from '@sveltejs/kit/hooks';
+import type { Handle, ServerInit } from '@sveltejs/kit/hooks';
 import {
 	DEVICE_COOKIE,
 	bearerToken,
@@ -11,7 +11,16 @@ import {
 import { clearDeviceCookie, setDeviceCookie } from '#lib/server/auth.ts';
 import { authenticate, countActiveDevices } from '#lib/server/devices.ts';
 import { getRequestSettings } from '#lib/server/settings.ts';
+import { startPushScheduler } from '#lib/server/push-scheduler.ts';
 import { i18n, negotiateLocale, resolveLocale } from '#lib/i18n/index.ts';
+
+/**
+ * Server start: arm the Web Push scheduler for timer phase ends (`push-scheduler.ts`). It
+ * reads the DB in the background — a database that isn't up yet only logs.
+ */
+export const init: ServerInit = () => {
+	startPushScheduler();
+};
 
 /**
  * Device auth for every request. The device token comes from `Authorization: Bearer` (Tauri
