@@ -910,3 +910,88 @@ serverNow)` → `liveStreak(base, liveLoggedMin(…))`: a running session crossi
 - e2e (`e2e/tauri/tauri.spec.ts`): the debug build run as a Nix build (`LIBE_DISTRIBUTION=nix`
   at runtime, debug only, second tauri-driver): Settings shows the Nix block and no tracks /
   check button; `update_check` stays `unavailable`/`nixManaged`, `update_set_track` is refused.
+
+## Mobile polish — Phase 1 (after NixOS desktop package)
+
+Goal: the iPhone home-screen PWA should always make the next tap obvious (visual hierarchy),
+feel tactile (micro-interactions) and show less on phones (no data overload). Phase 2 (Plan /
+Calendar day view with swipe) and Phase 3 (Web Push + app badge) are not part of this.
+
+- **Motion foundation**: tokens `--ease-out` / `--ease-in` / `--ease-spring`, `--dur-press`,
+  `--dur-pop`, `--dur-sheet` / `--dur-sheet-out`, `--dur-tick`, `--dur-pulse`, `--press-scale(-card)`,
+  `--press-dim` (`tokens.css`). `#lib/motion.ts`: CSS time/easing parsing (`parseCssTime`,
+  `cssEasing` incl. a cubic-Bézier solver — Svelte transitions get the _token_ easing),
+  `motionMs(token)` (0 under reduced motion), transitions `rise` (bars from the bottom),
+  `tickIn` (changed numbers), `fadeScale`. A global `prefers-reduced-motion` rule ends every CSS
+  animation/transition at once (0.01 ms, so `animationend` still fires).
+- **Micro-interactions**: touch press feedback for every button/summary (`scale` + `filter`
+  on `:active`, `(hover: none) and (pointer: coarse)` only; `scale` is a separate property so
+  component `transform`s survive; the root layout adds a passive `touchstart` listener, without
+  which iOS Safari never applies `:active`); `-webkit-touch-callout: none` / `user-select: none`
+  on controls and the tab bar, `touch-action: manipulation` on all controls. Completing a task
+  (`DayTaskCard`, `TaskRow`): the check pops on the tap; once the form action has answered
+  and the page data says "done", the tick draws, the title is struck through (`.strike`, a
+  background line — `text-decoration` can't animate) and the row settles to its done opacity.
+  The tab bar's active item gets a soft accent pill that springs in. Home's "today" value rises
+  in when it changes (`{#key}` + `tickIn`, not on the first render).
+- **Dialog → bottom sheet** (`Dialog.svelte`, ≤ 720px): full width, anchored to the bottom of
+  the _visual_ viewport (`--kb` = keyboard height from `visualViewport`, height capped by
+  `--vvh`/`dvh` — never `100vh`), top corners rounded, grab handle, slides up / down (backdrop
+  fades), the body scrolls (page scroll locked via `html:has(dialog[open])`), safe-area padding.
+  Drag the header down to dismiss (pointer events; pure rules in `#lib/sheet.ts`: 1:1 down,
+  rubber band up, dismiss after 30 % of the height — at most 160 px — or a flick ≥ 0.5 px/ms
+  over ≥ 24 px). Every way of closing (✕, Esc via `cancel`, backdrop, drag, parent) sets `open`
+  false and plays the exit animation before `close()`; `onclosed` fires afterwards (dialog
+  wrappers that unmount use it instead of an effect on `open`). Button rows carry
+  `.dialog-actions` → sticky at the sheet's bottom, primary button full width, spacers/hints
+  dropped. Desktop keeps the centred modal (plus a short fade/scale; the header now stays put
+  while a long body scrolls).
+- **Mini-player** (`MiniPlayer.svelte`, rendered by the `(app)` layout, phones only): fixed
+  above the tab bar while a timer is active — quest colour edge, task title, `timer.view.display`
+  (+ state when paused / in a break), quest-coloured progress line for countdowns/pomodoro, one
+  44 px button: `primaryTimerAction(view)` (`#lib/timer.ts`: pause / resume / start the waiting
+  phase / skip the break) → `timer.command`. The rest of the bar links to `/focus`. Rises in / sinks
+  out (`rise`); `main.with-player` pads for it (`--player-h`). The top bar's timer chip is hidden
+  ≤ 720px (still shown on tablets/desktop). Never on `/focus` (outside the group). A `demo` prop
+  renders a static bar for `/styleguide`.
+- **Home on phones**: a **Next up** card (`home/NextUpCard.svelte`, `#lib/next-up.ts`) while no
+  timer is active — the first open quest task of today in list order, else the first open
+  "other" task — with its quest pill, planned minutes and one full-width **Start focus** (the
+  task card's `timer.start`, but staying on Home: the card fades and the mini-player rises).
+  No open task: "Nothing planned for today" / "All done for today" with **Add a task**, which
+  focuses (and scrolls to) the quest-work input. Header folded into one row: today vs goal + the
+  streak chip; the streak hint and the week budget bar are hidden on phones. Page titles are
+  32 px on phones (`--fs-2xl-phone`), `PageHeader` spacing tighter.
+  Add-task forms (`TaskAddForm`, not the compact plan-column variant) disclose progressively on
+  phones: idle they are picker + input; duration and Top/Bottom appear once the form has focus
+  or a title (pure CSS, `:focus-within` / `:placeholder-shown`).
+- **Other pages (phone lens)**: Focus — when paused, **Resume** is the primary button (running:
+  the clock leads, Pause/Complete stay secondary). Review — the three KPI cards are compact
+  (smaller number and padding). Quest form — icon picker and budget stack (the emoji grid
+  overlapped the budget field at 390 px), the "change later" hint gives way to the buttons.
+  Quests, Settings, Calendar, Plan unchanged.
+- **Wake lock**: `/focus` holds a Screen Wake Lock while the clock runs (focus or break) and the
+  page is visible (`shouldHoldWakeLock`), releases on pause/stop/leave, re-acquires on
+  `visibilitychange`. `ScreenWakeLock` (`#lib/wake-lock.ts`) is feature-detected, serialises
+  requests and swallows denials — never a console error.
+- **Fix in passing**: `BlockDialog` cancel now also clears Home's `blockEditor` (via
+  `onclosed`); before, only a successful submit did.
+- Decisions: Next up and the mini-player are **phones only** (iPad/desktop show lists, the
+  chip and the task cards' ▶ side by side; a second "now" there would compete). The sheet is
+  driven by CSS animations + one small effect rather than a library; JS transitions read the
+  token easing instead of `svelte/easing`. Press feedback uses `scale` (not `transform`) so it
+  never fights component transforms.
+- Tests: unit — `motion.test.ts`, `sheet.test.ts`, `next-up.test.ts`, `wake-lock.test.ts`,
+  `primaryTimerAction` in `timer.test.ts`. e2e `e2e/specs/mobile-polish.spec.ts` (`@mobile`, iPhone;
+  skipped above 720px): Next up → Start focus stays on Home, DB session for that task, mini-player
+  shows it; pause from the mini-player persists across a reload; tapping the bar opens Focus;
+  a quest sheet dragged down closes without saving and still submits (DB row). Both checked
+  against reintroduced bugs (no dismiss on release, a button that always resumes).
+- **WebKit in Playwright**: tried (`playwright install webkit`, Playwright 1.56.1). The browser
+  downloads but does not launch here without system packages (`libgtk-4`, `libgraphene`,
+  `libwoff2dec`, `libevent`, `libgstcodecparsers`, `libavif`), so no `mobile-webkit` project
+  was added; CI deliberately installs no system packages for e2e.
+- **Not tested**: a real iPhone (keyboard vs. sheet — the `visualViewport` offset logic is only
+  approximated in Chromium by a smaller viewport, haptics-like feel of the press feedback, the
+  wake lock on iOS 16.4+ standalone, `:active` with the touch listener), Safari's rendering of
+  the sheet/backdrop animations and `box-decoration-break` strike-through.

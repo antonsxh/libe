@@ -57,4 +57,12 @@
 		align-items: center;
 		gap: var(--space-3);
 	}
+
+	/* Phones: the first screen belongs to the content (Home's "Next up", lists). */
+	@media (max-width: 720px) {
+		.page-header {
+			gap: var(--space-4);
+			margin-bottom: var(--space-6);
+		}
+	}
 </style>

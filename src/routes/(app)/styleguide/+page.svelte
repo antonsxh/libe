@@ -2,6 +2,8 @@
 	import { Check, Filter, Pause, Play, Plus } from '@lucide/svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Button from '#lib/components/Button.svelte';
+	import Dialog from '#lib/components/Dialog.svelte';
+	import MiniPlayer from '#lib/components/MiniPlayer.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
 	import { QUEST_COLORS, questColorVar } from '#lib/quest-colors.ts';
@@ -18,6 +20,7 @@
 		'--border-strong'
 	];
 	const texts = ['--text', '--text-2', '--text-muted', '--text-faint', '--accent'];
+	let sheetOpen = $state(false);
 </script>
 
 <svelte:head><title>Styleguide · libe</title></svelte:head>
@@ -115,6 +118,50 @@
 </section>
 
 <section>
+	<h2 class="label">Dialog / bottom sheet</h2>
+	<p class="muted caption">
+		Centred modal on wider screens; on phones (≤ 720px) a bottom sheet: slides up, drag the header
+		down to dismiss, the <code>.dialog-actions</code> row sticks to the bottom with a full-width
+		primary button. Motion uses <code>--dur-sheet</code> / <code>--ease-out</code>
+		and stops under reduced motion.
+	</p>
+	<div class="row">
+		<Button onclick={() => (sheetOpen = true)}>Open a dialog</Button>
+	</div>
+	<Dialog bind:open={sheetOpen} title="Example sheet">
+		<p class="muted">Content scrolls inside the sheet, never the page behind it.</p>
+		<div class="row actions dialog-actions">
+			<Button variant="ghost" onclick={() => (sheetOpen = false)}>Cancel</Button>
+			<Button variant="primary" onclick={() => (sheetOpen = false)}>Save</Button>
+		</div>
+	</Dialog>
+</section>
+
+<section>
+	<h2 class="label">Mini-player (phones, above the tab bar)</h2>
+	<div class="players">
+		<MiniPlayer
+			demo={{
+				title: 'Design the next chapter',
+				color: 'red',
+				display: '18:42',
+				paused: false,
+				progress: 0.25
+			}}
+		/>
+		<MiniPlayer
+			demo={{
+				title: 'Long run at an easy pace',
+				color: 'lime',
+				display: '41:05',
+				paused: true,
+				progress: 0.45
+			}}
+		/>
+	</div>
+</section>
+
+<section>
 	<h2 class="label">Typography</h2>
 	<div class="type">
 		<h1>Thursday, October 15</h1>
@@ -176,6 +223,15 @@
 	.block span {
 		color: var(--text-muted);
 		font-size: var(--fs-xs);
+	}
+	.players {
+		display: grid;
+		gap: var(--space-3);
+		max-width: 420px;
+	}
+	.actions {
+		justify-content: flex-end;
+		margin-top: var(--space-5);
 	}
 	.type {
 		display: grid;

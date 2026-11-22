@@ -22,9 +22,6 @@
 	const t = useI18n();
 
 	let open = $state(true);
-	$effect(() => {
-		if (!open) onclose();
-	});
 
 	const failed = $derived(form?.intent === 'settings' && form.errors ? form : null);
 	const val = (key: keyof PomodoroSettings) =>
@@ -48,7 +45,7 @@
 	});
 </script>
 
-<Dialog bind:open title={t.focus.pomodoroSettings}>
+<Dialog bind:open title={t.focus.pomodoroSettings} onclosed={onclose}>
 	<form
 		method="POST"
 		action={formAction('settings')}
@@ -84,7 +81,7 @@
 			{t.focus.settings.autoStart}
 		</label>
 		<p class="hint muted">{t.focus.settings.hint}</p>
-		<div class="actions">
+		<div class="actions dialog-actions">
 			<Button variant="secondary" onclick={() => (open = false)}>{t.common.cancel}</Button>
 			<Button variant="primary" type="submit">{t.common.save}</Button>
 		</div>

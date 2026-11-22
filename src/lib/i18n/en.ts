@@ -99,6 +99,17 @@ export const en = {
 		keys: { move: 'move', open: 'open', focus: 'start focus', close: 'close' }
 	},
 	dialog: { close: 'Close dialog' },
+	/** Phones: the bar above the tab bar while a timer is active. */
+	miniPlayer: {
+		label: 'Active timer',
+		/** The bar's link to Focus: task, clock and state (lower case). */
+		open: (title: string, display: string, state: string) =>
+			`${title}, ${display}, ${state} — open focus`,
+		pause: 'Pause timer',
+		resume: 'Resume timer',
+		startPhase: 'Start the next phase',
+		skip: 'Skip break'
+	},
 	menu: { open: 'Open menu' },
 	week: {
 		nav: 'Week',
@@ -146,6 +157,16 @@ export const en = {
 		ofGoalToday: (goal: string) => `/ ${goal} today`,
 		thisWeek: (hours: string) => `${hours} this week`,
 		budgetBar: "Share of this week's quest budget used",
+		/** Phones: the "what now?" card above the lists while no timer runs. */
+		nextUp: {
+			label: 'Next up',
+			start: 'Start focus',
+			startAria: (title: string) => `Start focus: ${title}`,
+			emptyTitle: 'Nothing planned for today',
+			allDoneTitle: 'All done for today',
+			emptyHint: 'Add a task below, or pick one from the backlog.',
+			addTask: 'Add a task'
+		},
 		blockFailed:
 			'That time block could not be saved — start before end, and keep it within 00:00–24:00.',
 		questWork: 'Quest work',

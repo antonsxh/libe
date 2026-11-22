@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { formAction } from '#lib/form-action.ts';
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import {
 		ArrowDown,
@@ -63,6 +63,20 @@
 	/** Live timer view when this task owns the active timer. */
 	const live = $derived(timer.view?.taskId === task.id ? timer.view : null);
 
+	/** The check pops on the tap itself… */
+	let popping = $state(false);
+	/** …the tick draws and the title is struck once the server says the task is done. */
+	let celebrate = $state(false);
+	const onToggle: SubmitFunction = () => {
+		const wasDone = done;
+		popping = true;
+		celebrate = false;
+		return async ({ update }) => {
+			await update();
+			celebrate = !wasDone && done;
+		};
+	};
+
 	/** ▶: start a focus timer for this task (or ask to stop the current one), then open Focus. */
 	async function play(e: MouseEvent) {
 		if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // new tab → picker
@@ -78,6 +92,8 @@
 <li
 	class="task card"
 	class:done
+	class:struck={done}
+	class:celebrate
 	class:running={live !== null}
 	class:plan={variant === 'plan'}
 	class:drop-before={dropBefore}
@@ -89,15 +105,17 @@
 	{ondragend}
 >
 	<div class="top">
-		<span class="title">{task.title}</span>
+		<span class="title"><span class="strike">{task.title}</span></span>
 	</div>
 
 	<div class="meta">
-		<form class="inline" method="POST" action={formAction('toggle')} use:enhance>
+		<form class="inline" method="POST" action={formAction('toggle')} use:enhance={onToggle}>
 			<input type="hidden" name="taskId" value={task.id} />
 			<button
 				type="submit"
 				class="check"
+				class:popping
+				onanimationend={() => (popping = false)}
 				aria-label={done ? t.common.markNotDone : t.common.markDone}
 			>
 				{#if done}<Check size={13} strokeWidth={3} />{/if}
@@ -330,7 +348,7 @@
 		border-radius: 1px;
 		background: linear-gradient(90deg, var(--accent) 70%, transparent);
 		pointer-events: none;
-		transition: width 1s linear;
+		transition: width var(--dur-tick) linear;
 	}
 	.live {
 		display: inline-flex;
@@ -344,7 +362,7 @@
 		height: 7px;
 		border-radius: 50%;
 		background: var(--danger);
-		animation: rec 2s ease-in-out infinite;
+		animation: rec var(--dur-pulse) ease-in-out infinite;
 	}
 	.live.paused {
 		color: var(--text-muted);
@@ -437,7 +455,20 @@
 	}
 	.done .title {
 		color: var(--text-faint);
-		text-decoration: line-through;
+	}
+	/* Just completed (server-confirmed): the row settles into its done look. */
+	.celebrate {
+		animation: settle var(--dur-slow) var(--ease-out);
+	}
+	.celebrate .strike {
+		animation: strike-in var(--dur-slow) var(--ease-out);
+	}
+	.celebrate .check :global(svg *) {
+		stroke-dasharray: 24;
+		animation: check-draw var(--dur-slow) var(--ease-out) both;
+	}
+	.check.popping {
+		animation: check-pop var(--dur-pop) var(--ease-spring);
 	}
 
 	.top {

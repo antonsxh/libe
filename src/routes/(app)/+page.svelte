@@ -12,6 +12,8 @@
 	import DayTimeline from '#lib/components/home/DayTimeline.svelte';
 	import BlockDialog from '#lib/components/home/BlockDialog.svelte';
 	import StreakStatus from '#lib/components/home/StreakStatus.svelte';
+	import NextUpCard from '#lib/components/home/NextUpCard.svelte';
+	import { prefersReducedMotion, tickIn } from '#lib/motion.ts';
 	import { groupEdges } from '#lib/ordering.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
@@ -36,6 +38,20 @@
 				)
 			: 0
 	);
+
+	const todayLabel = $derived(formatHours(todayMin / 60, t.intl));
+
+	/** "Next up" empty state: jump to the quest-work add input (keyboard opens in the tap). */
+	let mainCol = $state<HTMLElement>();
+	function focusAdd() {
+		const input = mainCol?.querySelector<HTMLInputElement>('form.add input[name=title]');
+		if (!input) return;
+		input.focus({ preventScroll: true });
+		input.scrollIntoView({
+			block: 'center',
+			behavior: prefersReducedMotion() ? 'auto' : 'smooth'
+		});
+	}
 
 	/** The streak with today's live minutes — flips `pending → active` while a session runs. */
 	const streak = $derived(
@@ -116,7 +132,7 @@
 				<StreakStatus {streak} name={data.profile?.displayName ?? null} />
 			{/if}
 			<p class="today tabular">
-				<strong>{formatHours(todayMin / 60, t.intl)}</strong>
+				{#key todayLabel}<strong in:tickIn>{todayLabel}</strong>{/key}
 				<span>
 					{data.dailyGoalMin
 						? t.home.ofGoalToday(formatHours(data.dailyGoalMin / 60, t.intl))
@@ -148,8 +164,10 @@
 	</p>
 {/if}
 
+<NextUpCard questTasks={data.questTasks} otherTasks={data.otherTasks} onadd={focusAdd} />
+
 <div class="today-grid">
-	<div class="main-col">
+	<div class="main-col" bind:this={mainCol}>
 		<div class="col-head">
 			<h2 class="label">{t.home.questWork}</h2>
 			<QuestFilter quests={data.quests} selected={data.questFilter} onchange={setQuestFilter} />
@@ -235,14 +253,27 @@
 		gap: var(--space-3) var(--space-6);
 		padding-bottom: var(--space-1);
 	}
-	/* Phones: the streak gets its own row below today / this week. */
+	/*
+	 * Phones: one compact summary row — today vs. goal and the streak chip. The streak hint
+	 * and the week budget bar stay on wider screens (details live in Review / the menu).
+	 */
 	@media (max-width: 720px) {
+		.greeting {
+			margin-bottom: var(--space-1);
+			font-size: var(--fs-md);
+		}
 		.day-stats {
+			flex-wrap: nowrap;
 			column-gap: var(--space-4);
+			padding-bottom: 0;
 		}
 		.day-stats > :global(.streak) {
 			order: 1;
-			flex-basis: 100%;
+			min-width: 0;
+		}
+		.day-stats :global(.streak .hint),
+		.day-stats .week {
+			display: none;
 		}
 	}
 	.today {
@@ -251,6 +282,7 @@
 		white-space: nowrap;
 	}
 	.today strong {
+		display: inline-block;
 		color: var(--text);
 		font-size: var(--fs-xl);
 		font-weight: var(--fw-semibold);

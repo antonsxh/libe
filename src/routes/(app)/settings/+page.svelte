@@ -246,10 +246,6 @@
 		};
 	};
 
-	$effect(() => {
-		if (!confirmOpen) confirm = null;
-	});
-
 	const renameError = $derived(
 		form && 'intent' in form && form.intent === 'rename' && 'error' in form ? form : null
 	);
@@ -658,6 +654,7 @@
 {#if confirm}
 	<Dialog
 		bind:open={confirmOpen}
+		onclosed={() => (confirm = null)}
 		title={confirm.self ? t.settings.confirmSignOutTitle : t.settings.confirmRevokeTitle}
 	>
 		<p class="confirm-text">
@@ -665,7 +662,12 @@
 				? t.settings.confirmSignOut
 				: t.settings.confirmRevoke}
 		</p>
-		<form method="POST" action="?/revoke" use:enhance={onRevoke} class="confirm-actions">
+		<form
+			method="POST"
+			action="?/revoke"
+			use:enhance={onRevoke}
+			class="confirm-actions dialog-actions"
+		>
 			<input type="hidden" name="id" value={confirm.id} />
 			<Button variant="secondary" onclick={() => (confirmOpen = false)}>{t.common.cancel}</Button>
 			<Button variant="primary" type="submit">

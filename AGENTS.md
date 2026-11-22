@@ -199,21 +199,38 @@ timer.serverNow)` so today moves live with the timer.
 - Only token variables for colours, spacing, radii, font sizes (`var(--surface)`, `var(--space-4)`…).
   Add a token to `tokens.css` instead of hard-coding a value that repeats.
 - Global utilities (`src/lib/styles/global.css`): `.label` (uppercase section label), `.card`,
-  `.muted`, `.tabular`, `.hatch` (diagonal hatching tinted by `--q`), `.sr-only`.
+  `.muted`, `.tabular`, `.hatch` (diagonal hatching tinted by `--q`), `.sr-only`, `.strike`
+  (animatable strike-through, full under `.struck`).
 - Charts are plain divs/SVG (no chart library); sizes come from the `--chart-*` tokens and every
   chart needs a text alternative (aria-label or `.sr-only` text).
 - Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`,
-  `Avatar`, `ColorSwatches`, `EmojiPicker`.
+  `Avatar`, `ColorSwatches`, `EmojiPicker`, `Dialog` (centred modal; bottom sheet on phones),
+  `MiniPlayer` (phone timer bar, rendered by the `(app)` layout).
   Look at `/styleguide` in the running app before building new UI.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
   Below 720px the nav is a fixed bottom tab bar (`main` already pads for it).
+- **Mobile UX principles** (phones ≤ 720px, the iPhone home-screen PWA):
+  - _Hierarchy_: one clear primary action per phone screen (filled accent `Button`); everything
+    else secondary/ghost. Home's "Next up" card is the primary "what now?" while no timer runs;
+    with a timer, the mini-player is the "now" (the top-bar timer chip is hidden on phones).
+  - _Thumb zone_: primary actions low on the screen — dialogs are bottom sheets whose
+    `.dialog-actions` row sticks to the bottom with a full-width primary button. Give every
+    dialog's button row `class="… dialog-actions"`; wrappers that unmount on close use
+    `Dialog`'s `onclosed` (fires after the exit animation), not an effect on `open`.
+  - _Micro-interactions_: short and subtle, only via the motion tokens (`--dur-*`, `--ease-*`,
+    `--press-*` in `tokens.css`; JS through `#lib/motion.ts`: `motionMs`, `rise`, `tickIn`,
+    `fadeScale`). Touch press feedback is global (`scale`/`filter`, so components keep their
+    `transform`s). Everything stops under `prefers-reduced-motion` (global rule + `motionMs` → 0).
+    Animate on the tap, but the data still comes from the server (no faked state).
+  - _Never overload data_: on phones show less, details on demand; don't add numbers/charts —
+    fold or drop them (Home's week bar and streak hint are hidden on phones).
 - Static icons are generated from the logo (`static/favicon.svg`); keep `src-tauri/icons/` in sync.
 
 ## End-to-end tests
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n, palette, profile, streak),
+i18n, palette, profile, streak, mobile-polish),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 

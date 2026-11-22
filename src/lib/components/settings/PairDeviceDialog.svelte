@@ -13,9 +13,6 @@
 	const t = useI18n();
 
 	let open = $state(true);
-	$effect(() => {
-		if (!open) onclose();
-	});
 
 	interface Issued {
 		id: string;
@@ -121,7 +118,7 @@
 	});
 </script>
 
-<Dialog bind:open title={t.settings.pair.title}>
+<Dialog bind:open title={t.settings.pair.title} onclosed={onclose}>
 	{#if paired}
 		<div class="done" role="status">
 			<CircleCheck size={40} strokeWidth={1.5} />

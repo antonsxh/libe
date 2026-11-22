@@ -100,6 +100,14 @@ export const de: Messages = {
 		keys: { move: 'auswählen', open: 'öffnen', focus: 'Fokus starten', close: 'schließen' }
 	},
 	dialog: { close: 'Dialog schließen' },
+	miniPlayer: {
+		label: 'Aktiver Timer',
+		open: (title, display, state) => `${title}, ${display}, ${state} – Fokus öffnen`,
+		pause: 'Timer pausieren',
+		resume: 'Timer fortsetzen',
+		startPhase: 'Nächste Phase starten',
+		skip: 'Pause überspringen'
+	},
 	menu: { open: 'Menü öffnen' },
 	week: {
 		nav: 'Woche',
@@ -146,6 +154,15 @@ export const de: Messages = {
 		ofGoalToday: (goal) => `/ ${goal} heute`,
 		thisWeek: (hours) => `${hours} diese Woche`,
 		budgetBar: 'Genutzter Anteil des Quest-Budgets dieser Woche',
+		nextUp: {
+			label: 'Als Nächstes',
+			start: 'Fokus starten',
+			startAria: (title) => `Fokus starten: ${title}`,
+			emptyTitle: 'Für heute nichts geplant',
+			allDoneTitle: 'Für heute alles erledigt',
+			emptyHint: 'Füge unten eine Aufgabe hinzu oder hol dir eine aus dem Backlog.',
+			addTask: 'Aufgabe hinzufügen'
+		},
 		blockFailed:
 			'Der Zeitblock konnte nicht gespeichert werden – der Beginn muss vor dem Ende liegen, beides zwischen 00:00 und 24:00.',
 		questWork: 'Quest-Arbeit',

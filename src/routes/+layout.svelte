@@ -36,6 +36,14 @@
 		document.documentElement.dataset.timer = timer.connected ? 'live' : 'offline';
 	});
 
+	// iOS Safari only applies `:active` (the press feedback in global.css) once the document
+	// has a touch listener.
+	$effect(() => {
+		const noop = () => {};
+		document.addEventListener('touchstart', noop, { passive: true });
+		return () => document.removeEventListener('touchstart', noop);
+	});
+
 	// PWA: offline fallback + cached app shell (production builds only; needs HTTPS or
 	// localhost). Kit bundles the worker as an ES module (it imports `/_app/env.js`).
 	$effect(() => {

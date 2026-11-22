@@ -23,6 +23,7 @@
 	} from '#lib/timer.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
+	import { ScreenWakeLock, shouldHoldWakeLock } from '#lib/wake-lock.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -39,6 +40,29 @@
 	});
 
 	let settingsOpen = $state(false);
+
+	/* ── Keep the screen on while the clock runs and this page is visible ─────── */
+	let visibility = $state<DocumentVisibilityState>('visible');
+	$effect(() => {
+		const sync = () => (visibility = document.visibilityState);
+		sync();
+		document.addEventListener('visibilitychange', sync);
+		return () => document.removeEventListener('visibilitychange', sync);
+	});
+	let wakeLock: ScreenWakeLock | null = null;
+	$effect(() => {
+		wakeLock = new ScreenWakeLock(
+			navigator as Navigator & ConstructorParameters<typeof ScreenWakeLock>[0]
+		);
+		return () => {
+			void wakeLock?.set(false);
+			wakeLock = null;
+		};
+	});
+	$effect(() => {
+		const hold = shouldHoldWakeLock(view?.status ?? null, visibility);
+		void wakeLock?.set(hold);
+	});
 
 	/* ── Picker (no active timer) ────────────────────────────────────────────── */
 	const allTasks = $derived(data.groups.flatMap((g) => g.tasks));
@@ -177,9 +201,11 @@
 							{@render control('skip', t.focus.skip)}
 						{/if}
 					{:else if view.isFocus}
+						<!-- Paused: Resume is the obvious next tap → primary; running: the clock leads. -->
 						{@render control(
 							view.status === 'paused' ? 'resume' : 'pause',
-							view.status === 'paused' ? t.focus.resume : t.focus.pause
+							view.status === 'paused' ? t.focus.resume : t.focus.pause,
+							view.status === 'paused'
 						)}
 					{:else}
 						{@render control('skip', t.focus.skipBreak)}

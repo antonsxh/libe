@@ -11,6 +11,7 @@ import {
 	parseTimerCommand,
 	parsePomodoroSettings,
 	pauseClock,
+	primaryTimerAction,
 	timerLabelText,
 	resumeClock,
 	rolloverPomodoro,
@@ -418,5 +419,15 @@ describe('parseTimerCommand', () => {
 		});
 		expect(s.ok && s.command.action === 'settings' && s.command.settings.longBreakMin).toBe(2);
 		expect(parseTimerCommand({ action: 'settings', focusMin: 0 }).ok).toBe(false);
+	});
+});
+
+describe('primaryTimerAction', () => {
+	test('pause / resume a focus phase, start a waiting phase, skip a running break', () => {
+		expect(primaryTimerAction({ status: 'running', isFocus: true })).toBe('pause');
+		expect(primaryTimerAction({ status: 'paused', isFocus: true })).toBe('resume');
+		expect(primaryTimerAction({ status: 'waiting', isFocus: true })).toBe('startPhase');
+		expect(primaryTimerAction({ status: 'waiting', isFocus: false })).toBe('startPhase');
+		expect(primaryTimerAction({ status: 'running', isFocus: false })).toBe('skip');
 	});
 });

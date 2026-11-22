@@ -166,3 +166,128 @@ button {
 		transform: translate(-50%, -50%);
 	}
 }
+
+/* ── Phones: smaller page titles (the first screen belongs to the content) ─ */
+@media (max-width: 720px) {
+	h1 {
+		font-size: var(--fs-2xl-phone);
+	}
+}
+
+/*
+ * Touch micro-interactions: pressed controls shrink a little and dim, instantly (like iOS),
+ * and spring back. `scale`/`filter` are separate properties, so components keep their own
+ * `transform`s and transitions; components that want an animated release list `scale` in
+ * their own `transition`. Cards opt in with `.press-card`. No layout shift: scale only.
+ */
+@media (hover: none) and (pointer: coarse) {
+	button,
+	summary,
+	[role='button'],
+	.press {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+	button:active:not(:disabled),
+	summary:active,
+	[role='button']:active,
+	.press:active {
+		scale: var(--press-scale);
+		filter: brightness(var(--press-dim));
+	}
+	.press-card {
+		-webkit-touch-callout: none;
+	}
+	.press-card:active:not(:has(button:active, a:active)) {
+		scale: var(--press-scale-card);
+	}
+}
+
+/* No double-tap-to-zoom delay on controls (iOS waits ~300 ms otherwise). */
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary {
+	touch-action: manipulation;
+}
+
+/* ── Keyframes shared by components (durations/easings come from the motion tokens) ── */
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+}
+@keyframes fade-out {
+	to {
+		opacity: 0;
+	}
+}
+/** Icons that swap on a state change (play ↔ pause): a quick spring pop. */
+@keyframes pop-in {
+	from {
+		opacity: 0;
+		scale: 0.6;
+	}
+}
+
+/* Completing a task (DayTaskCard, TaskRow): the check pops on tap, the tick draws and the
+   title is struck through once the server confirms. */
+@keyframes check-pop {
+	50% {
+		scale: 1.25;
+	}
+}
+@keyframes check-draw {
+	from {
+		stroke-dashoffset: 24;
+	}
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+@keyframes strike-in {
+	from {
+		background-size: 0 var(--strike-w);
+	}
+}
+@keyframes settle {
+	from {
+		opacity: 1;
+	}
+}
+
+/**
+ * Strike-through that can be animated (text-decoration can't): an inline span with a line
+ * drawn as its background, one per wrapped line. Full when `.struck` is set.
+ */
+.strike {
+	background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 var(--strike-w);
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+.struck .strike {
+	background-size: 100% var(--strike-w);
+}
+
+/*
+ * Reduced motion: every animation/transition finishes at once (JS-driven motion checks
+ * `prefersReducedMotion()` in #lib/motion.ts). 0.01ms instead of 0 keeps `animationend` /
+ * `transitionend` firing for code that waits for them.
+ */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after,
+	::backdrop {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		animation-delay: 0ms !important;
+		transition-duration: 0.01ms !important;
+		transition-delay: 0ms !important;
+		scroll-behavior: auto !important;
+	}
+}
