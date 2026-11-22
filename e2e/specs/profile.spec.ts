@@ -68,7 +68,13 @@ function hm(min: number): string {
 const progressName = (logged: number, goal: string) =>
 	new RegExp(`^Account and devices, (${hm(logged)}|${hm(logged + 1)}) of ${goal} today$`);
 
-const avatar = (page: Page) => page.getByRole('button', { name: /^Account and devices/ });
+/** The nav avatar: the account menu's button (desktop/iPad) or the tab bar's link to Settings (iPhone). */
+const avatar = (page: Page) =>
+	page
+		.getByRole('button', { name: /^Account and devices/ })
+		.or(page.getByRole('link', { name: /^Account and devices/ }));
+/** iPhone: the tab bar avatar links to Settings — there is no account menu. */
+const phone = (page: Page) => page.viewportSize()!.width <= 720;
 const GREETING = /^(Good morning|Good afternoon|Good evening|Still up)/;
 const greeting = (page: Page) => page.getByText(GREETING);
 
@@ -125,11 +131,13 @@ test('Settings → Profile: name and colour persist; nav avatar, menu and Home g
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Anton Schmidt');
 	await expect(page.getByRole('radio', { name: 'Teal' })).toBeChecked();
 	await expect(avatar(page)).toHaveAccessibleName('Account and devices (Anton Schmidt)');
-	await avatar(page).click();
-	const menu = page.getByRole('menu');
-	await expect(menu).toContainText('Anton Schmidt');
-	await expect(menu).toContainText('This device: e2e browser');
-	await page.keyboard.press('Escape');
+	if (!phone(page)) {
+		await avatar(page).click();
+		const menu = page.getByRole('menu');
+		await expect(menu).toContainText('Anton Schmidt');
+		await expect(menu).toContainText('This device: e2e browser');
+		await page.keyboard.press('Escape');
+	}
 
 	await gotoLive(page, '/');
 	await expect(avatar(page)).toHaveText('AS');

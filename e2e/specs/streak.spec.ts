@@ -69,7 +69,13 @@ async function loggedToday(sql: Sql): Promise<number> {
 
 const streakBox = (page: Page) => page.getByTestId('streak');
 const chip = (page: Page) => page.getByTestId('streak-chip');
-const avatar = (page: Page) => page.getByRole('button', { name: /^Account and devices/ });
+/** The nav avatar: the account menu's button (desktop/iPad) or the tab bar's link to Settings (iPhone). */
+const avatar = (page: Page) =>
+	page
+		.getByRole('button', { name: /^Account and devices/ })
+		.or(page.getByRole('link', { name: /^Account and devices/ }));
+/** iPhone: the tab bar avatar links to Settings — there is no account menu. */
+const phone = (page: Page) => page.viewportSize()!.width <= 720;
 /** "Wednesday" for an ISO day (the weekday toggles' accessible names). */
 const weekdayName = (day: string) =>
 	new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' }).format(
@@ -104,9 +110,11 @@ test('Home shows the current streak (pending today), menu and Review the longest
 	await expect(chip(page)).toBeInViewport();
 	await expectNoHorizontalScroll(page);
 
-	await avatar(page).click();
-	await expect(page.getByTestId('menu-streak')).toHaveText('3-day streak · Longest: 5 days');
-	await page.keyboard.press('Escape');
+	if (!phone(page)) {
+		await avatar(page).click();
+		await expect(page.getByTestId('menu-streak')).toHaveText('3-day streak · Longest: 5 days');
+		await page.keyboard.press('Escape');
+	}
 
 	await gotoLive(page, '/review');
 	await expect(page.getByTestId('longest-streak')).toHaveText('Longest streak: 5 days');

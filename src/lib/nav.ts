@@ -16,12 +16,12 @@ export const NAV_ITEMS: NavItem[] = [
 
 /**
  * The phone tab bar's sections: all but Focus, which phones reach through the mini-player,
- * Home's Next up card, ▶ on task cards and the command palette. The account avatar follows
- * as the last slot.
+ * Home's Next up card, ▶ on task cards and the command palette. The account avatar (a link to
+ * Settings) follows as the last slot.
  */
 export const TAB_ITEMS: NavItem[] = NAV_ITEMS.filter((item) => item.key !== 'focus');
 
-/** Pages behind the account menu: the tab bar's indicator rests on the avatar there. */
+/** Pages behind the account avatar (phones: a link to Settings): the indicator rests on it there. */
 const ACCOUNT_PATHS = ['/settings'];
 
 export function isActive(pathname: string, href: string): boolean {
