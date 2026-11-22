@@ -22,8 +22,17 @@ test.beforeEach(async ({ api, viewport }) => {
 });
 test.afterEach(async ({ api }) => discardTimer(api));
 
-/** Drag from the centre of `target` straight down by `dy` px (mouse pointer events). */
+/**
+ * Drag from the centre of `target` straight down by `dy` px (mouse pointer events). Waits for
+ * the sheet's slide-in first: measured mid-animation, the header has moved on by the time the
+ * pointer goes down, and the drag starts on the body instead.
+ */
 async function dragDown(page: Page, target: ReturnType<Page['locator']>, dy: number) {
+	await target.evaluate((el) =>
+		Promise.all(
+			(el.closest('dialog') ?? el).getAnimations({ subtree: true }).map((a) => a.finished)
+		)
+	);
 	const box = (await target.boundingBox())!;
 	const x = box.x + box.width / 2;
 	const y = box.y + box.height / 2;
