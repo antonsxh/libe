@@ -962,6 +962,9 @@ Calendar day view with swipe) and Phase 3 (Web Push + app badge) are not part of
   focuses (and scrolls to) the quest-work input. Header folded into one row: today vs goal + the
   streak chip; the streak hint and the week budget bar are hidden on phones. Page titles are
   32 px on phones (`--fs-2xl-phone`), `PageHeader` spacing tighter.
+  Add-task forms (`TaskAddForm`, not the compact plan-column variant) disclose progressively on
+  phones: idle they are picker + input; duration and Top/Bottom appear once the form has focus
+  or a title (pure CSS, `:focus-within` / `:placeholder-shown`).
 - **Other pages (phone lens)**: Focus — when paused, **Resume** is the primary button (running:
   the clock leads, Pause/Complete stay secondary). Review — the three KPI cards are compact
   (smaller number and padding). Quest form — icon picker and budget stack (the emoji grid

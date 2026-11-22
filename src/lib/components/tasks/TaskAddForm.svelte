@@ -230,6 +230,19 @@
 		order: 2;
 	}
 
+	/*
+	 * Phones: progressive disclosure — the idle form is just the picker and the input; the
+	 * duration and Top/Bottom appear once the form is in use (focused or holding a title).
+	 */
+	@media (max-width: 720px) {
+		.add:not(.compact, :focus-within, :has(.title:not(:placeholder-shown))) :is(.duration, .pos) {
+			display: none;
+		}
+		.add:not(.compact) :is(.duration, .pos) {
+			animation: fade-in var(--dur) var(--ease-out);
+		}
+	}
+
 	.error {
 		color: var(--danger);
 		font-size: var(--fs-xs);
