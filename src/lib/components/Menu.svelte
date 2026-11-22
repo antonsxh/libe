@@ -68,10 +68,20 @@
 	/**
 	 * The popover lives in `<body>` while open: `position: fixed` alone doesn't escape an
 	 * ancestor's stacking context (e.g. the dimmed past-day plan columns use `opacity`), so
-	 * the next column painted over it.
+	 * the next column painted over it. Inside an open modal dialog (everything outside it is
+	 * inert, and the dialog sits in the top layer) it moves into the dialog instead and is
+	 * shown as a popover — its own top-layer entry, so neither the sheet's transform nor its
+	 * `overflow` clips or shifts it.
 	 */
 	function toBody(node: HTMLElement) {
-		document.body.appendChild(node);
+		const dialog = triggerEl?.closest<HTMLDialogElement>('dialog[open]');
+		if (dialog && typeof node.showPopover === 'function') {
+			node.popover = 'manual';
+			dialog.appendChild(node);
+			node.showPopover();
+		} else {
+			document.body.appendChild(node);
+		}
 		return () => node.remove();
 	}
 
@@ -181,5 +191,13 @@
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-pop);
+	}
+	/* Shown as a popover (inside a dialog): undo the UA popover box, keep our placement. */
+	.pop:global([popover]) {
+		right: auto;
+		bottom: auto;
+		margin: 0;
+		color: inherit;
+		overflow: visible;
 	}
 </style>

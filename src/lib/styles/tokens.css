@@ -104,6 +104,10 @@
 	--sheet-handle-w: 36px; /* grab handle of a bottom sheet */
 	--sheet-handle-h: 5px;
 	--sheet-gap-top: 24px; /* min. space above a full-height sheet (backdrop stays tappable) */
+	--day-strip-h: 56px; /* phone day strip (Plan, Calendar): weekday + date + dot */
+	--day-dot: 4px; /* the strip's "something on this day" indicator */
+	--day-slide: 40px; /* phone day view: the new day slides in from this far */
+	--day-swipe-min-h: 50dvh; /* phone day view: swipeable even below a short day's content */
 	--fs-2xl-phone: 2rem; /* 32  page titles on phones */
 	--avatar-sm: 28px; /* profile avatar (Avatar.svelte) */
 	--avatar-md: 40px; /* nav */

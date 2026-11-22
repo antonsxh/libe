@@ -18,9 +18,13 @@
 	let { monday, rangeLabel, isCurrentWeek, children }: Props = $props();
 	const t = useI18n();
 
-	/** Same page with `?week=` set (or removed for the current week), other params kept. */
+	/**
+	 * Same page with `?week=` set (or removed for the current week), other params kept —
+	 * except a phone day view's `?day=` (the new week starts on today / its Monday).
+	 */
 	function weekHref(week: string | null): string {
 		const p = new URLSearchParams(page.url.searchParams.toString());
+		p.delete('day');
 		if (week) p.set('week', week);
 		else p.delete('week');
 		const qs = p.toString();

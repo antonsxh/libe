@@ -1,12 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ChevronLeft, ChevronRight, Eye, EyeOff } from '@lucide/svelte';
+	import { ChevronLeft, ChevronRight, Eye, EyeOff, Inbox } from '@lucide/svelte';
+	import Button from '#lib/components/Button.svelte';
+	import DayStrip from '#lib/components/DayStrip.svelte';
+	import DaySwipe from '#lib/components/DaySwipe.svelte';
+	import Dialog from '#lib/components/Dialog.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import QuestFilter from '#lib/components/tasks/QuestFilter.svelte';
 	import BacklogColumn from '#lib/components/plan/BacklogColumn.svelte';
 	import PlanColumn from '#lib/components/plan/PlanColumn.svelte';
 	import { addDays } from '#lib/dates.ts';
+	import { dayHref, resolveDay, stepDay } from '#lib/day-view.ts';
+	import { isPhoneViewport } from '#lib/motion.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { PageProps } from './$types';
@@ -28,7 +34,7 @@
 		const today = scrollKey.split('|')[1];
 		const el = board;
 		const col = el?.querySelector<HTMLElement>(`[data-day="${today}"]`);
-		if (!el) return;
+		if (!el || isPhoneViewport()) return; // phones: the day view, nothing to scroll
 		if (!col) {
 			el.scrollLeft = 0; // another week: start at the backlog / Monday
 			return;
@@ -46,10 +52,14 @@
 		const qs = p.toString();
 		return qs ? `?${qs}` : '?';
 	}
-	/** Week links drop `other` (expanded Other zones are per day of the shown week). */
+	/**
+	 * Week links drop `other` (expanded Other zones are per day of the shown week) and `day`
+	 * (the new week starts on today / its Monday).
+	 */
 	function weekHref(monday: string | null): string {
 		return href((p) => {
 			p.delete('other');
+			p.delete('day');
 			if (monday) p.set('week', monday);
 			else p.delete('week');
 		});
@@ -76,6 +86,29 @@
 		href((p) => (data.hideDone ? p.delete('hideDone') : p.set('hideDone', '1')))
 	);
 	const isCurrentWeek = $derived(data.columns.some((c) => c.isToday));
+
+	/* ── Phones: day view (`?day=`, client-only — the server loads the whole week) ── */
+	const selected = $derived(
+		resolveDay(page.url.searchParams.get('day'), data.weekMonday, data.today)
+	);
+	const dayLink = (day: string) => dayHref(page.url.search, day, data.weekMonday, ['other']);
+	function selectDay(day: string) {
+		return goto(dayLink(day), { reset: false, replace: true });
+	}
+	/** The strip's dot: days with open tasks. */
+	const openDays = $derived(
+		new Set(
+			data.columns.filter((c) => c.questTasks.length + c.otherTasks.length > 0).map((c) => c.day)
+		)
+	);
+
+	/** Backlog bottom sheet; its content mounts on open and unmounts after the exit animation. */
+	let backlogOpen = $state(false);
+	let backlogMounted = $state(false);
+	function openBacklog() {
+		backlogMounted = true;
+		backlogOpen = true;
+	}
 </script>
 
 <svelte:head>
@@ -85,6 +118,12 @@
 <PageHeader title={t.plan.title}>
 	{#snippet titleActions()}
 		<QuestFilter quests={data.quests} selected={data.questFilter} onchange={setQuestFilter} />
+		<span class="backlog-btn">
+			<Button variant="secondary" size="sm" onclick={openBacklog} aria-haspopup="dialog">
+				<Inbox size={15} />
+				{t.common.backlog}
+			</Button>
+		</span>
 	{/snippet}
 	{#snippet actions()}
 		<div class="week-nav">
@@ -126,18 +165,52 @@
 	{/snippet}
 </PageHeader>
 
-<div class="board" bind:this={board}>
-	<BacklogColumn
-		groups={data.backlogGroups}
-		quests={data.visibleQuests}
-		count={data.backlogCount}
-		today={data.today}
-		form={taskForm}
-	/>
-	{#each data.columns as col (col.day)}
-		<PlanColumn {col} quests={data.visibleQuests} form={taskForm} ontoggleother={toggleOther} />
-	{/each}
-</div>
+<DayStrip
+	monday={data.weekMonday}
+	{selected}
+	today={data.today}
+	marked={openDays}
+	markLabel={t.plan.hasOpenTasks}
+	hrefFor={dayLink}
+	onselect={selectDay}
+/>
+
+<DaySwipe day={selected} onstep={(delta) => selectDay(stepDay(selected, delta).day)}>
+	<div class="board" bind:this={board}>
+		<div class="rail-slot">
+			<BacklogColumn
+				groups={data.backlogGroups}
+				quests={data.visibleQuests}
+				count={data.backlogCount}
+				today={data.today}
+				form={taskForm}
+			/>
+		</div>
+		{#each data.columns as col (col.day)}
+			<PlanColumn
+				{col}
+				quests={data.visibleQuests}
+				form={taskForm}
+				ontoggleother={toggleOther}
+				selected={col.day === selected}
+			/>
+		{/each}
+	</div>
+</DaySwipe>
+
+<Dialog bind:open={backlogOpen} title={t.common.backlog} onclosed={() => (backlogMounted = false)}>
+	{#if backlogMounted}
+		<BacklogColumn
+			sheet
+			day={selected}
+			groups={data.backlogGroups}
+			quests={data.visibleQuests}
+			count={data.backlogCount}
+			today={data.today}
+			form={taskForm}
+		/>
+	{/if}
+</Dialog>
 
 <style>
 	/* The board scrolls horizontally itself — the page never does. */
@@ -151,6 +224,29 @@
 		overflow-y: hidden;
 		padding-bottom: var(--space-2);
 		scrollbar-color: var(--border-strong) transparent;
+	}
+
+	.rail-slot {
+		display: contents;
+	}
+	.backlog-btn {
+		display: none;
+	}
+
+	/* Phones: one day, full width (the day view); the backlog lives in a sheet. */
+	@media (max-width: 720px) {
+		.board {
+			display: block;
+			height: auto;
+			overflow: visible;
+			padding-bottom: 0;
+		}
+		.rail-slot {
+			display: none;
+		}
+		.backlog-btn {
+			display: inline-flex;
+		}
 	}
 
 	.week-nav {

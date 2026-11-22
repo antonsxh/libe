@@ -113,7 +113,9 @@ export const de: Messages = {
 		nav: 'Woche',
 		previous: 'Vorherige Woche',
 		next: 'Nächste Woche',
-		thisWeek: 'Diese Woche'
+		thisWeek: 'Diese Woche',
+		days: 'Tage',
+		dayAria: (date, today, mark) => `${date}${today ? ' (heute)' : ''}${mark ? `, ${mark}` : ''}`
 	},
 	tasks: {
 		startFocus: 'Fokus-Timer für diese Aufgabe starten',
@@ -187,12 +189,18 @@ export const de: Messages = {
 		todayMarker: '(heute)',
 		openBacklog: 'Offene Aufgaben im Backlog',
 		collapseBacklog: 'Backlog einklappen',
-		expandBacklog: 'Backlog ausklappen'
+		expandBacklog: 'Backlog ausklappen',
+		emptyDay: (weekday) => `Für ${weekday} ist nichts geplant`,
+		emptyDayHint: 'Füge eine Aufgabe hinzu oder hol dir eine aus dem Backlog.',
+		addTask: 'Aufgabe hinzufügen',
+		openBacklogSheet: 'Backlog öffnen',
+		hasOpenTasks: 'offene Aufgaben'
 	},
 	calendar: {
 		title: 'Kalender',
 		showPlan: 'Plan einblenden',
 		hidePlan: 'Plan ausblenden',
+		hasLogged: 'Zeit erfasst',
 		questTotal: (hours) => `/ ${hours} Quest`,
 		budgetBar: 'Quest-Stunden im Verhältnis zum Quest-Wochenbudget',
 		grid: 'Wochenkalender',

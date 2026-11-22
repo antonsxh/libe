@@ -115,7 +115,11 @@ export const en = {
 		nav: 'Week',
 		previous: 'Previous week',
 		next: 'Next week',
-		thisWeek: 'This week'
+		thisWeek: 'This week',
+		/** Phones: the day strip under the header of Plan and Calendar. */
+		days: 'Days',
+		dayAria: (date: string, today: boolean, mark: string | null) =>
+			`${date}${today ? ' (today)' : ''}${mark ? `, ${mark}` : ''}`
 	},
 	tasks: {
 		startFocus: 'Start focus timer for this task',
@@ -192,12 +196,20 @@ export const en = {
 		todayMarker: '(today)',
 		openBacklog: 'Open backlog tasks',
 		collapseBacklog: 'Collapse backlog',
-		expandBacklog: 'Expand backlog'
+		expandBacklog: 'Expand backlog',
+		/** Phones: the day view's empty state and the backlog sheet. */
+		emptyDay: (weekday: string) => `Nothing planned for ${weekday}`,
+		emptyDayHint: 'Add a task, or pull one from the backlog.',
+		addTask: 'Add a task',
+		openBacklogSheet: 'Open the backlog',
+		hasOpenTasks: 'open tasks'
 	},
 	calendar: {
 		title: 'Calendar',
 		showPlan: 'Show plan',
 		hidePlan: 'Hide plan',
+		/** Phones: the day strip's dot. */
+		hasLogged: 'time logged',
 		questTotal: (hours: string) => `/ ${hours} quest`,
 		budgetBar: 'Quest hours vs. weekly quest budget',
 		grid: 'Week calendar',

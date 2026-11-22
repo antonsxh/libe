@@ -4,7 +4,8 @@
 	import { CalendarArrowDown, Check, ChevronLeft, ChevronRight, Trash2 } from '@lucide/svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import TaskAddForm from '#lib/components/tasks/TaskAddForm.svelte';
-	import { formatDuration } from '#lib/dates.ts';
+	import { formatDayLabel, formatDuration } from '#lib/dates.ts';
+	import { fadeScale } from '#lib/motion.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { drag, endDrag, rowBefore, startDrag, submitMove } from './drag.svelte.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
@@ -30,9 +31,29 @@
 		/** Today's ISO day — target of the keyboard "Move to today" menu entry. */
 		today: string;
 		form?: TaskFormResult | null;
+		/**
+		 * Phones: the backlog's content in a bottom sheet (no rail chrome, no drag & drop);
+		 * rows move to `day` (the day shown behind the sheet) instead of today, with a direct
+		 * button per row.
+		 */
+		sheet?: boolean;
+		day?: string;
 	};
-	let { groups, quests, count, today, form = null }: Props = $props();
+	let { groups, quests, count, today, form = null, sheet = false, day }: Props = $props();
 	const t = useI18n();
+
+	/** Where "Move to …" sends a row: the sheet's day, else today. */
+	const moveDay = $derived(sheet && day ? day : today);
+	const targetLabel = $derived(
+		sheet && day
+			? t.tasks.moveToDate(
+					formatDayLabel(day, { weekday: 'long', month: 'short', day: 'numeric' }, t.intl)
+				)
+			: t.tasks.moveToToday
+	);
+	/** In the sheet, a row pulled into the day gives way softly (the rail stays as it was). */
+	const rowOut = (node: Element) => (sheet ? fadeScale(node) : { duration: 0 });
+	const targetShort = $derived(day ? formatDayLabel(day, { weekday: 'short' }, t.intl) : '');
 
 	/** Client-only UI state: whether the rail is expanded (not worth a URL param). */
 	let expanded = $state(true);
@@ -79,7 +100,106 @@
 	}
 </script>
 
-{#if expanded}
+{#snippet addSlot()}
+	<div class="add-slot">
+		<TaskAddForm action="addBacklog" placeholder={t.tasks.addToBacklog} compact {quests} {form} />
+	</div>
+{/snippet}
+
+{#snippet groupList()}
+	<div class="body">
+		{#each groups as group (group.key)}
+			<div class="group" style:--q={questColorVar(group.color)}>
+				<h3 class="group-head">
+					<span class="dot" aria-hidden="true"></span>
+					<span class="gname">{group.name}</span>
+					<span class="count tabular">{group.open.length}</span>
+				</h3>
+				<ul class="rows">
+					{#each [...group.open, ...group.done] as task (task.id)}
+						<li
+							class="row"
+							class:done={task.doneAt !== null}
+							class:drop-before={over?.beforeId === task.id}
+							class:dragging={drag.task?.id === task.id}
+							data-task={task.id}
+							data-group={group.key}
+							draggable={sheet ? undefined : 'true'}
+							ondragstart={sheet ? undefined : (e) => startDrag(e, task)}
+							ondragend={sheet ? undefined : rowDragend}
+							out:rowOut
+						>
+							<form class="inline" method="POST" action={formAction('toggle')} use:enhance>
+								<input type="hidden" name="taskId" value={task.id} />
+								<button
+									type="submit"
+									class="check"
+									aria-label={task.doneAt === null ? t.common.markDone : t.common.markNotDone}
+								>
+									{#if task.doneAt !== null}<Check size={11} strokeWidth={3} />{/if}
+								</button>
+							</form>
+							<span class="rtitle">{task.title}</span>
+							{#if task.durationMin !== null}
+								<span class="dur tabular">{formatDuration(task.durationMin * 60_000)}</span>
+							{/if}
+							{#if sheet && task.doneAt === null}
+								<!-- The sheet's job: pull a task into the day behind it, in one tap. -->
+								<form class="inline" method="POST" action={formAction('moveTo')} use:enhance>
+									<input type="hidden" name="taskId" value={task.id} />
+									<input type="hidden" name="day" value={moveDay} />
+									<input type="hidden" name="beforeId" value="" />
+									<button type="submit" class="move" aria-label={`${targetLabel}: ${task.title}`}>
+										<CalendarArrowDown size={14} />
+										{targetShort}
+									</button>
+								</form>
+							{/if}
+							<Menu label={t.common.actionsFor(task.title)}>
+								{#snippet children(close)}
+									<form method="POST" action={formAction('moveTo')} use:enhance={() => close()}>
+										<input type="hidden" name="taskId" value={task.id} />
+										<input type="hidden" name="day" value={moveDay} />
+										<input type="hidden" name="beforeId" value="" />
+										<button type="submit" class="item" role="menuitem">
+											<CalendarArrowDown size={14} />
+											{targetLabel}
+										</button>
+									</form>
+									<form method="POST" action={formAction('deleteTask')} use:enhance={() => close()}>
+										<input type="hidden" name="taskId" value={task.id} />
+										<button type="submit" class="item danger" role="menuitem">
+											<Trash2 size={14} />
+											{t.common.delete}
+										</button>
+									</form>
+								{/snippet}
+							</Menu>
+						</li>
+					{/each}
+					{#if over?.beforeId === null && over.end === group.key}
+						<li class="drop-end" aria-hidden="true"></li>
+					{/if}
+				</ul>
+			</div>
+		{/each}
+
+		{#if over && over.beforeId === null && !groups.some((g) => g.key === over?.end)}
+			<div class="drop-end" aria-hidden="true"></div>
+		{/if}
+
+		{#if groups.length === 0}
+			<p class="muted empty">{t.tasks.backlogEmpty}</p>
+		{/if}
+	</div>
+{/snippet}
+
+{#if sheet}
+	<div class="sheet">
+		{@render addSlot()}
+		{@render groupList()}
+	</div>
+{:else if expanded}
 	<section
 		class="rail"
 		aria-label={t.common.backlog}
@@ -102,86 +222,8 @@
 			</button>
 		</header>
 
-		<div class="add-slot">
-			<TaskAddForm action="addBacklog" placeholder={t.tasks.addToBacklog} compact {quests} {form} />
-		</div>
-
-		<div class="body">
-			{#each groups as group (group.key)}
-				<div class="group" style:--q={questColorVar(group.color)}>
-					<h3 class="group-head">
-						<span class="dot" aria-hidden="true"></span>
-						<span class="gname">{group.name}</span>
-						<span class="count tabular">{group.open.length}</span>
-					</h3>
-					<ul class="rows">
-						{#each [...group.open, ...group.done] as task (task.id)}
-							<li
-								class="row"
-								class:done={task.doneAt !== null}
-								class:drop-before={over?.beforeId === task.id}
-								class:dragging={drag.task?.id === task.id}
-								data-task={task.id}
-								data-group={group.key}
-								draggable="true"
-								ondragstart={(e) => startDrag(e, task)}
-								ondragend={rowDragend}
-							>
-								<form class="inline" method="POST" action={formAction('toggle')} use:enhance>
-									<input type="hidden" name="taskId" value={task.id} />
-									<button
-										type="submit"
-										class="check"
-										aria-label={task.doneAt === null ? t.common.markDone : t.common.markNotDone}
-									>
-										{#if task.doneAt !== null}<Check size={11} strokeWidth={3} />{/if}
-									</button>
-								</form>
-								<span class="rtitle">{task.title}</span>
-								{#if task.durationMin !== null}
-									<span class="dur tabular">{formatDuration(task.durationMin * 60_000)}</span>
-								{/if}
-								<Menu label={t.common.actionsFor(task.title)}>
-									{#snippet children(close)}
-										<form method="POST" action={formAction('moveTo')} use:enhance={() => close()}>
-											<input type="hidden" name="taskId" value={task.id} />
-											<input type="hidden" name="day" value={today} />
-											<input type="hidden" name="beforeId" value="" />
-											<button type="submit" class="item" role="menuitem">
-												<CalendarArrowDown size={14} />
-												{t.tasks.moveToToday}
-											</button>
-										</form>
-										<form
-											method="POST"
-											action={formAction('deleteTask')}
-											use:enhance={() => close()}
-										>
-											<input type="hidden" name="taskId" value={task.id} />
-											<button type="submit" class="item danger" role="menuitem">
-												<Trash2 size={14} />
-												{t.common.delete}
-											</button>
-										</form>
-									{/snippet}
-								</Menu>
-							</li>
-						{/each}
-						{#if over?.beforeId === null && over.end === group.key}
-							<li class="drop-end" aria-hidden="true"></li>
-						{/if}
-					</ul>
-				</div>
-			{/each}
-
-			{#if over && over.beforeId === null && !groups.some((g) => g.key === over?.end)}
-				<div class="drop-end" aria-hidden="true"></div>
-			{/if}
-
-			{#if groups.length === 0}
-				<p class="muted empty">{t.tasks.backlogEmpty}</p>
-			{/if}
-		</div>
+		{@render addSlot()}
+		{@render groupList()}
 
 		<form method="POST" action={formAction('moveTo')} use:enhance bind:this={moveForm} hidden>
 			<input type="hidden" name="taskId" value="" />
@@ -246,6 +288,40 @@
 	.collapse:hover {
 		color: var(--text);
 		background: var(--surface-hover);
+	}
+	/* Phones: the sheet body (the dialog brings title, padding and scrolling). */
+	.sheet {
+		display: grid;
+		gap: var(--space-4);
+	}
+	.sheet .body {
+		overflow: visible;
+		gap: var(--space-4);
+	}
+	.sheet .row {
+		cursor: default;
+		padding-block: var(--space-2);
+	}
+	.sheet .rtitle {
+		font-size: var(--fs-md);
+	}
+	.move {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		height: 28px;
+		padding: 0 var(--space-2);
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-pill);
+		background: var(--surface-2);
+		color: var(--text-2);
+		font-size: var(--fs-xs);
+		font-weight: var(--fw-medium);
+		white-space: nowrap;
+	}
+	.move:hover {
+		color: var(--text);
 	}
 	.add-slot :global(form.add) {
 		margin-bottom: 0;
