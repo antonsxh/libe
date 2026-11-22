@@ -73,7 +73,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   Do **not** use `$lib`. Relative imports also need extensions (`'./schema.ts'`).
 - Env vars are declared in **`src/env.ts`** via `defineEnvVars` and imported from
   **`$app/env/private`** / `$app/env/public`. Add new vars there. Current: `DATABASE_URL`,
-  `LIBE_SETUP_SECRET` (≥ 12 chars; unset = `/setup` disabled). adapter-node reads `ORIGIN`,
+  `LIBE_SETUP_SECRET` (≥ 12 chars; unset = `/setup` disabled), `LIBE_PUSH_TEST_ENDPOINT_ORIGIN`
+  (e2e only: one loopback origin push subscriptions may use; unset in production). adapter-node reads `ORIGIN`,
   `PROTOCOL_HEADER`, `ADDRESS_HEADER`, `XFF_DEPTH`, `PORT`, `HOST` itself.
 - Kit 3 CSRF: non-GET requests that are form-encoded **or have no body/content-type** must come
   from the same `Origin`. Client `fetch` mutations send JSON (`content-type: application/json`).
@@ -152,6 +153,19 @@ timer.serverNow)` so today moves live with the timer.
   `timer.view`, `timer.command('pause')`, `timer.start({...})`, `timer.logTarget = task`
   (opens "Log time…"). Code that deletes tasks/sessions behind the timer's back must call
   `broadcastTimer()`.
+- **Web Push** (timer phase ends + app badge): pure rules in `#lib/push.ts` (endpoint
+  allowlist = SSRF guard, body validation, `nextPushEvent` / `lastPhaseEnd`, texts,
+  `notificationsState`), keys/subscriptions/sending in `server/push.ts`, WebCrypto VAPID +
+  `aes128gcm` in `server/push-crypto.ts` (no dependency), the scheduler in
+  `server/push-scheduler.ts` (started by `init` in `hooks.server.ts`). The scheduler re-arms
+  from every `publishTimer` snapshot and sends pomodoro phase ends that `materialize` publishes
+  (`publishPhaseEnd`, after commit) — so every timer change must end in `broadcastTimer()` /
+  `publishTimer`, never a silent DB write. One push per event key (`claimEvent`, DB
+  compare-and-set). New push services go into `PUSH_HOSTS` / `PUSH_HOST_SUFFIXES` (+ tests),
+  never "any https URL". `revokeDevice()` deletes the device's subscriptions. The app icon
+  badge (today's open tasks, root layout `openToday`) is set by `syncAppBadge`
+  (`#lib/push-client.ts`) only while this device has notifications on; badge/notification
+  APIs are feature-detected and never throw or log.
 - **Logged time by day**: stats (`stats-core.ts`), the Review (`#lib/review.ts`) and streaks
   (`loggedMinutesByDay`) attribute a whole session to the day of `started_at`; the Calendar (`#lib/calendar.ts`) draws/totals actual spans, split at midnight.
   Calendar edits/logs go through `/api/sessions` (`POST`, `PATCH /[id]`, `DELETE /[id]`), validated
@@ -184,7 +198,8 @@ timer.serverNow)` so today moves live with the timer.
   build reads must be added there.
 - **PWA**: the service worker (`src/service-worker/`, production only) must never cache
   `/api/**`, page data or authenticated HTML — only build assets, `static/` files and
-  `/offline`. Full-screen/fixed UI must pad with the `--safe-top/right/bottom/left` tokens.
+  `/offline`. Its `push` handler always shows a notification (iOS drops subscriptions after
+  silent pushes) and opens only in-app paths on click. Full-screen/fixed UI must pad with the `--safe-top/right/bottom/left` tokens.
   On touch screens inputs are ≥ 16 px and buttons get ≥ 44 px hit areas automatically
   (`global.css`); give icon-only links `class="hit-target"`; anything that needs hover or
   drag & drop needs a tap/menu equivalent. `Menu` popovers are portalled into `<body>`.
@@ -240,7 +255,7 @@ timer.serverNow)` so today moves live with the timer.
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n, palette, profile, streak, mobile-polish, day-view),
+i18n, palette, profile, streak, mobile-polish, day-view, push),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 
@@ -251,7 +266,9 @@ failure, HTML report, auth state) go to the ignored `e2e/.output/`.
   and `ADDRESS_HEADER=x-forwarded-for`. Global setup pairs one device via `/setup` and stores
   it as the default `storageState` (token in `e2e/.output/state/`). The Tauri spec uses
   `libe_e2e_tauri` on :3125; the PWA offline test starts a second server on :3126.
-  `reset` refuses any database not named `libe_e2e*`.
+  `reset` refuses any database not named `libe_e2e*`. `push.spec.ts` runs a fake push
+  service on :3129 (`e2e/support/fake-push.ts`, allowed via `LIBE_PUSH_TEST_ENDPOINT_ORIGIN`
+  in `serverEnv`) and decrypts what it receives (`e2e/support/web-push.ts`).
 - **Projects**: `desktop` (1600×1000 Chromium, everything except `@mobile-only`),
   `mobile-iphone` / `mobile-ipad` (`isMobile`, `hasTouch`, iOS UA; only tests whose title
   contains `@mobile` or `@mobile-only`). `workers: 1` — one DB, one active timer.

@@ -20,6 +20,13 @@ export const E2E_PORT = Number(process.env.E2E_PORT ?? 3124);
 export const BASE = `http://127.0.0.1:${E2E_PORT}`;
 
 export const SETUP_SECRET = 'e2e-setup-secret-0123';
+
+/**
+ * The fake push service of `push.spec.ts` (a local HTTP server). App servers allow push
+ * subscriptions to this origin besides the real push services (`LIBE_PUSH_TEST_ENDPOINT_ORIGIN`).
+ */
+export const FAKE_PUSH_PORT = Number(process.env.E2E_FAKE_PUSH_PORT ?? 3129);
+export const FAKE_PUSH_ORIGIN = `http://127.0.0.1:${FAKE_PUSH_PORT}`;
 export const TIME_ZONE = 'Europe/Berlin';
 export const COOKIE = 'libe_device';
 
@@ -41,6 +48,7 @@ export function serverEnv(port: number, db: string): Record<string, string> {
 		HOST: '127.0.0.1',
 		TZ: TIME_ZONE,
 		ADDRESS_HEADER: 'x-forwarded-for',
-		XFF_DEPTH: '1'
+		XFF_DEPTH: '1',
+		LIBE_PUSH_TEST_ENDPOINT_ORIGIN: FAKE_PUSH_ORIGIN
 	};
 }

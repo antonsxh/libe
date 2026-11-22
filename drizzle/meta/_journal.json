@@ -50,6 +50,13 @@
       "when": 1795170554906,
       "tag": "0006_streak_rest_days",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795358419050,
+      "tag": "0007_web_push",
+      "breakpoints": true
     }
   ]
 }

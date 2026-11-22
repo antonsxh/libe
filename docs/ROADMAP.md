@@ -29,6 +29,10 @@ devices(id, token_hash UNIQUE, name, kind browser|pwa|tauri, user_agent, paired_
         cookie_renewed_at, revoked_at)                                    -- M7 (0002_devices)
 pairing_codes(id, code_hash, expires_at, used_at, attempts, created_by_device_id → devices,
               device_id → devices, created_at)                            -- M7, 6-digit codes, hashed
+push_config(id = 1, vapid_public_key, vapid_private_key, subject, last_event_key, last_event_at,
+            created_at)                                   -- Web Push (0007_web_push), single row
+push_subscriptions(id, device_id → devices UNIQUE, endpoint UNIQUE, p256dh, auth, locale en|de,
+                   created_at, last_success_at, last_failure_at, last_failure_status)
 ```
 
 Notes / decisions taken in M0:
@@ -1125,3 +1129,137 @@ safe-bottom − 8px)`, so it sits just above the home indicator), at most `--tab
 - **Not tested**: a real iPhone — `backdrop-filter` in iOS Safari/standalone (headless
   Chromium only renders the blur with GPU flags; the shots use them), the lift above the
   home indicator with a real `safe-area-inset-bottom`, the pill spring's feel, landscape.
+
+## Mobile polish — Phase 3: Web Push + app badge (after the floating tab bar)
+
+Goal: the timer runs on the server, but on the iPhone a phase end was only noticed while the
+app was open. Home-screen web apps receive Web Push since iOS 16.4: every device that opted in
+now gets a short notification when a timer phase ends, and the app icon shows today's open
+tasks.
+
+- **Keys, no setup**: the VAPID key pair (P-256) is generated on first use and stored in the
+  new single-row table `push_config` (migration `0007_web_push`) — not in `settings`, whose
+  rows are read with `select()` on every timer operation and are preferences, not secrets.
+  The VAPID `sub` is the app origin as the subscribe request saw it (`url.origin`, which
+  adapter-node derives from `ORIGIN` / `PROTOCOL_HEADER`; Apple accepts an https subject),
+  `mailto:libe@localhost` until the first subscription. No new required env var.
+- **Subscriptions** (`push_subscriptions`): one per device (unique `device_id`; re-subscribing
+  replaces it, an endpoint another device row held is taken over), `locale` = the device's
+  language at subscribe time (used while `settings.language` is `auto` — better than the
+  "English for auto" fallback, since each device negotiated its own language), success/failure
+  timestamps + last failure status. `revokeDevice()` deletes the device's subscriptions
+  (revoked devices keep their row, so the FK cascade alone wouldn't).
+- **SSRF guard** (`isAllowedPushEndpoint`, `#lib/push.ts`): only `https:` on the default port,
+  no credentials, ≤ 2048 chars, hosts `web.push.apple.com`, `fcm.googleapis.com`,
+  `updates.push.services.mozilla.com` and the suffixes `*.push.apple.com`,
+  `*.push.services.mozilla.com`, `*.notify.windows.com`. Checked on subscribe and again before
+  every send. `LIBE_PUSH_TEST_ENDPOINT_ORIGIN` (optional, loopback origins only, unset in
+  production) adds exactly one origin for the e2e fake push service.
+- **Sending** (`server/push.ts`, `server/push-crypto.ts`): hand-written with WebCrypto —
+  VAPID ES256 JWT (12 h expiry, `aud` = push service origin) and RFC 8291 `aes128gcm` (fresh
+  salt + ephemeral ECDH key per message, single 4096-byte record). `web-push` 3.6.7 was
+  checked under Bun (its `aes128gcm` output decrypts with the test decryptor, its VAPID header
+  verifies) but not used: its `sendNotification` always goes through Node's `https` (no plain
+  http fake endpoint), it pulls five transitive deps, and 4.0.0 was two weeks old. Ours
+  reproduces the RFC 8291 example byte for byte (unit test). Headers: `TTL: 300` for phase
+  ends (a late "Break over" is noise; 60 for the test), `Urgency: high`, `Topic: libe-timer`
+  (the push service replaces an undelivered older one). 2xx → `last_success_at`; 404/410 →
+  subscription deleted; other status / network error → `last_failure_at` + status, one log
+  line with the host only, no retries. 10 s timeout. Never throws.
+- **Which moments** (`nextPushEvent`, `lastPhaseEnd`, pure, tested):
+  - focus countdown reaches its planned minutes (it keeps running as overtime) → once,
+    key `<session id>:countdown`;
+  - pomodoro focus round ends → `breakStarted` (auto-start: the break runs) or `breakWaiting`
+    (it waits for "Start break"); key `<run id>:<round>:focus`;
+  - pomodoro break ends → `focusStarted` (auto-start after a short break) or `focusWaiting`
+    (no auto-start, and always after a long break); key `<run id>:<round>:<break phase>`;
+  - nothing for stopwatches, paused timers, waiting phases, stop/complete/discard, or a phase the user ends
+    by hand (skip / start).
+    After a gap (server down, nobody reading) one rollover may cross several phases: only the
+    latest end is announced — it describes the current state.
+- **Scheduler** (`server/push-scheduler.ts`, one `setTimeout` per process, like the timer hub;
+  started by the new `init` hook in `hooks.server.ts`, skipped while building): every
+  `publishTimer` snapshot (start, pause/resume, phase rollover, stop/discard/complete,
+  pomodoro settings, task/quest deletion via `broadcastTimer`) cancels and re-arms the
+  timeout for `nextPushEvent(snapshot).at` (+20 ms; clamped to 2³¹−1 ms and re-armed in steps;
+  a repeated due check is paced to 1 s). On fire it reads the timer (`getTimerSnapshot`): a
+  pomodoro run rolls over and `materialize` publishes the phase end **after the transaction
+  committed** (`publishPhaseEnd` in `timer-hub.ts`) — whoever rolls it over (the scheduler, a
+  client's `GET /api/timer`, a mutation) — and the scheduler sends it; a countdown has nothing
+  to roll over, so a due `countdownDone` is sent directly. Server start re-arms from the DB (a
+  phase that ended while it was down is rolled over and sent then; a countdown in overtime
+  too). **Idempotency**: `claimEvent(key)` = `UPDATE push_config SET last_event_key = key
+WHERE last_event_key IS DISTINCT FROM key` — only the winner sends, so recomputes, races
+  and restarts never send twice (plus an in-memory last key to skip the query on repeated
+  overtime snapshots). Sending is fire-and-forget; no timer request waits for a push service.
+- **Payload** (JSON, encrypted): `{ title, body, tag, url: '/focus', badge }` — `badge` =
+  today's open tasks at send time. **Exact texts** (body = the task's title):
+
+  | Event                     | English                                                                    | German                                                                            |
+  | ------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+  | countdown done            | Time’s up                                                                  | Zeit ist um                                                                       |
+  | break started (auto)      | Break time · 5 min                                                         | Pause · 5 Min.                                                                    |
+  | long break started (auto) | Long break · 15 min                                                        | Lange Pause · 15 Min.                                                             |
+  | break waits               | Round done — start your break                                              | Runde geschafft – starte deine Pause                                              |
+  | next round started (auto) | Break over — back to focus                                                 | Pause vorbei – zurück zum Fokus                                                   |
+  | next round waits          | Break over — start the next round                                          | Pause vorbei – starte die nächste Runde                                           |
+  | test (Settings)           | Notifications are on / This is how libe tells you a timer phase has ended. | Benachrichtigungen sind an / So sagt dir libe, dass eine Timer-Phase zu Ende ist. |
+
+- **API** (device-authenticated, JSON, no new public paths): `GET /api/push` → VAPID public
+  key + this device's subscription; `POST /api/push` (`PushSubscription.toJSON()`, validated
+  by `parsePushSubscription`: allowlisted endpoint, 65-byte uncompressed P-256 key, 16-byte
+  auth, base64url) → 400 `pushEndpointInvalid` / `pushKeysInvalid`; `DELETE /api/push`;
+  `POST /api/push/test` → 404 `pushNotSubscribed` / 502 `pushSendFailed` (`gone` when the
+  service said 404/410).
+- **Service worker**: `push` → always `showNotification` (iOS revokes subscriptions after
+  silent pushes) with `tag` (timer notifications replace each other, `renotify`), icon
+  `/icons/icon-192.png`, `data.url`; sets/clears the app badge from `badge`.
+  `notificationclick` → focus an open libe window and navigate it to `data.url` (in-app paths
+  only), else `openWindow`. `pushsubscriptionchange` → re-subscribe with the old key and
+  `POST /api/push` (best effort). Caching rules unchanged (`/api/**` never touched).
+- **Settings → Notifications** (`components/settings/NotificationsSection.svelte`, after Focus
+  timer): one calm section. States (`notificationsState`, pure): hidden inside the desktop app
+  (Tauri's webview has no Web Push); iPhone/iPad in a Safari tab → "Add libe to your Home
+  Screen to get notifications: tap Share, then “Add to Home Screen”." (share icon);
+  unsupported (no PushManager / Notification / service worker — also `vite dev`, which
+  registers no worker); denied → how to allow it again (iOS Settings → Notifications → libe,
+  or the browser's site settings); off → primary **Turn on notifications**
+  (`Notification.requestPermission()` is called synchronously in the tap handler, before any
+  `await` — iOS requirement; the VAPID key is fetched on mount for the same reason); on →
+  green dot "On for this device." + **Send test** (shows "✓ Sent" for 2.4 s) + **Turn off**.
+  State changes fade/scale in (`fadeScale`, `--dur-pop`), the dot pops (`--ease-spring`).
+  "On" means: permission granted **and** the browser's subscription is the one the server
+  stores for this device.
+- **App badge**: root layout data `openToday` (one count on `tasks_day_idx`: today's tasks,
+  quest + other, not done; the root `load` still reads no tracked `url` property, so it follows
+  `refreshAll` like `todayLog`). The root layout calls `syncAppBadge(openToday)`; it only
+  touches the badge while notifications are on for this device (permission granted + a push
+  subscription — iOS ties badges to notification permission, and it is one opt-in). "Turn off"
+  clears it. Feature-detected, every rejection swallowed (no console noise).
+- Tests: unit — `push.test.ts` (allowlist incl. look-alike hosts/ports/credentials/IPs, the
+  test origin, subscription body, `nextPushEvent` countdown/overtime/pause shift/stopwatch,
+  pomodoro sequences with and without auto-start incl. the long break wait, paused rounds,
+  `lastPhaseEnd` = the predicted event and "latest only" after a gap, `armDelay` clamping,
+  texts en/de, `notificationsState` incl. iPadOS's desktop UA), `push-crypto.test.ts` (RFC 8291
+  example byte for byte, round trips, VAPID JWT claims + signature, bad keys). e2e
+  `push.spec.ts` with a fake push service on :3129 (`e2e/support/fake-push.ts`) and an
+  independent decryptor (`e2e/support/web-push.ts`): a 1-min countdown shifted into overtime
+  → exactly one push, decrypted (title, body, tag, url, badge = DB count), VAPID header
+  verified (`aud`, `sub`, key = `GET /api/push`), TTL/Urgency/Topic, `last_success_at`; a
+  second recompute sends nothing more (the test push is the barrier); a pomodoro round ended
+  in the DB + a client `GET /api/timer` → "Break time · 5 min" and the run is in its break; 410
+  → row deleted; revoking a device (`DELETE /api/pair/session`) deletes its subscription;
+  non-allowlisted endpoints / bad keys → 400, no row. Checked against reintroduced bugs: no
+  claim (countdown test receives a duplicate), no 410 cleanup, no delete on revoke — each
+  fails. No browser e2e for the section: headless Chromium has no push service (and reports
+  `Notification.permission` "denied" under mobile emulation), so the states are covered by the
+  pure `notificationsState` instead of a faked UI test.
+- Manual run (prod build against the dev DB, a dead push endpoint): subscribe, test → 502,
+  countdown into overtime → one logged `ECONNREFUSED` line each, `last_failure_*` recorded,
+  server healthy; revoke removed the subscription.
+- **Not tested**: delivery to a real iPhone/iPad (APNs via `web.push.apple.com`, the
+  permission prompt inside the tap, the badge on the home-screen icon, notification grouping
+  by tag, `pushsubscriptionchange` — which Safari rarely fires), FCM/Mozilla/WNS acceptance of
+  our VAPID JWT and payloads (format verified against RFC 8291 and `web-push`, not against the
+  live services), several server instances (each would arm its own timeout; the DB claim
+  still prevents duplicate sends).

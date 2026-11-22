@@ -22,5 +22,24 @@ export const variables = defineEnvVars({
 				);
 			return secret;
 		}
+	},
+	LIBE_PUSH_TEST_ENDPOINT_ORIGIN: {
+		description:
+			'Tests only (e2e): one extra origin push subscriptions may point to, besides the known push services — e.g. http://127.0.0.1:3129 for a fake push endpoint. Loopback only. Leave unset in production.',
+		schema: (value) => {
+			const raw = value?.trim();
+			if (!raw) return undefined;
+			let url: URL;
+			try {
+				url = new URL(raw);
+			} catch {
+				throw new Error(
+					'LIBE_PUSH_TEST_ENDPOINT_ORIGIN must be an origin like http://127.0.0.1:3129'
+				);
+			}
+			if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
+				throw new Error('LIBE_PUSH_TEST_ENDPOINT_ORIGIN must be a loopback origin (tests only)');
+			return url.origin;
+		}
 	}
 });
