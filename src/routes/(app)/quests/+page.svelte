@@ -14,6 +14,12 @@
 	const t = useI18n();
 
 	let creating = $state(false);
+	/** Bumped on every open: a fresh create form (not reset while the sheet slides out). */
+	let createNonce = $state(0);
+	function startCreate() {
+		creating = true;
+		createNonce += 1;
+	}
 	let editingQuest = $state<Quest | null>(null);
 	let editing = $state(false);
 	/** Bumped on every open so the edit form always starts from the saved quest values. */
@@ -33,7 +39,7 @@
 
 <PageHeader title={t.quests.title} subtitle={t.quests.subtitle}>
 	{#snippet actions()}
-		<Button variant="primary" onclick={() => (creating = true)}>
+		<Button variant="primary" onclick={startCreate}>
 			<Plus size={18} />
 			{t.quests.newQuest}
 		</Button>
@@ -55,7 +61,7 @@
 			onedit={startEdit}
 		/>
 	{/each}
-	<button type="button" class="new-tile" onclick={() => (creating = true)}>
+	<button type="button" class="new-tile" onclick={startCreate}>
 		<Plus size={20} />
 		<span>{t.quests.newQuest}</span>
 	</button>
@@ -73,7 +79,7 @@
 {/if}
 
 <Dialog bind:open={creating} title={t.quests.newQuest}>
-	{#key creating}
+	{#key createNonce}
 		<QuestForm mode="create" {form} ondone={() => (creating = false)} />
 	{/key}
 </Dialog>

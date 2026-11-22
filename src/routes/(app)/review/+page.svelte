@@ -266,9 +266,21 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 	}
+	/* Phones: three compact key figures instead of three screen-high cards. */
 	@media (max-width: 720px) {
 		.kpis {
 			grid-template-columns: minmax(0, 1fr);
+		}
+		.kpi {
+			gap: var(--space-1);
+			padding: var(--space-4) var(--space-5);
+			border-radius: var(--radius-lg);
+		}
+		.num {
+			font-size: var(--fs-2xl-phone);
+		}
+		.sub {
+			font-size: var(--fs-sm);
 		}
 	}
 	@media (max-width: 900px) {

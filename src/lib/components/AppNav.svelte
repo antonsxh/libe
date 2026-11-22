@@ -450,6 +450,10 @@
 		.brand span {
 			display: inline;
 		}
+		/* The mini-player above the tab bar shows the timer (MiniPlayer.svelte). */
+		.chip {
+			display: none;
+		}
 		nav {
 			position: fixed;
 			z-index: 20;
@@ -478,8 +482,40 @@
 			background: transparent;
 			color: var(--accent);
 		}
+		nav a {
+			-webkit-touch-callout: none;
+			-webkit-user-select: none;
+			user-select: none;
+		}
+		/* Active tab: a soft accent pill springs in behind the icon. */
 		.tab-icon {
+			position: relative;
+			isolation: isolate;
 			display: grid;
+			place-items: center;
+			width: var(--space-12);
+			height: var(--space-6);
+			transition: scale var(--dur-pop) var(--ease-spring);
+		}
+		.tab-icon::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+			z-index: -1;
+			border-radius: var(--radius-pill);
+			background: var(--accent-soft);
+			opacity: 0;
+			scale: 0.5 0.8;
+			transition:
+				scale var(--dur-pop) var(--ease-spring),
+				opacity var(--dur) var(--ease);
+		}
+		nav a.active .tab-icon::before {
+			opacity: 1;
+			scale: 1;
+		}
+		nav a:active .tab-icon {
+			scale: var(--press-scale);
 		}
 		.tab-label {
 			max-width: 100%;

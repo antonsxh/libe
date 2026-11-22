@@ -456,6 +456,18 @@ export function timerView(timer: ActiveTimer, settings: PomodoroSettings, now: n
 	};
 }
 
+/**
+ * The one big button of compact timer UIs (the phone mini-player): pause a running focus
+ * phase, resume a paused one, start a waiting pomodoro phase, skip a running break.
+ */
+export function primaryTimerAction(
+	view: Pick<TimerView, 'status' | 'isFocus'>
+): 'pause' | 'resume' | 'startPhase' | 'skip' {
+	if (view.status === 'waiting') return 'startPhase';
+	if (!view.isFocus) return 'skip';
+	return view.status === 'paused' ? 'resume' : 'pause';
+}
+
 // ─── Input validation (shared by the JSON API and forms) ────────────────────
 
 /** Planned minutes: '' / null → null (stopwatch); else an integer 1‥1440. */

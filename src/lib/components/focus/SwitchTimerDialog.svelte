@@ -12,11 +12,6 @@
 	const t = useI18n();
 	let open = $state(true);
 
-	// Escape / backdrop / ✕ close the native dialog → drop the parked request.
-	$effect(() => {
-		if (!open) timer.switchRequest = null;
-	});
-
 	async function confirm() {
 		const ok = await timer.start(request, { replace: true });
 		if (!ok) return;
@@ -25,7 +20,8 @@
 	}
 </script>
 
-<Dialog bind:open title={t.focus.switchDialog.title}>
+<!-- Closed in any way (Esc, backdrop, ✕, confirmed) → drop the parked request. -->
+<Dialog bind:open title={t.focus.switchDialog.title} onclosed={() => (timer.switchRequest = null)}>
 	<p class="text">
 		{#if timer.timer}
 			<strong>{timer.timer.task.title}</strong>{t.focus.switchDialog.isRunning}{#if timer.view}
@@ -37,7 +33,7 @@
 			.promptAfter}
 	</p>
 	{#if timer.error}<p class="error" role="alert">{timer.error}</p>{/if}
-	<div class="actions">
+	<div class="actions dialog-actions">
 		<Button variant="secondary" onclick={() => (open = false)}>{t.common.cancel}</Button>
 		<Button variant="primary" onclick={confirm} disabled={timer.busy}>
 			{t.focus.stopAndStart}

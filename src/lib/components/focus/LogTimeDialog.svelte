@@ -17,9 +17,6 @@
 	const timer = useTimer();
 	const t = useI18n();
 	let open = $state(true);
-	$effect(() => {
-		if (!open) timer.logTarget = null;
-	});
 
 	const today = todayISO();
 	const DEFAULT_MIN = 30;
@@ -126,7 +123,7 @@
 	}
 </script>
 
-<Dialog bind:open title={t.focus.log.title}>
+<Dialog bind:open title={t.focus.log.title} onclosed={() => (timer.logTarget = null)}>
 	<form class="log" onsubmit={submit} novalidate>
 		<p class="muted task-name">{task.title}</p>
 
@@ -219,7 +216,7 @@
 
 		{#if saved}<p class="saved" role="status">{saved}</p>{/if}
 
-		<div class="actions">
+		<div class="actions dialog-actions">
 			<Button variant="secondary" onclick={() => (open = false)}>
 				{saved ? t.common.done : t.common.cancel}
 			</Button>

@@ -46,7 +46,11 @@
 	}
 </script>
 
-<Dialog bind:open title={isEdit ? t.home.block.titleEdit : t.home.block.titleNew}>
+<Dialog
+	bind:open
+	onclosed={onclose}
+	title={isEdit ? t.home.block.titleEdit : t.home.block.titleNew}
+>
 	<!-- The delete form must stay outside the edit form (no nested <form>); buttons attach via `form=`. -->
 	<form
 		id="block-form"
@@ -56,7 +60,7 @@
 			return async ({ result, update }) => {
 				// Re-render with fresh data (and re-show errors on failure), then close on success.
 				await update();
-				if (result.type === 'success') onclose();
+				if (result.type === 'success') open = false;
 			};
 		}}
 	>
@@ -103,7 +107,7 @@
 			use:enhance={() => {
 				return async ({ result, update }) => {
 					await update();
-					if (result.type === 'success') onclose();
+					if (result.type === 'success') open = false;
 				};
 			}}
 		>
@@ -111,7 +115,7 @@
 		</form>
 	{/if}
 
-	<div class="actions">
+	<div class="actions dialog-actions">
 		{#if isEdit}
 			<Button variant="ghost" type="submit" form="block-delete-form">{t.common.delete}</Button>
 		{/if}

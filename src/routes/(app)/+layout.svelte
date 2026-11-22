@@ -2,11 +2,14 @@
 	import { afterNavigate } from '$app/navigation';
 	import { X } from '@lucide/svelte';
 	import AppNav from '#lib/components/AppNav.svelte';
+	import MiniPlayer from '#lib/components/MiniPlayer.svelte';
+	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
 	const t = useI18n();
+	const timer = useTimer();
 
 	// One-time welcome on the first page after pairing (`welcome` cookie, root layout load):
 	// shown until dismissed or the next navigation.
@@ -19,7 +22,8 @@
 
 <AppNav />
 
-<main>
+<!-- Phones: the mini-player sits above the tab bar while a timer is active; main pads for it. -->
+<main class:with-player={timer.timer !== null}>
 	{#if welcome}
 		<div class="welcome" role="status">
 			<p>{t.welcome.paired(data.profile?.displayName ?? null)}</p>
@@ -35,6 +39,8 @@
 	{/if}
 	{@render children()}
 </main>
+
+<MiniPlayer />
 
 <style>
 	main {
@@ -91,6 +97,11 @@
 	@media (max-width: 720px) {
 		main {
 			padding-bottom: calc(var(--space-8) + var(--tabbar-h) + var(--safe-bottom));
+		}
+		main.with-player {
+			padding-bottom: calc(
+				var(--space-8) + var(--tabbar-h) + var(--player-h) + var(--space-2) + var(--safe-bottom)
+			);
 		}
 	}
 </style>

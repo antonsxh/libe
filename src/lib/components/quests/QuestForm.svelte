@@ -109,7 +109,7 @@
 		{#if echo?.errors?.color}<span class="error">{echo.errors.color}</span>{/if}
 	</div>
 
-	<div class="foot">
+	<div class="foot dialog-actions">
 		<span class="muted hint">
 			{mode === 'create' ? t.quests.form.changeLater : ''}
 		</span>
@@ -177,5 +177,15 @@
 	.hint {
 		margin-right: auto;
 		font-size: var(--fs-xs);
+	}
+
+	/* Phones (bottom sheet): icon/budget stack, the hint gives way to the buttons. */
+	@media (max-width: 720px) {
+		.row {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.hint {
+			display: none;
+		}
 	}
 </style>

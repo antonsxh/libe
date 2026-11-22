@@ -38,7 +38,9 @@
 		transition:
 			background var(--dur) var(--ease),
 			border-color var(--dur) var(--ease),
-			color var(--dur) var(--ease);
+			color var(--dur) var(--ease),
+			scale var(--dur-press) var(--ease-out),
+			filter var(--dur-press) var(--ease-out);
 	}
 
 	.md {

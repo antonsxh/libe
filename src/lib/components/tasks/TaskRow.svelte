@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import { ArrowDown, ArrowUp, Check, Trash2 } from '@lucide/svelte';
 	import type { Task } from '#lib/server/db/schema.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
@@ -16,21 +16,37 @@
 		last?: boolean;
 	} = $props();
 	const t = useI18n();
+
+	const done = $derived(task.doneAt !== null);
+	/** The check pops on the tap; the title is struck once the server confirms "done". */
+	let popping = $state(false);
+	let celebrate = $state(false);
+	const onToggle: SubmitFunction = () => {
+		const wasDone = done;
+		popping = true;
+		celebrate = false;
+		return async ({ update }) => {
+			await update();
+			celebrate = !wasDone && done;
+		};
+	};
 </script>
 
-<li class="task card" class:done={task.doneAt !== null}>
-	<form class="inline" method="POST" action="?/toggle" use:enhance>
+<li class="task card" class:done class:struck={done} class:celebrate>
+	<form class="inline" method="POST" action="?/toggle" use:enhance={onToggle}>
 		<input type="hidden" name="taskId" value={task.id} />
 		<button
 			type="submit"
 			class="check"
+			class:popping
+			onanimationend={() => (popping = false)}
 			aria-label={task.doneAt ? t.common.markNotDone : t.common.markDone}
 		>
 			{#if task.doneAt !== null}<Check size={14} strokeWidth={3} />{/if}
 		</button>
 	</form>
 
-	<span class="title">{task.title}</span>
+	<span class="title"><span class="strike">{task.title}</span></span>
 
 	{#if task.durationMin !== null}
 		<span class="dur muted tabular">{t.common.minutes(task.durationMin)}</span>
@@ -104,7 +120,16 @@
 	}
 	.done .title {
 		color: var(--text-faint);
-		text-decoration: line-through;
+	}
+	.celebrate .strike {
+		animation: strike-in var(--dur-slow) var(--ease-out);
+	}
+	.celebrate .check :global(svg *) {
+		stroke-dasharray: 24;
+		animation: check-draw var(--dur-slow) var(--ease-out) both;
+	}
+	.check.popping {
+		animation: check-pop var(--dur-pop) var(--ease-spring);
 	}
 
 	.dur {

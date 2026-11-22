@@ -100,6 +100,11 @@
 	--nav-h: 72px;
 	--nav-h-compact: 60px; /* top bar on phones */
 	--tabbar-h: 56px; /* bottom tab bar on phones (+ safe area) */
+	--player-h: 60px; /* timer mini-player above the tab bar (phones) */
+	--sheet-handle-w: 36px; /* grab handle of a bottom sheet */
+	--sheet-handle-h: 5px;
+	--sheet-gap-top: 24px; /* min. space above a full-height sheet (backdrop stays tappable) */
+	--fs-2xl-phone: 2rem; /* 32  page titles on phones */
 	--avatar-sm: 28px; /* profile avatar (Avatar.svelte) */
 	--avatar-md: 40px; /* nav */
 	--avatar-lg: 64px; /* settings preview */
@@ -121,6 +126,21 @@
 	--ease: cubic-bezier(0.2, 0, 0, 1);
 	--dur: 140ms;
 	--dur-slow: 400ms; /* progress fills (goal ring) */
+
+	/* ── Motion (micro-interactions; all neutralised by prefers-reduced-motion) ── */
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* decelerating: things arriving */
+	--ease-in: cubic-bezier(0.4, 0, 1, 1); /* accelerating: things leaving */
+	--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* slight overshoot: pops, active tab */
+	--dur-press: 90ms; /* touch press feedback */
+	--dur-pop: 220ms; /* checkbox pop, tab indicator, number tick */
+	--dur-sheet: 320ms; /* bottom sheet / mini-player slide in */
+	--dur-sheet-out: 220ms; /* … and out */
+	--press-scale: 0.96; /* pressed buttons / tab items */
+	--press-scale-card: 0.985; /* pressed cards (larger surfaces move less) */
+	--press-dim: 0.85; /* brightness of a pressed control */
+	--dur-tick: 1s; /* progress lines that follow the 1-second clock */
+	--dur-pulse: 2s; /* the "recording" dot of a running timer */
+	--strike-w: 1.5px; /* animated strike-through of done tasks (.strike) */
 
 	/* ── Time grids (day timeline, calendar) ──────────────── */
 	--grid-line: color-mix(in srgb, var(--border-strong) 30%, transparent); /* hour lines */

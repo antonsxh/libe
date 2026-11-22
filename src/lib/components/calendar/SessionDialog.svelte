@@ -51,10 +51,6 @@
 	let errors = $state<Errors>({});
 	let busy = $state(false);
 
-	$effect(() => {
-		if (!open) onclose();
-	});
-
 	/** Minutes from start to end, by wall clock (display only — the server decides). */
 	function spanMinutes(d1: string, t1: string, d2: string, t2: string): number | null {
 		const a = parseClock(t1);
@@ -128,7 +124,11 @@
 	);
 </script>
 
-<Dialog bind:open title={editing ? t.calendar.dialog.titleEdit : t.calendar.dialog.titleNew}>
+<Dialog
+	bind:open
+	onclosed={onclose}
+	title={editing ? t.calendar.dialog.titleEdit : t.calendar.dialog.titleNew}
+>
 	<form class="session-form" onsubmit={submit} novalidate>
 		{#if errors.form}<p class="error" role="alert">{errors.form}</p>{/if}
 
@@ -188,7 +188,7 @@
 			<p class="error" role="alert">{msg}</p>
 		{/each}
 
-		<div class="actions">
+		<div class="actions dialog-actions">
 			{#if editing}
 				<button type="button" class="delete" disabled={busy} onclick={remove}>
 					<Trash2 size={15} />
