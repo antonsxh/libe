@@ -44,12 +44,11 @@ export function startPushScheduler(): void {
 	const deliver = (event: PushEvent) => {
 		if (event.key === sentKey) return;
 		void (async () => {
-			if (!(await hasSubscriptions())) return;
-			if (!(await claimEvent(event.key))) {
-				sentKey = event.key;
-				return;
-			}
+			// Claim first, even with nobody subscribed: a device that subscribes later must not
+			// get this (by then stale) event on the next timer change.
+			const claimed = await claimEvent(event.key);
 			sentKey = event.key;
+			if (!claimed || !(await hasSubscriptions())) return;
 			await sendTimerPush(event);
 		})().catch((err) => console.error('[libe] push: timer notification failed', err));
 	};
