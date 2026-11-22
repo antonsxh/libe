@@ -33,22 +33,30 @@
 	/**
 	 * Viewport position of the popover. It is `position: fixed` so it escapes scrolling /
 	 * clipping ancestors (plan board columns, the horizontally scrolling board): right-aligned
-	 * under the trigger (or `anchor`), shifted inside the viewport, flipped above when there's no
-	 * room below (a trigger in the phone's bottom tab bar opens upwards).
+	 * under the trigger (or `anchor`), shifted inside the viewport, flipped above when it doesn't
+	 * fit below and there's more room above (a trigger in the phone's bottom tab bar opens
+	 * upwards). It never runs past the viewport: a long menu (many quests in the picker) is capped
+	 * at the room on its side and scrolls inside — otherwise its lower items could only be
+	 * reached by scrolling the page, which moves the trigger and with it the menu.
 	 */
-	let pos = $state<{ top: number; left: number } | null>(null);
+	let pos = $state<{ top: number; left: number; maxHeight: number } | null>(null);
 	const EDGE = 8;
 	function place() {
 		if (!triggerEl || !pop) return;
 		const t = (anchor ?? triggerEl).getBoundingClientRect();
 		const w = pop.offsetWidth;
-		const h = pop.offsetHeight;
+		// Full content height (+ borders), even while a previous `max-height` clips it.
+		const h = pop.scrollHeight + (pop.offsetHeight - pop.clientHeight);
 		let left = t.right - w;
 		if (left < EDGE) left = t.left;
 		left = Math.max(EDGE, Math.min(left, window.innerWidth - w - EDGE));
-		let top = t.bottom + gap;
-		if (top + h > window.innerHeight - EDGE && t.top - gap - h >= EDGE) top = t.top - gap - h;
-		pos = { top, left };
+		const below = window.innerHeight - EDGE - (t.bottom + gap);
+		const above = t.top - gap - EDGE;
+		if (h <= below || below >= above) {
+			pos = { top: t.bottom + gap, left, maxHeight: Math.max(0, below) };
+		} else {
+			pos = { top: t.top - gap - Math.min(h, above), left, maxHeight: above };
+		}
 	}
 
 	function close() {
@@ -138,6 +146,7 @@
 			{@attach toBody}
 			style:top={pos ? `${pos.top}px` : undefined}
 			style:left={pos ? `${pos.left}px` : undefined}
+			style:max-height={pos ? `${pos.maxHeight}px` : undefined}
 			style:visibility={pos ? undefined : 'hidden'}
 		>
 			{@render children(close)}
@@ -192,6 +201,8 @@
 		left: 0;
 		z-index: 40;
 		min-width: 190px;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 		padding: var(--space-1);
 		background: var(--surface);
 		border: 1px solid var(--border);
@@ -204,6 +215,5 @@
 		bottom: auto;
 		margin: 0;
 		color: inherit;
-		overflow: visible;
 	}
 </style>
