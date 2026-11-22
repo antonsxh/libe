@@ -216,7 +216,9 @@ timer.serverNow)` so today moves live with the timer.
   (phone day view).
   Look at `/styleguide` in the running app before building new UI.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
-  Below 720px the nav is a fixed bottom tab bar (`main` already pads for it).
+  Below 720px the nav is a floating capsule at the bottom (icons only, a sliding pill, the account
+  avatar as the last slot, no Focus tab — `TAB_ITEMS` / `activeTab` in `#lib/nav.ts`); the top
+  bar keeps brand + search. `main` pads for capsule and mini-player (`--tabbar-*`, `--player-h`).
 - **Mobile UX principles** (phones ≤ 720px, the iPhone home-screen PWA):
   - _Hierarchy_: one clear primary action per phone screen (filled accent `Button`); everything
     else secondary/ghost. Home's "Next up" card is the primary "what now?" while no timer runs;

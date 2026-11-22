@@ -1,11 +1,11 @@
 /**
- * Touch-only flows (projects mobile-iphone / mobile-ipad): the phone tab bar, Plan's "Move to
+ * Touch-only flows (projects mobile-iphone / mobile-ipad): the phone tab bar and its account menu, Plan's "Move to
  * day" picker instead of drag & drop, Review's tap-to-pin tooltips, touch sizing.
  */
 import { test, expect, gotoLive, actionDone } from '../support/fixtures.ts';
 import { addDays, createQuest, createTask, mondayOf, today, uid } from '../support/db.ts';
 
-test('phone: the bottom tab bar navigates between sections @mobile-only', async ({
+test('phone: the floating tab bar navigates between sections @mobile-only', async ({
 	page,
 	viewport
 }) => {
@@ -13,7 +13,9 @@ test('phone: the bottom tab bar navigates between sections @mobile-only', async 
 	await gotoLive(page, '/');
 	const nav = page.getByRole('navigation', { name: 'Main' });
 	const box = (await nav.boundingBox())!;
-	expect(box.y + box.height).toBeCloseTo(viewport!.height, 0);
+	// Floats just above the bottom edge (thumb zone), not in the top bar.
+	expect(box.y).toBeGreaterThan(viewport!.height / 2);
+	expect(box.y + box.height).toBeLessThanOrEqual(viewport!.height);
 
 	for (const [label, path] of [
 		['Plan', '/plan'],
@@ -25,9 +27,38 @@ test('phone: the bottom tab bar navigates between sections @mobile-only', async 
 		await nav.getByRole('link', { name: label }).tap();
 		await expect(page).toHaveURL(new RegExp(`${path}$`));
 		await expect(nav.getByRole('link', { name: label })).toHaveAttribute('aria-current', 'page');
+		await expect(nav.locator('a[aria-current=page]')).toHaveCount(1);
 	}
-	await nav.getByRole('link', { name: 'Focus' }).tap();
-	await expect(page).toHaveURL(/\/focus$/);
+});
+
+test('phone: the tab bar avatar opens the account menu above the bar; Settings navigates @mobile-only', async ({
+	page,
+	viewport
+}) => {
+	test.skip(viewport!.width > 720, 'the tab bar is the phone layout');
+	await gotoLive(page, '/plan');
+	const nav = page.getByRole('navigation', { name: 'Main' });
+	await nav.getByRole('button', { name: /^Account and devices/ }).tap();
+	const menu = page.getByRole('menu');
+	await expect(menu).toBeVisible();
+	// Opens upwards from the bottom bar and stays on screen.
+	const bar = (await nav.boundingBox())!;
+	await expect
+		.poll(async () => {
+			const box = (await menu.boundingBox())!;
+			return (
+				box.y >= 0 &&
+				box.x >= 0 &&
+				box.x + box.width <= viewport!.width &&
+				box.y + box.height <= bar.y
+			);
+		})
+		.toBe(true);
+	await menu.getByRole('menuitem', { name: 'Settings' }).tap();
+	await expect(page).toHaveURL(/\/settings$/);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Settings');
+	await expect(menu).toBeHidden();
+	await expect(nav.locator('a[aria-current=page]')).toHaveCount(0);
 });
 
 test('Plan: ⋯ "Move to day" moves a card without drag & drop @mobile-only', async ({

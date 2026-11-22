@@ -59,7 +59,7 @@
 		'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
-	--fs-tab: 0.6875rem; /* 11  bottom tab bar labels */
+	--fs-tab: 0.6875rem; /* 11  tiny labels (avatar initials) */
 	--fs-xs: 0.75rem; /* 12  pills, meta */
 	--fs-sm: 0.8125rem; /* 13  secondary */
 	--fs-md: 0.9375rem; /* 15  body, nav */
@@ -98,9 +98,15 @@
 	--page-gutter: 44px;
 	--page-max: 1880px;
 	--nav-h: 72px;
-	--nav-h-compact: 60px; /* top bar on phones */
-	--tabbar-h: 56px; /* bottom tab bar on phones (+ safe area) */
-	--player-h: 60px; /* timer mini-player above the tab bar (phones) */
+	--nav-h-compact: 56px; /* top bar on phones (brand + search) */
+	--tabbar-h: 60px; /* floating tab bar capsule on phones */
+	--tabbar-pad: 6px; /* capsule padding around the tab slots */
+	--tabbar-inset: var(--space-4); /* capsule / mini-player distance from the screen sides */
+	/* … and from the bottom: just above the home indicator, at least 12px. */
+	--tabbar-lift: max(var(--space-3), calc(var(--safe-bottom) - var(--space-2)));
+	--tabbar-max-w: 440px; /* the capsule never stretches wider (landscape phones) */
+	--tab-icon: 22px; /* tab bar icons */
+	--player-h: 56px; /* timer mini-player, floating just above the capsule */
 	--sheet-handle-w: 36px; /* grab handle of a bottom sheet */
 	--sheet-handle-h: 5px;
 	--sheet-gap-top: 24px; /* min. space above a full-height sheet (backdrop stays tappable) */
@@ -126,6 +132,13 @@
 
 	/* ── Effects ──────────────────────────────────────────── */
 	--shadow-pop: 0 12px 32px rgb(0 0 0 / 0.45), 0 0 0 1px var(--border);
+	--shadow-float: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35); /* floating bars */
+	/* Translucent "glass" of the floating phone bars; content shows blurred underneath. */
+	--glass-bg: color-mix(in srgb, var(--surface) 68%, transparent);
+	--glass-bg-solid: var(--surface); /* without backdrop-filter support */
+	--glass-blur: blur(20px) saturate(170%);
+	--glass-border: color-mix(in srgb, var(--text) 9%, transparent); /* hairline edge */
+	--tab-pill: color-mix(in srgb, var(--text) 11%, transparent); /* active tab indicator */
 	--ring: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
 	--ease: cubic-bezier(0.2, 0, 0, 1);
 	--dur: 140ms;

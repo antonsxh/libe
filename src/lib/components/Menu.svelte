@@ -8,7 +8,9 @@
 		label,
 		trigger,
 		children,
-		onclose
+		onclose,
+		anchor,
+		gap = 4
 	}: {
 		label?: string;
 		/** Custom trigger content (rendered inside the trigger button). Defaults to the ⋯ icon. */
@@ -17,6 +19,10 @@
 		children: Snippet<[close: () => void]>;
 		/** Called whenever the menu closes (also on Escape / outside click). */
 		onclose?: () => void;
+		/** Place the popover against this element instead of the trigger (e.g. the phone tab bar). */
+		anchor?: HTMLElement;
+		/** Distance between the anchor and the popover, in px. */
+		gap?: number;
 	} = $props();
 
 	const t = useI18n();
@@ -27,21 +33,21 @@
 	/**
 	 * Viewport position of the popover. It is `position: fixed` so it escapes scrolling /
 	 * clipping ancestors (plan board columns, the horizontally scrolling board): right-aligned
-	 * under the trigger, shifted inside the viewport, flipped above when there's no room below.
+	 * under the trigger (or `anchor`), shifted inside the viewport, flipped above when there's no
+	 * room below (a trigger in the phone's bottom tab bar opens upwards).
 	 */
 	let pos = $state<{ top: number; left: number } | null>(null);
 	const EDGE = 8;
-	const GAP = 4;
 	function place() {
 		if (!triggerEl || !pop) return;
-		const t = triggerEl.getBoundingClientRect();
+		const t = (anchor ?? triggerEl).getBoundingClientRect();
 		const w = pop.offsetWidth;
 		const h = pop.offsetHeight;
 		let left = t.right - w;
 		if (left < EDGE) left = t.left;
 		left = Math.max(EDGE, Math.min(left, window.innerWidth - w - EDGE));
-		let top = t.bottom + GAP;
-		if (top + h > window.innerHeight - EDGE && t.top - GAP - h >= EDGE) top = t.top - GAP - h;
+		let top = t.bottom + gap;
+		if (top + h > window.innerHeight - EDGE && t.top - gap - h >= EDGE) top = t.top - gap - h;
 		pos = { top, left };
 	}
 

@@ -22,7 +22,7 @@
 
 <AppNav />
 
-<!-- Phones: the mini-player sits above the tab bar while a timer is active; main pads for it. -->
+<!-- Phones: the mini-player floats above the tab bar while a timer is active; main pads for it. -->
 <main class:with-player={timer.timer !== null}>
 	{#if welcome}
 		<div class="welcome" role="status">
@@ -93,14 +93,14 @@
 		}
 	}
 
-	/* Phones: clear the fixed bottom tab bar (see AppNav). */
+	/* Phones: the content scrolls under the floating tab bar (AppNav) but can clear it. */
 	@media (max-width: 720px) {
 		main {
-			padding-bottom: calc(var(--space-8) + var(--tabbar-h) + var(--safe-bottom));
+			padding-bottom: calc(var(--space-8) + var(--tabbar-h) + var(--tabbar-lift));
 		}
 		main.with-player {
 			padding-bottom: calc(
-				var(--space-8) + var(--tabbar-h) + var(--player-h) + var(--space-2) + var(--safe-bottom)
+				var(--space-8) + var(--tabbar-h) + var(--tabbar-lift) + var(--player-h) + var(--space-2)
 			);
 		}
 	}
