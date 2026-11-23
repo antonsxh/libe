@@ -368,7 +368,7 @@ test.describe('without any open quest', () => {
 		closed = [];
 	});
 
-	test('Home has no dead end: the first field, the backlog and the first quest all work @mobile', async ({
+	test('Home has no dead end: every add field works, then the first quest @mobile', async ({
 		page,
 		sql
 	}) => {
@@ -376,30 +376,33 @@ test.describe('without any open quest', () => {
 		const day = await today(sql);
 		await gotoLive(page, '/');
 
-		// What a newcomer types into first lands as a task (it used to answer "Pick a quest.").
-		const first = page.locator('.main-col form.add input[name=title]').first();
-		await first.fill(`First ${id}`);
-		let done = actionDone(page, 'addOther');
-		await first.press('Enter');
-		await done;
-		expect(await sql`select kind, day from tasks where title = ${`First ${id}`}`).toEqual([
-			{ kind: 'other', day }
+		// Every add field on Home takes a typed task — none answers "Pick a quest." with no
+		// quest to pick (the quest work row used to). Today's field and the backlog remain.
+		const forms = page.locator('.main-col form.add');
+		const intents = await forms.evaluateAll((els) =>
+			els.map((el) => (el as HTMLElement).dataset.intent ?? '')
+		);
+		expect(intents.length).toBeGreaterThanOrEqual(2);
+		for (const intent of intents) {
+			const input = page.locator(`.main-col form.add[data-intent=${intent}] input[name=title]`);
+			await input.fill(`${intent} ${id}`);
+			const done = actionDone(page, intent);
+			await input.press('Enter');
+			await done;
+			await expect(page.getByText('Pick a quest')).toHaveCount(0);
+			expect(await sql`select 1 from tasks where title = ${`${intent} ${id}`}`).toHaveLength(1);
+		}
+		expect(
+			await sql`select title, kind, quest_id, day from tasks where title like ${`% ${id}`} order by title`
+		).toEqual([
+			{ title: `addBacklog ${id}`, kind: 'other', quest_id: null, day: null },
+			{ title: `addOther ${id}`, kind: 'other', quest_id: null, day }
 		]);
 
-		// The backlog takes "Other" tasks too.
-		const later = backlog(page).getByPlaceholder('Add to backlog…');
-		await later.fill(`Later ${id}`);
-		done = actionDone(page, 'addBacklog');
-		await later.press('Enter');
-		await done;
-		expect(await sql`select kind, quest_id, day from tasks where title = ${`Later ${id}`}`).toEqual(
-			[{ kind: 'other', quest_id: null, day: null }]
-		);
-
 		await reloadLive(page);
-		await expect(cardOf(otherList(page), `First ${id}`)).toBeVisible();
-		await expect(backlog(page).locator('li.row', { hasText: `Later ${id}` })).toBeVisible();
-		await expect(page.getByText('Pick a quest', { exact: false })).toHaveCount(0);
+		await expect(cardOf(otherList(page), `addOther ${id}`)).toBeVisible();
+		await expect(backlog(page).locator('li.row', { hasText: `addBacklog ${id}` })).toBeVisible();
+		await expect(page.getByText('Pick a quest')).toHaveCount(0);
 
 		// "Create your first quest" opens the quest dialog right on Home; quest work then works.
 		const name = `First quest ${id}`;
@@ -407,7 +410,7 @@ test.describe('without any open quest', () => {
 		await page.getByRole('button', { name: 'Create your first quest' }).click();
 		const dialog = page.getByRole('dialog', { name: 'New quest' });
 		await dialog.getByLabel('Name').fill(name);
-		done = actionDone(page, 'create');
+		let done = actionDone(page, 'create');
 		await dialog.getByRole('button', { name: 'Create quest' }).click();
 		await done;
 		await expect(dialog).toBeHidden();
