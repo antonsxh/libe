@@ -94,7 +94,7 @@ test('?week, ?q, ?hideDone and ?other survive adds and ⋯ moves', async ({ page
 	const add = col.locator('form.add').first();
 	await add.getByPlaceholder('Add a task…').fill(`Added ${id}`);
 	let done = actionDone(page, 'add');
-	await add.getByRole('button', { name: 'Add at the bottom' }).click();
+	await add.getByRole('button', { name: 'Add', exact: true }).click();
 	await done;
 	await expect(card(col, `Added ${id}`)).toBeVisible();
 	await check();

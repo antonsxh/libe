@@ -68,12 +68,13 @@
 	});
 
 	// Default behavior already resets the form after a *successful* submission;
-	// this keeps focus in the input so several tasks can be typed in a row.
+	// this keeps focus in the input so several tasks can be typed in a row — without
+	// scrolling (a scrolled plan board must not jump back to the backlog rail).
 	const onSubmit: SubmitFunction<Record<string, unknown>, Record<string, unknown>> = () => {
 		return async ({ result, update }) => {
 			await update();
 			if (result.type === 'success')
-				el?.querySelector<HTMLInputElement>('input[name=title]')?.focus();
+				el?.querySelector<HTMLInputElement>('input[name=title]')?.focus({ preventScroll: true });
 		};
 	};
 </script>

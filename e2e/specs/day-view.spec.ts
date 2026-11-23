@@ -91,7 +91,7 @@ test('Plan: the day strip picks the day (kept on reload); adding lands on that d
 	const add = dayRow(page).locator('form.add').first();
 	await add.getByPlaceholder('Add a task…').fill(`Added ${id}`);
 	const done = actionDone(page, 'add');
-	await add.getByRole('button', { name: 'Add at the bottom' }).tap();
+	await add.getByRole('button', { name: 'Add', exact: true }).tap();
 	await done;
 	expect((await sql`select day from tasks where title = ${`Added ${id}`}`)[0].day).toBe(wed);
 	await expect(card(page, `Added ${id}`)).toBeVisible();

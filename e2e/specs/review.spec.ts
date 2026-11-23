@@ -19,9 +19,11 @@ import {
 } from '../support/db.ts';
 
 const hours = (min: number) => `${Math.round((min / 60) * 10) / 10}h`;
+/** The app's duration text (`#lib/duration.ts`): `45 min`, `2 h`, `2 h 18 min`. */
 const hmin = (min: number) => {
-	const m = Math.round(min);
-	return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+	const total = Math.round(min);
+	const [h, m] = [Math.floor(total / 60), total % 60];
+	return h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h} h ${m} min`;
 };
 
 interface Minutes {
@@ -141,8 +143,8 @@ test('a session crossing midnight counts on its start day; closed quests are lis
 	await createSession(sql, { taskId: old.id, day: monday, start: '12:00', minutes: 30 });
 
 	await gotoLive(page, `/review?week=${monday}`);
-	expect(await barLabel(page, wed)).toContain(': 4:00 quest work');
-	expect(await barLabel(page, addDays(wed, 1))).toContain(': 0:00 quest work');
+	expect(await barLabel(page, wed)).toContain(': 4 h quest work');
+	expect(await barLabel(page, addDays(wed, 1))).toContain(': 0 min quest work');
 	await expect(page.getByTestId('kpi-quest')).toHaveText('4.5h');
 
 	const closedRow = page.locator(`[data-testid="quest-row"][data-quest="${closed.id}"]`);

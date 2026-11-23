@@ -605,7 +605,7 @@ Fix found by the suite:
   the known ones. The native menu (Reload, Change server / Unpair…, Quit) stays English.
 - German copy: informal „du“, glossary Quest, Backlog, Fokus, Planen (nav) / „Woche planen“,
   Rückblick, Kalender, Einstellungen, Heute, Start (Home), Pomodoro, Aufgabe (task), Sitzung
-  (session), Zeit erfassen (log time), Zeitblock, koppeln / Kopplungscode (pair), Setup-Secret,
+  (session), Zeit erfassen (log time), Zeitblock, koppeln / Kopplungscode (pair), Server-Passwort (setup secret, since O1),
   Update-Kanal (update track), Sonstiges (other), Serie (streak), Ruhetag (rest day),
   überfällig (overdue).
 - e2e: `e2e/specs/i18n.spec.ts` (setting persists and applies, `auto` per browser locale,
@@ -1343,3 +1343,95 @@ what to do with them.
   `rescheduleOverdue` (order test fails).
 - **Not tested**: the midnight refresh in a browser (the server clock can't be shifted in e2e;
   `nextDayStart` is unit-tested), the badge on a real iPhone home screen.
+
+## UX overhaul (after Overdue tasks)
+
+A UI/UX audit (November 2026) found that a newcomer can't get started: a friend of the owner
+quit on the first screen — admin wording on `/setup`, an empty Home without a single primary
+action on desktop, and the first field everybody types into answering "Pick a quest." with no
+quest to pick. The overhaul runs in small milestones, each shippable on its own:
+
+| #   | Scope                                                                                                                                                            | Status  |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                                   | ✅ done |
+| R1  | Rebrand "Hain", part 1: new tokens (colours, type), fonts, logo and icons                                                                                        | planned |
+| R2  | Rebrand "Hain", part 2: apply it across every page and component                                                                                                 | planned |
+| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | planned |
+| O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
+| O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
+| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
+
+Owner decisions:
+
+- **Rebrand direction "Hain"** (grove: calm, natural, growing). The current look copies
+  quest.app and must move away from it — that is what R1/R2 are for; O-milestones before them
+  keep the existing tokens, fonts and logo.
+- **Dark stays the default**; a light mode is wanted later (R3).
+- **The name "libe" stays.** "Quest" stays as the product word and gets explained once.
+
+## O1 — what exists
+
+- **No "Pick a quest." dead end.** Home without an open quest shows no quest work add row: in
+  its place a short card (`components/home/FirstQuestCard.svelte`: one sentence on what quests
+  are + a secondary **Create your first quest**) that opens the existing quest form
+  (`QuestForm`) in a `Dialog` right on Home (a bottom sheet on phones). The create action is
+  shared: `createQuestAction` in `server/quest-actions.ts`, used by `/quests` and Home
+  (`?/create`); `QuestForm` now posts to `formAction(mode)` so Home's `?hideDone=` survives.
+  Once the quest exists Home reloads and the quest work row appears with it preselected.
+- **Backlog adds accept "Other"** (Home's "Add to backlog…", Plan's rail and phone sheet): the
+  pickers have the Other entry (`otherOption`) and `addBacklog` uses `optionalQuestTarget` —
+  without quests the picker is just "Other". Such tasks already showed in both backlogs
+  (`listOtherBacklog`). Plan's day adds already had Other; Focus' "Add one on Home" now lands
+  on a Home that works; the palette has no add action.
+- The server keeps validating: `addQuest` with an empty `questId` still fails, but the message
+  says what to do ("Pick a quest — or create your first one on the Quests page.").
+- **Next up on desktop too** (`NextUpCard.svelte`): the top of Home's task column on every
+  width — text left, the one primary button right (phones: stacked, full-width button, as
+  before). Inside the column so the timeline beside it keeps its place (it scrolls the page to
+  the now line only while that sits in the first screen). Hidden while a timer runs (the nav's
+  timer chip / the mini-player is the "now"). Its empty state's **Add a task** focuses the first
+  add row that works: quest work, or Other while there is no open quest
+  (`form.add[data-intent]`).
+- **No Top/Bottom buttons.** `TaskAddForm` has one **Add** button (icon-only in plan columns);
+  Enter and Add append at the bottom. **Shift+Enter** adds at the top — a hidden submit button
+  after Add (`pos=top`; the form's default button stays "bottom"), no visible control; ↑/↓
+  reorder afterwards. The server's `pos` field stays. Phones keep the progressive disclosure:
+  duration and Add appear once the row is in use.
+- **One duration format** — `#lib/duration.ts`: `formatDurationMin(min, locale)` /
+  `formatDurationMs(ms, locale)` → `25 min`, `1 h`, `1 h 30 min`, `26 h` (German: same units,
+  narrow no-break space before them). Used for every planned or logged duration as text: task
+  cards, Next up, Home/Plan backlogs, quest detail, Focus' task list, the Log-time session
+  list, Calendar day/week totals and the session dialog, Review's day bars — and by the i18n
+  `goal.duration` (goal choices, streak hints, avatar progress), so there is one
+  implementation. Removed: `formatDuration` (`H:MM:SS`, `dates.ts`), `formatHM` (`8h 59m`,
+  `calendar.ts`), `formatHMin` (`4:30`, `review.ts`), `t.common.minutes`. Clock style stays only
+  for the running timer (`formatClock`); decimal hours (`1.3h today`, Review KPIs, quest cards)
+  stay with `formatHours`.
+- **Planned vs logged**: a task card shows logged time when there is some, else the planned
+  duration — now with the word: "1 h 15 min logged" (with the quest dot) / "1 h 30 min planned"
+  (German „erfasst“ / „geplant“); on plan board cards the word is for screen readers only.
+- **Setup / pair copy** (`/setup`, `/pair`, `AuthShell intro`): one line under the logo says
+  what libe is; "setup secret" became **Server password** / **Server-Passwort** everywhere in
+  the UI (titles, labels, errors, the sign-out confirmation), with a quieter hint "For the
+  admin: the value of `LIBE_SETUP_SECRET` on the server." `/pair` says it connects this device
+  to an existing libe whose data it shares (libe is single-user: pair only your own devices)
+  and where a code comes from (Settings → Pair new device).
+- Fix on the way: after a successful add the title input is refocused with `preventScroll` —
+  on a scrolled narrow plan board the backlog rail's refocus used to pull the board back to
+  the rail (`plan.spec.ts` "narrow board" failed on Mondays, when today's column sits next to
+  the rail).
+- Decisions: the first-quest card's button is secondary (Next up stays Home's one primary);
+  without quests the quest filter funnel is hidden; the backlog row comes before Other in the
+  column (unchanged), Next up's button jumps to Other; "Pair" stays the verb (it is used in
+  Settings and the avatar menu too).
+- Tests: unit `duration.test.ts` (en/de, 0, < 60, 60, 90, ≥ 24 h, rounding, NaN/negative,
+  ms rounding, equality with `goal.duration`). e2e `home.spec.ts`: **without any open quest**
+  (closes the open quests in `beforeEach`, reopens exactly those afterwards; `@mobile`) — every
+  add field on Home takes a typed task (DB row + reload, no "Pick a quest."), then **Create your
+  first quest** on Home and adding quest work for it; checked against the reintroduced bug (the
+  quest work row shown without quests → fails on "Pick a quest."). **Next up on desktop**
+  starts a focus timer (session row) and steps aside while it runs. Updated: Enter/Add vs.
+  Shift+Enter ordering, "1 h 15 min logged", Calendar totals, Review day-bar labels, the
+  Log-time session list, the plan column's Add button, "Wrong server password.".
+- **Not done here** (later milestones): onboarding (`/welcome`, `onboarded_at`), progressive
+  disclosure, label culling, tab labels, celebration, motion tweaks, any token/font/logo change.
