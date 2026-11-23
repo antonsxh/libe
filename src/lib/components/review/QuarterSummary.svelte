@@ -130,6 +130,7 @@
 		gap: var(--space-1) var(--space-3);
 	}
 	.big {
+		font-family: var(--font-display);
 		font-size: var(--fs-xl);
 		font-weight: var(--fw-medium);
 	}
@@ -201,9 +202,10 @@
 		white-space: nowrap;
 	}
 	.value {
+		font-family: var(--font-display);
 		font-size: var(--fs-xl);
 		font-weight: var(--fw-medium);
-		letter-spacing: -0.01em;
+		letter-spacing: var(--tracking-display);
 	}
 	.budget {
 		font-size: var(--fs-sm);

@@ -264,7 +264,7 @@
 		color: var(--text);
 	}
 	.today .daynum {
-		color: var(--accent);
+		color: var(--text-2);
 	}
 
 	.col :global(form.add) {
@@ -293,7 +293,7 @@
 		min-width: 0;
 	}
 
-	/* Amber line at the end of the list the card would be appended to. */
+	/* Accent line at the end of the list the card would be appended to. */
 	.drop-end {
 		height: 2px;
 		border-radius: 1px;

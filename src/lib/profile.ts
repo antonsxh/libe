@@ -19,7 +19,7 @@ import type { ErrorCode } from '#lib/i18n/index.ts';
 /** Longest display name, in code points (see module docs). */
 export const DISPLAY_NAME_MAX = 40;
 
-/** Avatar colour of a fresh install (the app's accent family). Matches the column default. */
+/** Avatar colour of a fresh install (warm sand). Matches the column default. */
 export const DEFAULT_AVATAR_COLOR: QuestColor = 'amber';
 
 /** Where the profile is edited (Settings section anchor) — avatar menu, command palette. */

@@ -1,64 +1,84 @@
 /*
- * libe design tokens — measured from the reference screenshots.
- * Dark-only theme. Every colour/size used in components should come from here.
+ * libe design tokens — "Hain" (grove): dark, calm forest green, mint as the one accent.
+ * Dark-only for now. Every colour/size used in components comes from here; components use
+ * semantic names only (no colour literals), so a light theme is one more block of these.
+ * Contrast and quest-colour spacing are checked by `bun scripts/contrast.ts` (and the tests).
  */
 :root {
 	color-scheme: dark;
 
-	/* ── Surfaces ─────────────────────────────────────────── */
-	--bg: #0e0e10; /* page */
-	--bg-nav: #09090b; /* top bar */
-	--surface: #151517; /* cards, inputs, panels */
-	--surface-2: #1c1b20; /* raised: icon tiles, avatar, active nav item */
-	--surface-hover: #1a1a1d;
-	--track: #1a1a1c; /* empty progress/bar track */
-	--bar-muted: #3d3c42; /* inactive chart bars */
+	/* ── Surfaces (60 %) ───────────────────────────────────── */
+	--bg: #101614; /* page */
+	--bg-nav: #0c110f; /* top bar */
+	--surface: #17201d; /* cards, inputs, panels */
+	--surface-2: #1e2925; /* raised: icon tiles, avatar, active nav item */
+	--surface-hover: #1b2521;
+	--surface-sunken: #0d1210; /* wells inside a surface (timeline track) */
+	--track: #1f2a26; /* empty progress/bar track */
+	--bar-muted: #3a4842; /* inactive chart bars */
+	--backdrop: rgb(var(--shadow-color) / 0.62); /* behind modal dialogs / the palette */
 
-	/* ── Lines ────────────────────────────────────────────── */
-	--border: #252527;
-	--border-strong: #323236;
-	--border-dashed: #2a2a2d; /* "add …" inputs, empty-state tiles */
+	/* ── Lines (30 %) ─────────────────────────────────────── */
+	--border: #26322d;
+	--border-soft: #212b27; /* card edges: space, not boxes */
+	--border-strong: #34433c;
+	--border-dashed: #2a3631; /* "add …" rows, empty-state tiles */
 
-	/* ── Text ─────────────────────────────────────────────── */
-	--text: #f4f4f5;
-	--text-2: #c9c9ce; /* secondary, still readable */
-	--text-muted: #8b8b92; /* labels, nav items */
-	--text-faint: #5a5a61; /* placeholders, done tasks */
+	/* ── Text (30 %) ──────────────────────────────────────── */
+	--text: #e6ece8;
+	--text-2: #bccac3; /* secondary, still readable */
+	--text-muted: #84958d; /* labels, nav items */
+	--text-faint: #64746d; /* placeholders, done tasks */
 
-	/* ── Accent (amber) ───────────────────────────────────── */
-	--accent: #f0b44c;
-	--accent-hover: #f5c46a;
-	--accent-ink: #1b1305; /* text on accent */
+	/* ── Accent (10 %): mint ──────────────────────────────────
+	 * Only for the primary action, the "now" (running timer, now line, today marker), the
+	 * focus ring and the one goal highlight (the daily-goal ring). Never decoration, never a
+	 * quest colour, never KPI numbers or the wordmark. */
+	--accent: #6fdcae;
+	--accent-hover: #8de6c1;
+	--accent-ink: #08231a; /* text on accent */
 	--accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
-	--today-tint: color-mix(in srgb, var(--accent) 7%, transparent); /* today column / timeline */
+	--today-tint: color-mix(in srgb, var(--accent) 6%, transparent); /* today column */
 	--running-border: color-mix(
 		in srgb,
 		var(--accent) 50%,
 		var(--border)
 	); /* card with the active timer */
 
+	/* ── Selection / on-state (neutral, not the accent) ────── */
+	--control-on: var(--text-2); /* checked checkbox/radio, selected chip outline */
+	--selected-bg: var(--surface-2); /* selected list item / toggle */
+	--selected-border: var(--text-muted);
+
 	/* ── Semantic ─────────────────────────────────────────── */
-	--danger: #e5645f;
-	--success: #5dbe7a;
+	--danger: #ef7a6a;
+	--success: var(--accent);
 	/* Overdue tasks: dots, markers and small accents only — never a large red surface. */
 	--overdue: color-mix(in srgb, var(--danger) 72%, var(--text-muted));
 
-	/* ── Quest colour family (see #lib/quest-colors.ts) ───── */
-	--quest-red: #e5645f;
-	--quest-orange: #e8874f;
-	--quest-amber: #f0b44c;
-	--quest-lime: #b4cd55;
-	--quest-green: #5dbe7a;
-	--quest-teal: #4fb8b0;
-	--quest-blue: #5b9be6;
-	--quest-purple: #9b7bd8;
-	--quest-pink: #d96ba8;
-	--quest-olive: #8e9e5a;
-	--quest-slate: #8a8a93; /* "other" tasks */
+	/* ── Quest colour family (see #lib/quest-colors.ts) ─────
+	 * Keys are stored in the DB — never rename, only retune. Kept apart from the mint accent
+	 * and from each other (checked by scripts/contrast.ts). */
+	--quest-red: #e3667f;
+	--quest-orange: #f0946a;
+	--quest-amber: #e3c07a;
+	--quest-lime: #b9d36a;
+	--quest-green: #76b874;
+	--quest-teal: #58b9c6;
+	--quest-blue: #6fa4f0;
+	--quest-purple: #a08cf0;
+	--quest-pink: #e88bc0;
+	--quest-olive: #aca064;
+	--quest-slate: #8d9a95; /* "other" tasks */
 
 	/* ── Typography ───────────────────────────────────────── */
+	/* Two families, self-hosted (Fontsource, OFL): Figtree for UI/body, Bricolage Grotesque
+	   for display (page titles, big numbers, the timer). Mono only for code/kbd. */
 	--font-sans:
-		'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+		'Figtree Variable', Figtree, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display:
+		'Bricolage Grotesque Variable', 'Bricolage Grotesque', 'Figtree Variable', ui-sans-serif,
+		system-ui, sans-serif;
 	--font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
 	--fs-tab: 0.6875rem; /* 11  tiny labels (avatar initials) */
@@ -78,6 +98,7 @@
 	--fw-semibold: 600;
 
 	--tracking-label: 0.12em; /* uppercase section labels: QUEST WORK, THIS WEEK */
+	--tracking-display: -0.025em; /* display font at large sizes */
 
 	/* ── Spacing (4px grid) ───────────────────────────────── */
 	--space-1: 4px;
@@ -125,36 +146,46 @@
 	--fs-avatar-emoji-lg: 2rem; /* emoji in the large avatar */
 	--emoji-pick-max: 44px; /* widest emoji suggestion tile (EmojiPicker) */
 
-	/* ── Radii ────────────────────────────────────────────── */
-	--radius-sm: 6px;
-	--radius-md: 8px; /* buttons, inputs, nav item */
-	--radius-lg: 12px; /* cards */
-	--radius-xl: 16px; /* large panels (timeline, review cards) */
+	/* ── Radii (8 / 12 / 18 / 24 + pill) ───────────────────────
+	 * Nested radius rule: a rounded box inside a rounded box uses outer − padding, never the
+	 * same radius as its parent. `--radius-inner` is the common case (controls inside a card
+	 * or row with --space-2 padding); for other paddings write
+	 * `calc(var(--radius-…) - var(--space-…))`, at least `--radius-min`. */
+	--radius-xs: 4px; /* tiny marks: calendar/timeline blocks, chips inside rows */
+	--radius-sm: 8px; /* small controls, menu items, blocks */
+	--radius-md: 12px; /* buttons, inputs, nav item */
+	--radius-lg: 18px; /* cards */
+	--radius-xl: 24px; /* large panels (timeline, review cards) */
 	--radius-pill: 999px;
+	--radius-min: 4px;
+	--radius-inner: calc(var(--radius-lg) - var(--space-2)); /* 10px: inside a card/row */
 
 	/* ── Effects ──────────────────────────────────────────── */
-	--shadow-pop: 0 12px 32px rgb(0 0 0 / 0.45), 0 0 0 1px var(--border);
-	--shadow-float: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35); /* floating bars */
+	--shadow-color: 3 7 5; /* deep forest, not black (rgb channels) */
+	--shadow-pop: 0 12px 32px rgb(var(--shadow-color) / 0.5), 0 0 0 1px var(--border);
+	--shadow-float:
+		0 10px 30px rgb(var(--shadow-color) / 0.55), 0 2px 8px rgb(var(--shadow-color) / 0.4); /* floating bars */
 	/* Translucent "glass" of the floating phone bars; content shows blurred underneath. */
 	--glass-bg: color-mix(in srgb, var(--surface) 68%, transparent);
 	--glass-bg-solid: var(--surface); /* without backdrop-filter support */
 	--glass-blur: blur(20px) saturate(170%);
 	--glass-border: color-mix(in srgb, var(--text) 9%, transparent); /* hairline edge */
 	--tab-pill: color-mix(in srgb, var(--text) 11%, transparent); /* active tab indicator */
-	--ring: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
-	--ease: cubic-bezier(0.2, 0, 0, 1);
+	--focus-ring: color-mix(in srgb, var(--accent) 70%, transparent);
+	--ring: 0 0 0 2px var(--focus-ring);
 	--dur: 140ms;
 	--dur-slow: 400ms; /* progress fills (goal ring) */
 
 	/* ── Motion (micro-interactions; all neutralised by prefers-reduced-motion) ── */
 	--ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* decelerating: things arriving */
+	--ease: var(--ease-out); /* the default curve: every state change eases out */
 	--ease-in: cubic-bezier(0.4, 0, 1, 1); /* accelerating: things leaving */
 	--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* slight overshoot: pops, active tab */
 	--dur-press: 90ms; /* touch press feedback */
 	--dur-pop: 220ms; /* checkbox pop, tab indicator, number tick */
 	--dur-sheet: 320ms; /* bottom sheet / mini-player slide in */
 	--dur-sheet-out: 220ms; /* … and out */
-	--press-scale: 0.96; /* pressed buttons / tab items */
+	--press-scale: 0.97; /* pressed buttons / tab items (touch and mouse) */
 	--press-scale-card: 0.985; /* pressed cards (larger surfaces move less) */
 	--press-dim: 0.85; /* brightness of a pressed control */
 	--dur-tick: 1s; /* progress lines that follow the 1-second clock */
@@ -162,7 +193,7 @@
 	--strike-w: 1.5px; /* animated strike-through of done tasks (.strike) */
 
 	/* ── Time grids (day timeline, calendar) ──────────────── */
-	--grid-line: color-mix(in srgb, var(--border-strong) 30%, transparent); /* hour lines */
+	--grid-line: color-mix(in srgb, var(--border-strong) 40%, transparent); /* hour lines */
 	--cal-hour: 50px; /* calendar: height of one hour */
 	--cal-col-min: 120px; /* calendar: narrowest day column (mobile scrolls horizontally) */
 	--cal-gutter: 52px; /* calendar: hour label column */
@@ -180,8 +211,7 @@
 	--goal-done: var(--success);
 	--goal-done-glow: 0 0 3px color-mix(in srgb, var(--success) 70%, transparent);
 
-	/* ── Hatching (planned blocks, calendar entries) ──────── */
-	--hatch-angle: 135deg;
-	--hatch-line: 2px;
-	--hatch-gap: 7px;
+	/* ── Dot grid (.dot-grid: planned blocks, calendar entries) ── */
+	--dot-grid-gap: 7px; /* distance between dot centres */
+	--dot-grid-r: 0.9px; /* dot radius */
 }

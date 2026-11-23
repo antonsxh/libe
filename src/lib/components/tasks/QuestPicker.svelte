@@ -156,6 +156,6 @@
 		text-overflow: ellipsis;
 	}
 	.tick {
-		color: var(--accent);
+		color: var(--text);
 	}
 </style>

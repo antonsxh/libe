@@ -599,7 +599,7 @@
 		flex-direction: column;
 	}
 	dialog.palette::backdrop {
-		background: rgb(0 0 0 / 0.6);
+		background: var(--backdrop);
 		backdrop-filter: blur(2px);
 	}
 
@@ -660,7 +660,7 @@
 		padding: 0 var(--space-2);
 		background: none;
 		border: 0;
-		color: var(--accent);
+		color: var(--text-2);
 		font: inherit;
 		font-size: var(--fs-md);
 	}
@@ -773,7 +773,7 @@
 		border-color: var(--border-strong);
 	}
 	.go:hover {
-		color: var(--accent);
+		color: var(--text);
 		background: var(--surface-hover);
 	}
 

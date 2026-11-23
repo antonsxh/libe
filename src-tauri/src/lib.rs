@@ -37,7 +37,7 @@ use url::Url;
 
 const MAIN: &str = "main";
 /// `--bg` of the web app, so there is no white flash while pages load.
-const BACKGROUND: Color = Color(14, 14, 16, 255);
+const BACKGROUND: Color = Color(16, 22, 20, 255); // #101614
 
 struct App {
     http: reqwest::Client,

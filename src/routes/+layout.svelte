@@ -1,5 +1,6 @@
 <script lang="ts">
-	import '@fontsource-variable/inter';
+	import '@fontsource-variable/figtree';
+	import '@fontsource-variable/bricolage-grotesque';
 	import '#lib/styles/global.css';
 	import { untrack } from 'svelte';
 	import { dev } from '$app/env';

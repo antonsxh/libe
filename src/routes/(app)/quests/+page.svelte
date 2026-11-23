@@ -100,6 +100,7 @@
 		margin-bottom: var(--space-8);
 	}
 	.summary .big {
+		font-family: var(--font-display);
 		font-size: var(--fs-xl);
 		font-weight: var(--fw-semibold);
 	}

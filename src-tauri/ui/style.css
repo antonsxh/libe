@@ -1,25 +1,32 @@
-/* Same tokens as the web app (src/lib/styles/tokens.css), trimmed to what this page needs. */
+/* Same tokens as the web app ("Hain", src/lib/styles/tokens.css), trimmed to what this page needs. */
 :root {
 	color-scheme: dark;
-	--bg: #0e0e10;
-	--surface: #151517;
-	--surface-2: #1c1b20;
-	--border: #252527;
-	--border-strong: #323236;
-	--text: #f4f4f5;
-	--text-2: #c9c9ce;
-	--text-muted: #8b8b92;
-	--text-faint: #5a5a61;
-	--accent: #f0b44c;
-	--accent-hover: #f5c46a;
-	--accent-ink: #1b1305;
-	--danger: #e5645f;
+	--bg: #101614;
+	--surface: #17201d;
+	--surface-2: #1e2925;
+	--border: #26322d;
+	--border-soft: #212b27;
+	--border-strong: #34433c;
+	--text: #e6ece8;
+	--text-2: #bccac3;
+	--text-muted: #84958d;
+	--text-faint: #64746d;
+	--accent: #6fdcae;
+	--accent-hover: #8de6c1;
+	--accent-ink: #08231a;
+	--danger: #ef7a6a;
 	--ring: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--accent) 70%, transparent);
-	--radius-md: 10px;
-	--radius-xl: 18px;
+	--radius-md: 12px;
+	--radius-xl: 24px;
+	--ease: cubic-bezier(0.22, 1, 0.36, 1);
+	--press-scale: 0.97;
+	/* The shell bundles no font files: Figtree / Bricolage Grotesque when installed, else the
+	   system UI font. */
 	--font-sans:
-		'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+		'Figtree Variable', Figtree, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', var(--font-sans);
 }
+
 *,
 *::before,
 *::after {
@@ -66,8 +73,10 @@ input {
 	display: flex;
 	align-items: center;
 	gap: 12px;
+	font-family: var(--font-display);
 	font-size: 24px;
-	font-weight: 500;
+	font-weight: 600;
+	letter-spacing: -0.025em;
 }
 .brand .stroke {
 	color: var(--accent);
@@ -77,7 +86,7 @@ input {
 }
 .card {
 	background: var(--surface);
-	border: 1px solid var(--border);
+	border: 1px solid var(--border-soft);
 }
 .panel {
 	width: min(440px, 100%);
@@ -88,6 +97,7 @@ h1 {
 	font-size: 24px;
 	font-weight: 600;
 	letter-spacing: -0.01em;
+	text-wrap: balance;
 }
 .sub {
 	margin-top: 8px;
@@ -171,6 +181,12 @@ input.code {
 	border: 1px solid transparent;
 	font-weight: 500;
 	cursor: pointer;
+	transition:
+		background 140ms var(--ease),
+		scale 90ms var(--ease);
+}
+.btn:active:not(:disabled) {
+	scale: var(--press-scale);
 }
 .btn.primary {
 	background: var(--accent);

@@ -168,7 +168,7 @@
 					{@const span = sessionSpanLabel(s, timeZone, t.intl)}
 					{#if s.active}
 						<a
-							class="entry hatch active"
+							class="entry dot-grid active"
 							class:tall
 							class:paused={s.paused}
 							href="/focus"
@@ -196,7 +196,7 @@
 					{:else}
 						<button
 							type="button"
-							class="entry hatch"
+							class="entry dot-grid"
 							class:tall
 							data-session={s.id}
 							style:--q={colorOf(s)}
@@ -361,7 +361,7 @@
 	.plan {
 		z-index: 1;
 		border: 1px dashed color-mix(in srgb, var(--q) 70%, transparent);
-		border-radius: var(--radius-sm);
+		border-radius: var(--radius-xs);
 		padding: 1px var(--space-2);
 		overflow: hidden;
 		pointer-events: none;
@@ -429,7 +429,7 @@
 		padding-right: var(--space-3);
 	}
 
-	/* The running/paused timer: amber outline, pulsing dot. */
+	/* The running/paused timer: accent outline, pulsing dot. */
 	.entry.active {
 		border-color: var(--accent);
 		box-shadow: 0 0 0 1px var(--accent);
@@ -509,6 +509,13 @@
 		.day-view .head.sel,
 		.day-view .col.sel {
 			grid-column: 2 !important;
+		}
+		/* One day at a time: the strip already marks today, a tinted full column is noise. */
+		.day-view .head.today {
+			background: var(--surface);
+		}
+		.day-view .col.today {
+			background-color: transparent;
 		}
 		.day-view .head {
 			display: flex;

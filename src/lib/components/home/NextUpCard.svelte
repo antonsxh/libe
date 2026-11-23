@@ -101,13 +101,14 @@
 	}
 	/* Quest colour on the left edge, like the task cards. */
 	.task::before {
+		/* Follows the box's corners: a left border on a full-size overlay tapers into the
+		   radius instead of sticking out of it. */
 		content: '';
 		position: absolute;
-		left: 0;
-		top: 0;
-		bottom: 0;
-		width: 3px;
-		background: var(--q);
+		inset: -1px;
+		border-left: 3px solid var(--q);
+		border-radius: inherit;
+		pointer-events: none;
 	}
 	.empty {
 		border-style: dashed;

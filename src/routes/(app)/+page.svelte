@@ -321,9 +321,10 @@
 	.today strong {
 		display: inline-block;
 		color: var(--text);
+		font-family: var(--font-display);
 		font-size: var(--fs-xl);
 		font-weight: var(--fw-semibold);
-		letter-spacing: -0.01em;
+		letter-spacing: var(--tracking-display);
 	}
 	.week {
 		display: grid;
@@ -334,14 +335,14 @@
 	.bar {
 		width: 100%;
 		height: 5px;
-		border-radius: 99px;
-		background: var(--surface-2);
+		border-radius: var(--radius-pill);
+		background: var(--track);
 		overflow: hidden;
 	}
 	.bar-fill {
 		height: 100%;
-		border-radius: 99px;
-		background: var(--accent);
+		border-radius: var(--radius-pill);
+		background: var(--text-2);
 		transition: width var(--dur) var(--ease);
 	}
 	.week-label {

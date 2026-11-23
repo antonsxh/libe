@@ -106,9 +106,10 @@
 	.check:hover {
 		border-color: var(--text-muted);
 	}
+	/* Done = the quest's colour, like the day cards (not the accent). */
 	.done .check {
-		border-color: var(--success);
-		background: var(--success);
+		border-color: var(--q, var(--control-on));
+		background: var(--q, var(--control-on));
 		color: var(--bg);
 	}
 

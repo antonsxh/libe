@@ -228,10 +228,11 @@
 		gap: var(--space-2);
 	}
 	.big {
+		font-family: var(--font-display);
 		font-size: var(--fs-2xl);
 		font-weight: var(--fw-medium);
 		line-height: 1;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-display);
 	}
 	.budget {
 		font-size: var(--fs-sm);

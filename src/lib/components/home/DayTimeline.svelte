@@ -68,7 +68,7 @@
 			{#each placed as p (p.block.id)}
 				<button
 					type="button"
-					class="block hatch"
+					class="block dot-grid"
 					class:short={p.block.endMin - p.block.startMin < SHORT_MIN}
 					style:--q={questColorVar(p.block.questColor)}
 					style:--s={p.block.startMin}
@@ -129,15 +129,17 @@
 	.track {
 		position: relative;
 		height: calc(var(--tl-hour) * 18);
-		background: var(--today-tint);
-		border-radius: var(--radius-lg);
+		/* Neutral well (the whole timeline is today; only the now line is mint). Nested in
+		   .timeline (padding --space-2 on the right): outer − padding. */
+		background: var(--surface-sunken);
+		border-radius: calc(var(--radius-xl) - var(--space-2));
 	}
 	.line {
 		position: absolute;
 		left: 0;
 		right: 0;
 		top: calc(var(--h) * var(--tl-hour));
-		border-top: 1px solid color-mix(in srgb, var(--border-strong) 30%, transparent);
+		border-top: 1px solid var(--grid-line);
 	}
 
 	.block {

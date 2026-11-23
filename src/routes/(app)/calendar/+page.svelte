@@ -236,15 +236,15 @@
 		width: 12px;
 		height: 12px;
 		border: 1px solid var(--border-strong);
-		border-radius: 3px;
+		border-radius: var(--radius-min);
 	}
 	.plan-toggle.on {
 		color: var(--text);
 		border-color: var(--border-strong);
 	}
 	.plan-toggle.on .box {
-		background: var(--accent);
-		border-color: var(--accent);
+		background: var(--control-on);
+		border-color: var(--control-on);
 	}
 
 	.week-stats {
@@ -260,22 +260,23 @@
 	}
 	.totals strong {
 		color: var(--text);
+		font-family: var(--font-display);
 		font-size: var(--fs-xl);
 		font-weight: var(--fw-medium);
-		letter-spacing: -0.01em;
+		letter-spacing: var(--tracking-display);
 		margin-right: var(--space-1);
 	}
 	.bar {
 		width: 128px;
 		height: 4px;
 		border-radius: var(--radius-pill);
-		background: var(--surface-2);
+		background: var(--track);
 		overflow: hidden;
 	}
 	.bar-fill {
 		height: 100%;
 		border-radius: var(--radius-pill);
-		background: var(--accent);
+		background: var(--text-2);
 		transition: width var(--dur) var(--ease);
 	}
 

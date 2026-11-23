@@ -21,7 +21,6 @@ body {
 	line-height: 1.45;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-	font-feature-settings: 'cv11', 'ss01';
 }
 
 h1,
@@ -33,10 +32,29 @@ p {
 }
 
 h1 {
+	font-family: var(--font-display);
 	font-size: var(--fs-2xl);
-	font-weight: var(--fw-regular);
-	letter-spacing: -0.02em;
+	font-weight: var(--fw-medium);
+	letter-spacing: var(--tracking-display);
 	line-height: 1.1;
+}
+
+/* Headings break into even lines; short paragraphs avoid a lonely last word. */
+h1,
+h2,
+h3,
+h4 {
+	text-wrap: balance;
+}
+p {
+	text-wrap: pretty;
+}
+
+code,
+kbd,
+samp,
+pre {
+	font-family: var(--font-mono);
 }
 
 a {
@@ -88,29 +106,30 @@ button {
 	font-variant-numeric: tabular-nums;
 }
 
-/** Card surface. */
+/** Card surface: a quiet edge, the space around it does the separating. */
 .card {
 	background: var(--surface);
-	border: 1px solid var(--border);
+	border: 1px solid var(--border-soft);
 	border-radius: var(--radius-lg);
 }
 
 /**
- * Diagonal hatching tinted by `--q` (a quest colour).
- * Usage: <div class="hatch" style="--q: var(--quest-red)">…</div>
+ * Dot grid tinted by `--q` (a quest colour): planned blocks and calendar entries — time
+ * that is "seeded" into the day. Usage: <div class="dot-grid" style="--q: var(--quest-red)">
  */
-.hatch {
+.dot-grid {
 	--q: var(--quest-slate);
 	background:
-		repeating-linear-gradient(
-			var(--hatch-angle),
-			color-mix(in srgb, var(--q) 34%, transparent) 0 var(--hatch-line),
-			transparent var(--hatch-line) var(--hatch-gap)
-		),
+		radial-gradient(
+				circle at center,
+				color-mix(in srgb, var(--q) 34%, transparent) var(--dot-grid-r),
+				transparent calc(var(--dot-grid-r) + 0.75px)
+			)
+			0 0 / var(--dot-grid-gap) var(--dot-grid-gap),
 		color-mix(in srgb, var(--q) 14%, var(--surface));
-	border: 1px solid color-mix(in srgb, var(--q) 55%, transparent);
+	border: 1px solid color-mix(in srgb, var(--q) 45%, transparent);
 	border-left: 2px solid var(--q);
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-xs);
 }
 
 .sr-only {
@@ -175,11 +194,19 @@ button {
 }
 
 /*
- * Touch micro-interactions: pressed controls shrink a little and dim, instantly (like iOS),
- * and spring back. `scale`/`filter` are separate properties, so components keep their own
- * `transform`s and transitions; components that want an animated release list `scale` in
- * their own `transition`. Cards opt in with `.press-card`. No layout shift: scale only.
+ * Press feedback (touch and mouse): pressed controls shrink a little (0.97) and dim,
+ * instantly, and spring back. `scale`/`filter` are separate properties, so components keep
+ * their own `transform`s and transitions; components that want an animated release list
+ * `scale` in their own `transition`. Cards opt in with `.press-card` (touch only — a mouse
+ * drag on a card must not wobble it). No layout shift: scale only.
  */
+button:active:not(:disabled),
+summary:active,
+[role='button']:active,
+.press:active {
+	scale: var(--press-scale);
+	filter: brightness(var(--press-dim));
+}
 @media (hover: none) and (pointer: coarse) {
 	button,
 	summary,
@@ -188,13 +215,6 @@ button {
 		-webkit-touch-callout: none;
 		-webkit-user-select: none;
 		user-select: none;
-	}
-	button:active:not(:disabled),
-	summary:active,
-	[role='button']:active,
-	.press:active {
-		scale: var(--press-scale);
-		filter: brightness(var(--press-dim));
 	}
 	.press-card {
 		-webkit-touch-callout: none;

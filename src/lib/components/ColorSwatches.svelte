@@ -66,6 +66,6 @@
 		box-shadow:
 			0 0 0 2px var(--surface),
 			0 0 0 4px var(--q),
-			0 0 0 7px color-mix(in srgb, var(--accent) 55%, transparent);
+			0 0 0 6px var(--focus-ring);
 	}
 </style>

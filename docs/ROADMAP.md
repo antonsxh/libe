@@ -1351,22 +1351,23 @@ quit on the first screen — admin wording on `/setup`, an empty Home without a 
 action on desktop, and the first field everybody types into answering "Pick a quest." with no
 quest to pick. The overhaul runs in small milestones, each shippable on its own:
 
-| #   | Scope                                                                                                                                                            | Status  |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                                   | ✅ done |
-| R1  | Rebrand "Hain", part 1: new tokens (colours, type), fonts, logo and icons                                                                                        | planned |
-| R2  | Rebrand "Hain", part 2: apply it across every page and component                                                                                                 | planned |
-| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | planned |
-| O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
-| O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
-| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
+| #   | Scope                                                                                                                                         | Status  |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                | ✅ done |
+| R1  | Rebrand "Hain", part 1: foundations — palette, accent discipline, fonts, radii, motion, dot grid, shell/manifest colours, styleguide          | ✅ done |
+| R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`), app icons + generator (`static/`, `src-tauri/icons/`)                            | planned |
+| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                  | planned |
+| O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                   | planned |
+| O4  | Hierarchy and feedback: one primary action per screen, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
+| R3  | Rebrand "Hain", part 3: component polish in the new look (together with O4)                                                                   | planned |
+| R4  | Light mode (one more token block — R1 keeps every colour semantic and inside `tokens.css`; dark stays the default)                            | planned |
 
 Owner decisions:
 
 - **Rebrand direction "Hain"** (grove: calm, natural, growing). The current look copies
   quest.app and must move away from it — that is what R1/R2 are for; O-milestones before them
   keep the existing tokens, fonts and logo.
-- **Dark stays the default**; a light mode is wanted later (R3).
+- **Dark stays the default**; a light mode is wanted later (R4).
 - **The name "libe" stays.** "Quest" stays as the product word and gets explained once.
 
 ## O1 — what exists
@@ -1435,3 +1436,96 @@ Owner decisions:
   Log-time session list, the plan column's Add button, "Wrong server password.".
 - **Not done here** (later milestones): onboarding (`/welcome`, `onboarded_at`), progressive
   disclosure, label culling, tab labels, celebration, motion tweaks, any token/font/logo change.
+
+## R1 — what exists
+
+libe no longer copies quest.app's look: R1 replaced the visual foundations with **"Hain"**
+(grove — dark, calm forest green, mint as the one accent). Tokens only; layouts are unchanged
+except where the new tokens needed it. Logo, favicon and app icons are R2 (the in-app `Logo`
+already follows `--accent`, so it turned mint; `static/favicon.svg` and the icons are still the
+old amber ones).
+
+- **Palette (60-30-10)** in `src/lib/styles/tokens.css`:
+  - surfaces: `--bg #101614`, `--bg-nav #0c110f`, `--surface #17201d`, `--surface-2 #1e2925`,
+    `--surface-hover #1b2521`, `--surface-sunken #0d1210` (wells: Home's timeline track),
+    `--track #1f2a26`, `--bar-muted #3a4842`; `--backdrop` and shadows use a deep forest
+    (`--shadow-color`), no pure black.
+  - lines: `--border-soft #212b27` (cards), `--border #26322d`, `--border-dashed #2a3631`,
+    `--border-strong #34433c`.
+  - text: `--text #e6ece8`, `--text-2 #bccac3`, `--text-muted #84958d`, `--text-faint #64746d`
+    (was 2.6:1, now ≥ 3:1).
+  - accent: mint `--accent #6fdcae`, `--accent-hover #8de6c1`, ink `--accent-ink #08231a`;
+    `--danger #ef7a6a`; `--success` = the accent; `--focus-ring` (accent 70 %).
+  - neutral on-state: `--control-on` (checked boxes/radios, selected emoji), `--selected-bg` /
+    `--selected-border` (selected list items, rest-day toggles).
+- **Quest colours** (keys unchanged — the DB stores them; only the values moved): red
+  `#e3667f`, orange `#f0946a`, amber `#e3c07a` (sand; the default avatar colour), lime
+  `#b9d36a`, green `#76b874` (leafy, kept away from mint), teal `#58b9c6` (bluer than mint),
+  blue `#6fa4f0`, purple `#a08cf0`, pink `#e88bc0`, olive `#aca064`, slate `#8d9a95` (neutral,
+  "other"). Avatar colours and `ColorSwatches` follow automatically (they use these tokens).
+- **Contrast** (WCAG 2, `bun scripts/contrast.ts`): `--text` 15.3 / 13.9 / 12.5 on
+  bg / surface / surface-2; `--text-2` 10.8 / 9.8 / 8.8; `--text-muted` 5.8 / 5.3 / 4.8;
+  `--text-faint` 3.7 / 3.4 / 3.1 (placeholders and done tasks — ≥ 3, not text AA); ink on
+  mint 9.9 (11.2 on hover); mint as text 10.9 / 9.9 / 9.0; danger 6.7 / 6.1 / 5.5; overdue
+  dots 5.7; focus ring 5.9 / 5.5. Quest colours 5.1–10.0 on `--surface`; ΔE (OKLab) to the
+  accent ≥ 0.095 (lime is the closest), closest pair amber/lime 0.082.
+- **Accent discipline**: mint only for the primary action, the "now" (running timer chip and
+  card, now lines, today markers, Focus' crumb dot while running, the current pomodoro dot,
+  drop indicators while dragging), the focus ring and the daily-goal ring. Removed from:
+  Review's quest-hours KPI and today's bar/value (today keeps the weekday label and pip), the
+  streak flame/chip (nav, Home, Review), Home's and Calendar's week bars, Review's quest-vs-other
+  bar, Home's whole timeline track (neutral well now; only the now line is mint), the
+  "welcome" banner, links (`AuthShell`, Focus — underlined `--text` now), selections and
+  checked controls (Focus' task list, rest days, emoji picker, plan toggle, native checkboxes
+  and radios), the "This device" badge and icon, filter/tick/hover colours (quest filter,
+  quest picker, overdue "Today", backlog "Today", palette), the pairing-code timer and the
+  desktop update progress, Plan's today day number (the 2 px underline stays), the
+  styleguide's stat, Review's positive week delta, the phone calendar's tinted today column (the
+  day strip marks today), the done checks on a quest's page (now the
+  quest colour, like the day cards).
+- **Fonts**: `@fontsource-variable/figtree` and `@fontsource-variable/bricolage-grotesque`,
+  both 5.3.0 (pinned, OFL-1.1), variable `wght` files only (the packages' default CSS; Figtree
+  without italics, Bricolage without the opsz/wdth axes). Imported in the root layout instead
+  of Inter. Figtree (`--font-sans`) for UI/body; Bricolage Grotesque (`--font-display`) for
+  `h1`, the wordmark, big numbers (Home's today stat, Review KPIs, quest cards, quarter
+  summary, Calendar totals, the pairing code) and the Focus timer. Both have `tnum` (measured:
+  `1111` = `0000` = `8888` with `tabular-nums`), so tabular times keep working; the Focus clock
+  sets `tabular-nums` itself. Inter's `cv11`/`ss01` feature settings are gone. Build output:
+  five `woff2` files (latin, latin-ext, vietnamese subsets via `unicode-range`; ~20 + 41 KB for
+  latin), content-hashed under `_app/immutable/assets` → the service worker precaches them; no
+  CSP in the app. The Tauri shell's local pages (`src-tauri/ui/style.css`) bundle no font
+  files: they name Figtree/Bricolage and fall back to the system UI font.
+- **Radii** 8 / 12 / 18 / 24 + pill (`--radius-sm|md|lg|xl`), `--radius-xs` 4 px for tiny
+  blocks (calendar/timeline entries, plan blocks), `--radius-min`. **Nested radius**:
+  `--radius-inner` = `--radius-lg` − `--space-2` (10 px), else `calc(outer - padding)`. Fixed:
+  `TaskAddForm` (row 18 px, its Add button and duration 10 px; compact row 12 px, inside 8 px),
+  `DayTimeline` (track = panel radius − its padding), plan cards inside a day column
+  (`--radius-inner`), Focus' mode switch. Quest-colour edges on cards (`DayTaskCard`,
+  `NextUpCard`, plan backlog rows, overdue rows) are now a full-size `::before` with
+  `border-left` + `border-radius: inherit`: they taper into the corners instead of sticking out.
+- **Motion**: `--ease` = `--ease-out` (`cubic-bezier(0.22, 1, 0.36, 1)`), so all ~117 call
+  sites ease out; `--press-scale` 0.97; press feedback (scale + dim) now also for mouse
+  `:active` (cards' `.press-card` stays touch-only so mouse drags don't wobble them).
+  Durations unchanged; reduced motion unchanged. `text-wrap: balance` for `h1`–`h4`,
+  `pretty` for `p` (global).
+- **Dot grid** replaces the diagonal hatching: `.hatch` → `.dot-grid` (renamed everywhere),
+  a 7 px grid of 0.9 px dots in the quest colour (34 %) over a 14 % tint, quest-colour left
+  edge; tokens `--dot-grid-gap` / `--dot-grid-r` (the `--hatch-*` tokens are gone). Same
+  meaning: planned blocks on Home's timeline, calendar entries.
+- **Surfaces**: `.card` uses `--border-soft`; hour lines (`--grid-line`) slightly stronger on
+  the darker green. Modal backdrops use `--backdrop`. No colour literals remain outside
+  `tokens.css` (`Dialog`/`CommandPalette` backdrops were the last ones).
+- Also: `<meta name="theme-color">` and the manifest's `theme_color`/`background_color` are
+  `#101614`; the desktop window's background (`src-tauri/src/lib.rs`, `BACKGROUND`) too; the
+  desktop shell's palette (`src-tauri/ui/style.css`) follows Hain (+ press 0.97). `/styleguide`
+  shows the palette by role (60/30/10), the accent rule, quest colours, the dot grid, both
+  fonts (incl. a tabular timer), the radius scale with a nested example and the easings (Play).
+- Tests: `scripts/contrast.ts` (+ `contrast.test.ts`, part of `bun run test`): WCAG maths and
+  `color-mix` resolution, every text/UI pair above meets its threshold, every `QUEST_COLORS` key
+  has exactly one `--quest-<key>` token, quest colours ≥ 3:1 on `--surface` and apart
+  (ΔE ≥ 0.06 from each other, ≥ 0.08 from the accent), no quest colour equals the accent,
+  slate stays near-grey. No e2e changes were needed (no test asserted colours or fonts).
+- Decisions: success = accent (one green, not two); amber stays the default avatar colour
+  (now sand); the wordmark uses the display font in `--text`; the timeline track on Home is
+  neutral because the whole timeline is "today"; selections are neutral, not mint. Light mode
+  is R4: every colour is a semantic token in `tokens.css`, so it is one more block.

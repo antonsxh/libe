@@ -46,7 +46,7 @@
 		last?: boolean;
 		/** `plan` = compact board card with prev/next-day menu entries. */
 		variant?: 'home' | 'plan';
-		/** Render the amber drop-indicator line above the card. */
+		/** Render the accent drop-indicator line above the card. */
 		dropBefore?: boolean;
 		/** This card is the one being dragged (rendered faded). */
 		dragging?: boolean;
@@ -308,8 +308,10 @@
 
 <style>
 	.task {
+		--card-r: var(--radius-lg);
 		position: relative;
 		display: grid;
+		border-radius: var(--card-r);
 		gap: var(--space-2);
 		padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-4) + 3px);
 		min-width: 0;
@@ -323,16 +325,16 @@
 	}
 	/* Quest colour bar on the left edge. */
 	.task::before {
+		/* Follows the box's corners: a left border on a full-size overlay tapers into the
+		   radius instead of sticking out of it. */
 		content: '';
 		position: absolute;
-		left: -1px;
-		top: -1px;
-		bottom: -1px;
-		width: 3px;
-		border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-		background: var(--q);
+		inset: -1px;
+		border-left: 3px solid var(--q);
+		border-radius: inherit;
+		pointer-events: none;
 	}
-	/* Drop indicator: a 2px amber line centred in the gap above the card. */
+	/* Drop indicator: a 2px accent line centred in the gap above the card. */
 	.drop-before::after {
 		content: '';
 		position: absolute;
@@ -347,7 +349,7 @@
 	.dragging {
 		opacity: 0.4;
 	}
-	/* The task with the active timer: amber outline + progress line along the bottom. */
+	/* The task with the active timer: accent outline + progress line along the bottom. */
 	.running,
 	.running:hover {
 		border-color: var(--running-border);
@@ -420,11 +422,11 @@
 	.task[draggable='true'] {
 		cursor: grab;
 	}
-	/* Compact board card (plan). */
+	/* Compact board card (plan): nested in the day column (padding --space-2). */
 	.plan {
+		--card-r: var(--radius-inner);
 		padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 3px);
 		gap: var(--space-1);
-		border-radius: var(--radius-md);
 	}
 	.plan .title {
 		font-size: var(--fs-md);

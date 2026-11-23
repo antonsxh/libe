@@ -136,14 +136,14 @@
 	}
 	/* Quest colour on the left edge, like every task row. */
 	.row::before {
+		/* Follows the box's corners: a left border on a full-size overlay tapers into the
+		   radius instead of sticking out of it. */
 		content: '';
 		position: absolute;
-		left: -1px;
-		top: -1px;
-		bottom: -1px;
-		width: 3px;
-		border-radius: var(--radius-md) 0 0 var(--radius-md);
-		background: var(--q);
+		inset: -1px;
+		border-left: 3px solid var(--q);
+		border-radius: inherit;
+		pointer-events: none;
 	}
 	.row[draggable='true'] {
 		cursor: grab;
@@ -211,7 +211,7 @@
 		transition: color var(--dur) var(--ease);
 	}
 	.today:hover {
-		color: var(--accent);
+		color: var(--text);
 	}
 
 	/* Plan's rail: title over the age, an icon-only "Today". */
@@ -240,7 +240,7 @@
 		color: var(--text-faint);
 	}
 	.compact .today:hover {
-		color: var(--accent);
+		color: var(--text);
 		background: var(--surface-hover);
 	}
 

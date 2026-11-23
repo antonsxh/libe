@@ -142,7 +142,7 @@
 <div class="screen">
 	<header class="top">
 		<p class="crumb">
-			<span class="dot" aria-hidden="true"></span>
+			<span class="dot" class:live={view?.status === 'running'} aria-hidden="true"></span>
 			<span>
 				{t.focus.title}{#if questLabel}&nbsp;·&nbsp;{questLabel}{/if}
 			</span>
@@ -419,6 +419,10 @@
 		width: 8px;
 		height: 8px;
 		border-radius: 50%;
+		background: var(--text-muted);
+	}
+	/* The "now": mint only while the timer runs. */
+	.crumb .dot.live {
 		background: var(--accent);
 	}
 	.top-actions {
@@ -475,10 +479,12 @@
 	}
 	.clock {
 		margin-top: var(--space-4);
+		font-family: var(--font-display);
+		font-variant-numeric: tabular-nums;
 		font-size: min(var(--fs-timer), 25vw);
 		font-weight: var(--fw-medium);
 		line-height: 1.05;
-		letter-spacing: -0.03em;
+		letter-spacing: var(--tracking-display);
 		color: var(--text);
 		white-space: nowrap;
 	}
@@ -521,8 +527,8 @@
 		border: 1.5px solid var(--border-strong);
 	}
 	.dots li.done {
-		border-color: var(--accent);
-		background: var(--accent);
+		border-color: var(--text-muted);
+		background: var(--text-muted);
 	}
 	.dots li.current {
 		border-color: var(--accent);
@@ -615,7 +621,10 @@
 		padding: 0;
 		border: none;
 		background: transparent;
-		color: var(--accent);
+		color: var(--text);
+		text-decoration: underline;
+		text-decoration-color: var(--text-faint);
+		text-underline-offset: 0.2em;
 		font-size: var(--fs-sm);
 	}
 	.link:hover {
@@ -650,7 +659,7 @@
 	.modes label {
 		position: relative;
 		padding: var(--space-2) var(--space-5);
-		border-radius: var(--radius-sm);
+		border-radius: calc(var(--radius-md) - 3px);
 		color: var(--text-muted);
 		font-size: var(--fs-md);
 		cursor: pointer;
@@ -700,8 +709,8 @@
 		background: var(--surface-hover);
 	}
 	.task.on {
-		border-color: var(--running-border);
-		background: var(--accent-soft);
+		border-color: var(--selected-border);
+		background: var(--selected-bg);
 	}
 	.task:has(:focus-visible) {
 		box-shadow: var(--ring);
@@ -731,7 +740,10 @@
 		text-align: center;
 	}
 	.empty a {
-		color: var(--accent);
+		color: var(--text);
+		text-decoration: underline;
+		text-decoration-color: var(--text-faint);
+		text-underline-offset: 0.2em;
 	}
 	.planned {
 		display: grid;

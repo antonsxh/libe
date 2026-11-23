@@ -68,7 +68,7 @@
 	{#if addEcho?.errors?.duration}<p class="error">{addEcho.errors.duration}</p>{/if}
 
 	{#if data.backlog.length > 0}
-		<ul class="tasks">
+		<ul class="tasks" style:--q={questColorVar(quest.color)}>
 			{#each data.backlog as task, i (task.id)}
 				<TaskRow {task} first={i === 0} last={i === data.backlog.length - 1} />
 			{/each}
@@ -83,7 +83,7 @@
 <section class="section">
 	<h2 class="label">{t.quests.scheduled}</h2>
 	{#if data.scheduled.length > 0}
-		<ul class="tasks">
+		<ul class="tasks" style:--q={questColorVar(quest.color)}>
 			{#each data.scheduled as task (task.id)}
 				<li class="sched card" class:done={task.doneAt !== null}>
 					<span class="day muted">

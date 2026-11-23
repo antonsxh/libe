@@ -145,15 +145,23 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-2);
+		/* Nested radius: controls inside use outer − padding (--radius-inner). */
+		--add-r: var(--radius-lg);
+		--add-inner-r: var(--radius-inner);
 		padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
 		border: 1px dashed var(--border-dashed);
-		border-radius: var(--radius-md);
+		border-radius: var(--add-r);
 		margin-bottom: var(--space-3);
 	}
 	.add.compact {
+		--add-r: var(--radius-md);
+		--add-inner-r: max(var(--radius-min), calc(var(--radius-md) - var(--space-1)));
 		flex-wrap: nowrap;
 		gap: var(--space-1);
 		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+	}
+	.add > :global(.btn) {
+		border-radius: var(--add-inner-r);
 	}
 	.add.compact .title {
 		flex-basis: 0;
@@ -178,7 +186,7 @@
 		padding: var(--space-2);
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
+		border-radius: var(--add-inner-r);
 		color: var(--text-2);
 		font-size: var(--fs-sm);
 		text-align: right;

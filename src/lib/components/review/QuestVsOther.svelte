@@ -62,7 +62,7 @@
 	.quest {
 		display: block;
 		height: 100%;
-		background: var(--accent);
+		background: var(--text-2);
 		transition: width var(--dur) var(--ease);
 	}
 	.legend {
@@ -86,7 +86,7 @@
 		color: var(--text-2);
 	}
 	.quest-item .dot {
-		background: var(--accent);
+		background: var(--text-2);
 	}
 	.other-item {
 		color: var(--text-muted);

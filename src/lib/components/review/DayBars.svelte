@@ -168,7 +168,7 @@
 		font-size: var(--fs-xs);
 	}
 	.longest :global(svg) {
-		color: var(--accent);
+		color: var(--text-2);
 	}
 	.bars {
 		flex: 1;
@@ -234,7 +234,7 @@
 		color: var(--text-faint);
 	}
 	.mark[data-mark='done'] {
-		color: var(--accent);
+		color: var(--text-2);
 	}
 	.mark .pip {
 		width: 5px;
@@ -250,12 +250,14 @@
 		background: transparent;
 		box-shadow: inset 0 0 0 1px var(--border-strong);
 	}
-	.col[data-state='today'] .value,
+	.col[data-state='today'] .value {
+		color: var(--text);
+	}
 	.col[data-state='today'] .weekday {
 		color: var(--accent);
 	}
 	.col[data-state='today'] .bar {
-		background: var(--accent);
+		background: var(--text-2);
 	}
 	.col[data-state='today'] .bar.stub {
 		background: var(--bar-muted);
@@ -264,7 +266,7 @@
 		background: color-mix(in srgb, var(--bar-muted) 70%, var(--text-muted));
 	}
 	.col[data-state='today'] .hit:hover .bar:not(.stub) {
-		background: var(--accent-hover);
+		background: var(--text);
 	}
 
 	/* ── tooltip ─────────────────────────────────────────── */

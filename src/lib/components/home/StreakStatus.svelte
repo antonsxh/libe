@@ -74,16 +74,16 @@
 		color: var(--text-faint);
 	}
 	.chip.lit {
-		border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+		border-color: var(--border-strong);
 		color: var(--text);
 	}
 	.chip.lit :global(svg),
 	.chip.milestone :global(svg) {
-		color: var(--accent);
+		color: var(--text);
 	}
 	.chip.milestone {
-		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-		background: var(--accent-soft);
+		border-color: var(--border-strong);
+		background: var(--surface-2);
 		color: var(--text);
 		white-space: normal;
 	}

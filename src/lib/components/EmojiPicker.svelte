@@ -105,6 +105,6 @@
 		border-color: var(--border-strong);
 	}
 	.emoji-pick.on {
-		border-color: var(--accent);
+		border-color: var(--control-on);
 	}
 </style>

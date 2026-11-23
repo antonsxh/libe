@@ -109,7 +109,7 @@
 				{/if}
 			</header>
 			<p class="figure">
-				<span class="num accent tabular" data-testid="kpi-quest">
+				<span class="num tabular" data-testid="kpi-quest">
 					{hours(week.questMin / 60)}
 				</span>
 				{#if week.budgetMin > 0}
@@ -220,7 +220,7 @@
 		white-space: nowrap;
 	}
 	.delta[data-sign='up'] {
-		color: color-mix(in srgb, var(--success) 70%, var(--text-faint));
+		color: var(--text-2);
 	}
 	.figure {
 		display: flex;
@@ -228,13 +228,11 @@
 		gap: var(--space-2);
 	}
 	.num {
+		font-family: var(--font-display);
 		font-size: var(--fs-2xl);
-		font-weight: var(--fw-regular);
-		letter-spacing: -0.02em;
+		font-weight: var(--fw-medium);
+		letter-spacing: var(--tracking-display);
 		line-height: 1.1;
-	}
-	.num.accent {
-		color: var(--accent);
 	}
 	.num.faint {
 		color: var(--text-faint);

@@ -270,9 +270,10 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
+		font-family: var(--font-display);
 		font-size: var(--fs-lg);
-		font-weight: var(--fw-medium);
-		letter-spacing: -0.01em;
+		font-weight: var(--fw-semibold);
+		letter-spacing: var(--tracking-display);
 	}
 
 	nav {
@@ -454,7 +455,7 @@
 		flex: none;
 	}
 	.streak :global(svg.lit) {
-		color: var(--accent);
+		color: var(--text);
 	}
 	.person {
 		color: var(--text);

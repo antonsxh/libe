@@ -454,14 +454,14 @@
 		cursor: grab;
 	}
 	.row::before {
+		/* Follows the box's corners: a left border on a full-size overlay tapers into the
+		   radius instead of sticking out of it. */
 		content: '';
 		position: absolute;
-		left: -1px;
-		top: -1px;
-		bottom: -1px;
-		width: 3px;
-		border-radius: var(--radius-md) 0 0 var(--radius-md);
-		background: var(--q);
+		inset: -1px;
+		border-left: 3px solid var(--q);
+		border-radius: inherit;
+		pointer-events: none;
 	}
 	.row:hover {
 		border-color: var(--border-strong);
@@ -469,7 +469,7 @@
 	.row.dragging {
 		opacity: 0.4;
 	}
-	/* 2px amber drop line centred in the 4px gap above the row. */
+	/* 2px accent drop line centred in the 4px gap above the row. */
 	.row.drop-before::after {
 		content: '';
 		position: absolute;

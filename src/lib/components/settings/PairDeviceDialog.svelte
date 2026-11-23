@@ -204,6 +204,7 @@
 		overflow: hidden;
 	}
 	.code {
+		font-family: var(--font-display);
 		font-size: var(--fs-stat);
 		font-weight: var(--fw-medium);
 		letter-spacing: 0.08em;
@@ -222,7 +223,7 @@
 		bottom: 0;
 		height: 2px;
 		width: calc(var(--p) * 100%);
-		background: var(--accent);
+		background: var(--text-muted);
 		transition: width 1s linear;
 	}
 	.qr {

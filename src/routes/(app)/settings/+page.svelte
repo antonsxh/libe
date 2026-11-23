@@ -737,7 +737,7 @@
 		color: var(--text-muted);
 	}
 	.self .icon {
-		color: var(--accent);
+		color: var(--text);
 	}
 	.info {
 		flex: 1;
@@ -761,9 +761,9 @@
 	.badge {
 		flex: none;
 		padding: 1px var(--space-2);
-		border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-pill);
-		color: var(--accent);
+		color: var(--text-2);
 		font-size: var(--fs-xs);
 		font-weight: var(--fw-medium);
 	}
@@ -785,7 +785,7 @@
 		height: 32px;
 		padding: 0 var(--space-3);
 		background: var(--bg);
-		border: 1px solid var(--accent);
+		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
 		font-size: var(--fs-md);
 	}
@@ -899,9 +899,9 @@
 		color: var(--text);
 	}
 	.weekday.on {
-		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-		background: var(--accent-soft);
-		color: var(--accent);
+		border-color: var(--selected-border);
+		background: var(--selected-bg);
+		color: var(--text);
 		font-weight: var(--fw-medium);
 	}
 	.weekday:has(:focus-visible) {

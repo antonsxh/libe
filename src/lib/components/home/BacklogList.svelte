@@ -177,7 +177,7 @@
 		background: var(--surface-hover);
 	}
 	.op.primary-op:hover {
-		color: var(--accent);
+		color: var(--text);
 	}
 	.op.danger:hover {
 		color: var(--danger);

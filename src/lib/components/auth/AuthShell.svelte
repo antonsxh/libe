@@ -56,9 +56,10 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
+		font-family: var(--font-display);
 		font-size: var(--fs-xl);
-		font-weight: var(--fw-medium);
-		letter-spacing: -0.01em;
+		font-weight: var(--fw-semibold);
+		letter-spacing: var(--tracking-display);
 	}
 	.panel {
 		width: min(440px, 100%);
@@ -69,7 +70,6 @@
 	h1 {
 		font-size: var(--fs-xl);
 		font-weight: var(--fw-semibold);
-		letter-spacing: -0.01em;
 	}
 	.sub {
 		margin-top: var(--space-2);
@@ -82,10 +82,13 @@
 		line-height: 1.6;
 	}
 	.footer :global(a) {
-		color: var(--accent);
+		color: var(--text);
+		text-decoration: underline;
+		text-decoration-color: var(--text-faint);
+		text-underline-offset: 0.2em;
 	}
 	.footer :global(a:hover) {
-		text-decoration: underline;
+		text-decoration-color: currentColor;
 	}
 
 	/* Form bits shared by /pair and /setup. */
@@ -137,7 +140,10 @@
 		font-size: var(--fs-sm);
 	}
 	.panel :global(.notice a) {
-		color: var(--accent);
+		color: var(--text);
+		text-decoration: underline;
+		text-decoration-color: var(--text-faint);
+		text-underline-offset: 0.2em;
 	}
 	.panel :global(.submit .btn) {
 		width: 100%;

@@ -14,6 +14,8 @@ match the existing pages, `/styleguide` and the tokens in `src/lib/styles/tokens
   `ghcr.io/antonsxh/libe` by the release pipeline (see "CI and releases").
 - **No Tailwind, no shadcn, no UI kit.** Design tokens are CSS custom properties in
   `src/lib/styles/tokens.css`; components use Svelte-scoped `<style>`. Icons: `@lucide/svelte`.
+  Fonts are self-hosted Fontsource variable packages (Figtree + Bricolage Grotesque, OFL,
+  pinned), imported once in the root layout.
 - **Tauri 2** thin desktop client in `src-tauri/` (see `docs/TAURI.md`), auto-updating on a
   Stable/Nightly track (`src-tauri/src/updates.rs`); iPhone/iPad use the installable PWA. The
   server is the single source of truth.
@@ -45,6 +47,7 @@ Bun is on the `PATH` (CI uses the version pinned by `packageManager` in `package
 | `bun run test:tauri`      | Tauri app e2e (debug build, tauri-driver, `xvfb-run`; slow) |
 | `bun scripts/release.ts`  | release planning / `set-version` (see docs/RELEASING.md)    |
 | `nix build .#desktop`     | NixOS package of the desktop app (needs Nix; CI runs it)    |
+| `bun scripts/contrast.ts` | palette report: WCAG contrast, quest colours vs accent      |
 
 ### Database without Docker
 
@@ -237,11 +240,34 @@ timer.serverNow)` so today moves live with the timer.
 
 ## Styling rules
 
+- The look is **"Hain"** (grove): dark, calm forest green, mint as the one accent (palette and
+  decisions in `docs/ROADMAP.md` → "R1 — what exists").
 - Only token variables for colours, spacing, radii, font sizes (`var(--surface)`, `var(--space-4)`…).
-  Add a token to `tokens.css` instead of hard-coding a value that repeats.
+  **No colour literals outside `tokens.css`** (hex/rgb/hsl), and only semantic token names
+  (`--surface-sunken`, `--control-on`, `--backdrop`), so a light theme stays one more token
+  block. Add a token instead of hard-coding a value. `bun run test` checks the palette
+  (`scripts/contrast.test.ts`: WCAG AA for the text/UI pairs, every `QUEST_COLORS` key has a
+  `--quest-<key>` token, quest colours apart from each other and from the accent) — run
+  `bun scripts/contrast.ts` for the report after changing colours.
+- **Accent discipline** (60-30-10, Von Restorff): `--accent` (mint) only for the primary action,
+  the "now" (running timer, now line, today marker), the focus ring and the one goal highlight
+  (the daily-goal ring). Never for decoration, KPI numbers, the wordmark, links, selections or
+  checked controls — those use `--text` / `--text-2`, `--control-on`, `--selected-bg` /
+  `--selected-border`. The accent is never a quest colour (`--success` = the accent).
+- **Fonts**: `--font-sans` (Figtree) for UI and body; `--font-display` (Bricolage Grotesque) for
+  `h1`, big numbers (KPIs, stats) and the timer, with `--tracking-display`; times use tabular
+  figures (`.tabular` / `font-variant-numeric: tabular-nums`, both fonts have `tnum`).
+  `--font-mono` only for `code`/`kbd`. No third family. Headings get `text-wrap: balance`,
+  paragraphs `pretty` (global).
+- **Radii** 8 / 12 / 18 / 24 + pill (`--radius-sm|md|lg|xl|pill`, `--radius-xs` for tiny
+  blocks). **Nested radius**: a rounded box inside a rounded box uses outer − padding —
+  `--radius-inner` (= `--radius-lg` − `--space-2`), otherwise
+  `calc(var(--radius-…) - var(--space-…))` — never the parent's radius. Quest-colour edges on
+  cards are a `::before` overlay with `border-left` + `border-radius: inherit`, so they follow
+  the corners.
 - Global utilities (`src/lib/styles/global.css`): `.label` (uppercase section label), `.card`,
-  `.muted`, `.tabular`, `.hatch` (diagonal hatching tinted by `--q`), `.sr-only`, `.strike`
-  (animatable strike-through, full under `.struck`).
+  `.muted`, `.tabular`, `.dot-grid` (dot grid tinted by `--q`: planned blocks, calendar
+  entries), `.sr-only`, `.strike` (animatable strike-through, full under `.struck`).
 - Charts are plain divs/SVG (no chart library); sizes come from the `--chart-*` tokens and every
   chart needs a text alternative (aria-label or `.sr-only` text).
 - Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`,
@@ -249,7 +275,7 @@ timer.serverNow)` so today moves live with the timer.
   `MiniPlayer` (phone timer bar, rendered by the `(app)` layout), `DayStrip` / `DaySwipe`
   (phone day view).
   Look at `/styleguide` in the running app before building new UI.
-- Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
+- Dark theme only for now (a light mode is planned, R4 — tokens are structured for it). Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
   Below 720px the nav is a floating capsule at the bottom (icons only, a sliding pill, the account
   avatar as the last slot, no Focus tab — `TAB_ITEMS` / `activeTab` in `#lib/nav.ts`); the top
   bar keeps brand + search. `main` pads for capsule and mini-player (`--tabbar-*`, `--player-h`).
@@ -264,8 +290,9 @@ timer.serverNow)` so today moves live with the timer.
     `Dialog`'s `onclosed` (fires after the exit animation), not an effect on `open`.
   - _Micro-interactions_: short and subtle, only via the motion tokens (`--dur-*`, `--ease-*`,
     `--press-*` in `tokens.css`; JS through `#lib/motion.ts`: `motionMs`, `rise`, `tickIn`,
-    `fadeScale`). Touch press feedback is global (`scale`/`filter`, so components keep their
-    `transform`s). Everything stops under `prefers-reduced-motion` (global rule + `motionMs` → 0).
+    `fadeScale`). `--ease` is ease-out (`--ease-out`); springs only for pops. Press feedback
+    is global for touch **and** mouse `:active` (scale 0.97 + dim via `scale`/`filter`, so
+    components keep their `transform`s; cards opt in with `.press-card`, touch only). Everything stops under `prefers-reduced-motion` (global rule + `motionMs` → 0).
     Animate on the tap, but the data still comes from the server (no faked state).
   - _Never overload data_: on phones show less, details on demand; don't add numbers/charts —
     fold or drop them (Home's week bar and streak hint are hidden on phones).
