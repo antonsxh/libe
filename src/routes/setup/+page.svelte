@@ -37,6 +37,7 @@
 <AuthShell
 	title={data.hasDevices ? t.auth.setup.titleRecovery : t.auth.setup.title}
 	subtitle={data.hasDevices ? t.auth.setup.subtitleRecovery : t.auth.setup.subtitle}
+	intro={t.auth.intro}
 >
 	{#if !data.configured}
 		<div class="notice" role="alert">

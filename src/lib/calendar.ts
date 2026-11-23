@@ -231,17 +231,6 @@ export function slotMinute(y: number, hourPx: number, startHour: number, step = 
 	return Math.min(1440 - step, Math.floor(raw / step) * step);
 }
 
-/** Duration label: `0m`, `45m`, `8h 59m`, `2h` (German: `45 min`, `8 h 59 min`, `2 h`). */
-export function formatHM(ms: number, locale = 'en-US'): string {
-	const total = Math.max(0, Math.round(ms / 60_000));
-	const h = Math.floor(total / 60);
-	const m = total % 60;
-	// Narrow no-break space between number and unit (German typography).
-	const [hu, mu] = locale.startsWith('en') ? ['h', 'm'] : ['\u202fh', '\u202fmin'];
-	if (h === 0) return `${m}${mu}`;
-	return m === 0 ? `${h}${hu}` : `${h}${hu} ${m}${mu}`;
-}
-
 /**
  * Time label of a session: `10:58 – 13:20`, or with weekdays when it spans days
  * (`Thu 22:56 – Fri 00:08`).

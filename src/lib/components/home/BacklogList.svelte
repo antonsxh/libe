@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDurationMin } from '#lib/duration.ts';
 	import { formAction } from '#lib/form-action.ts';
 	import { enhance } from '$app/forms';
 	import { ArrowRight, ChevronDown, Trash2 } from '@lucide/svelte';
@@ -43,7 +44,7 @@
 		{/if}
 		<span class="title">{task.title}</span>
 		{#if task.durationMin !== null}
-			<span class="dur muted tabular">{t.common.minutes(task.durationMin)}</span>
+			<span class="dur muted tabular">{formatDurationMin(task.durationMin, t.intl)}</span>
 		{/if}
 		<form class="inline" method="POST" action={formAction('today')} use:enhance>
 			<input type="hidden" name="taskId" value={task.id} />
@@ -76,7 +77,7 @@
 		</button>
 	</div>
 
-	<TaskAddForm action="addBacklog" placeholder={t.tasks.addToBacklog} {quests} {form} />
+	<TaskAddForm action="addBacklog" placeholder={t.tasks.addToBacklog} {quests} otherOption {form} />
 
 	{#if expanded}
 		{#if count > 0}

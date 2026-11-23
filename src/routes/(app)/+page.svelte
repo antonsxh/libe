@@ -14,6 +14,10 @@
 	import StreakStatus from '#lib/components/home/StreakStatus.svelte';
 	import NextUpCard from '#lib/components/home/NextUpCard.svelte';
 	import OverdueCard from '#lib/components/home/OverdueCard.svelte';
+	import FirstQuestCard from '#lib/components/home/FirstQuestCard.svelte';
+	import Dialog from '#lib/components/Dialog.svelte';
+	import QuestForm from '#lib/components/quests/QuestForm.svelte';
+	import type { QuestFormResult } from '#lib/quest-form.ts';
 	import { prefersReducedMotion, tickIn } from '#lib/motion.ts';
 	import { groupEdges } from '#lib/ordering.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
@@ -42,10 +46,15 @@
 
 	const todayLabel = $derived(formatHours(todayMin / 60, t.intl));
 
-	/** "Next up" empty state: jump to the quest-work add input (keyboard opens in the tap). */
+	/**
+	 * "Next up" empty state: jump to the first add input that works right now — quest work,
+	 * or Other while there is no open quest (keyboard opens in the tap).
+	 */
 	let mainCol = $state<HTMLElement>();
 	function focusAdd() {
-		const input = mainCol?.querySelector<HTMLInputElement>('form.add input[name=title]');
+		const input = mainCol?.querySelector<HTMLInputElement>(
+			'form.add:is([data-intent=addQuest], [data-intent=addOther]) input[name=title]'
+		);
 		if (!input) return;
 		input.focus({ preventScroll: true });
 		input.scrollIntoView({
@@ -65,6 +74,17 @@
 				)
 			: null
 	);
+
+	/** No open quest yet: the quest work add row gives way to "Create your first quest". */
+	const noQuests = $derived(data.quests.length === 0);
+	let creatingQuest = $state(false);
+	/** Bumped on every open: a fresh create form (not reset while the sheet slides out). */
+	let questNonce = $state(0);
+	function startCreateQuest() {
+		creatingQuest = true;
+		questNonce += 1;
+	}
+	const questForm = $derived(form as QuestFormResult | undefined);
 
 	/** The open "Time-block" dialog target (null = closed). */
 	let blockEditor = $state<BlockEditor | null>(null);
@@ -169,23 +189,29 @@
 	<OverdueCard tasks={data.overdue} today={data.day} />
 </div>
 
-<NextUpCard questTasks={data.questTasks} otherTasks={data.otherTasks} onadd={focusAdd} />
-
 <div class="today-grid">
 	<div class="main-col" bind:this={mainCol}>
+		<!-- Top of the task column: the timeline beside it keeps its place (now-line scroll). -->
+		<NextUpCard questTasks={data.questTasks} otherTasks={data.otherTasks} onadd={focusAdd} />
+
 		<div class="col-head">
 			<h2 class="label">{t.home.questWork}</h2>
-			<QuestFilter quests={data.quests} selected={data.questFilter} onchange={setQuestFilter} />
+			{#if !noQuests}
+				<QuestFilter quests={data.quests} selected={data.questFilter} onchange={setQuestFilter} />
+			{/if}
 		</div>
 
-		<TaskAddForm
-			action="addQuest"
-			placeholder={t.home.addQuestWork}
-			quests={data.visibleQuests}
-			topBottom
-			showDuration
-			form={taskForm}
-		/>
+		{#if noQuests}
+			<FirstQuestCard oncreate={startCreateQuest} />
+		{:else}
+			<TaskAddForm
+				action="addQuest"
+				placeholder={t.home.addQuestWork}
+				quests={data.visibleQuests}
+				showDuration
+				form={taskForm}
+			/>
+		{/if}
 
 		{#if data.questTasks.length > 0}
 			<ul class="tasks">
@@ -220,7 +246,7 @@
 			</a>
 		</div>
 
-		<TaskAddForm action="addOther" placeholder={t.tasks.addTask} topBottom form={taskForm} />
+		<TaskAddForm action="addOther" placeholder={t.tasks.addTask} form={taskForm} />
 
 		{#if data.otherTasks.length > 0}
 			<ul class="tasks">
@@ -240,6 +266,12 @@
 		<DayTimeline blocks={data.blocks} now={data.now} onedit={openBlockEdit} />
 	</aside>
 </div>
+
+<Dialog bind:open={creatingQuest} title={t.quests.newQuest}>
+	{#key questNonce}
+		<QuestForm mode="create" form={questForm} ondone={() => (creatingQuest = false)} />
+	{/key}
+</Dialog>
 
 {#if blockEditor}
 	<BlockDialog editor={blockEditor} form={blockForm} onclose={() => (blockEditor = null)} />

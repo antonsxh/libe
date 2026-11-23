@@ -73,7 +73,8 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   Do **not** use `$lib`. Relative imports also need extensions (`'./schema.ts'`).
 - Env vars are declared in **`src/env.ts`** via `defineEnvVars` and imported from
   **`$app/env/private`** / `$app/env/public`. Add new vars there. Current: `DATABASE_URL`,
-  `LIBE_SETUP_SECRET` (≥ 12 chars; unset = `/setup` disabled), `LIBE_PUSH_TEST_ENDPOINT_ORIGIN`
+  `LIBE_SETUP_SECRET` (≥ 12 chars; unset = `/setup` disabled; the UI calls it "server
+  password"), `LIBE_PUSH_TEST_ENDPOINT_ORIGIN`
   (e2e only: one loopback origin push subscriptions may use; unset in production). adapter-node reads `ORIGIN`,
   `PROTOCOL_HEADER`, `ADDRESS_HEADER`, `XFF_DEPTH`, `PORT`, `HOST` itself.
 - Kit 3 CSRF: non-GET requests that are form-encoded **or have no body/content-type** must come
@@ -103,7 +104,11 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `src/lib/components/<feature>/`. Use `type Props = {...}; let {...}: Props = $props()`.
   Task-list pieces used by Home and Plan live in `components/tasks/` (`DayTaskCard`,
   `TaskAddForm`, `QuestPicker`, `QuestFilter`); their shared form actions (toggle, ↑/↓,
-  backlog, delete, `addTaskAction` factory) in `src/lib/server/task-actions.ts`.
+  backlog, delete, `addTaskAction` factory) in `src/lib/server/task-actions.ts`. Add rows have
+  one **Add** button: Enter/Add append at the bottom, Shift+Enter adds at the top (no visible
+  Top/Bottom). No add row may need a quest that can't exist: Home without open quests shows
+  `FirstQuestCard` (creates one in a dialog via the shared `createQuestAction`,
+  `server/quest-actions.ts`) instead of the quest work row; backlog rows offer "Other".
 - **Command palette** (⌘K / Ctrl+K, the nav search button): `components/palette/CommandPalette.svelte`
   (rendered by `AppNav`); pages/actions are filtered on the client, quests/tasks come from
   `GET /api/search?q=` (`server/search.ts`, escaped `ILIKE`); pure matching/ranking/targets/↑↓
@@ -175,6 +180,11 @@ timer.serverNow)` so today moves live with the timer.
   (Home's `OverdueCard`, Plan's rail group); nav dot from root layout `overdueCount`; colour
   only via `--overdue` (dots/markers). The root layout refreshes all data once the server's
   day ends (`dayEndsAt`, `nextDayStart`).
+- **Durations as text** (planned or logged: task cards, backlogs, Next up, Calendar totals,
+  Review day bars, session lists, goal texts) only via `formatDurationMin` / `formatDurationMs`
+  (`#lib/duration.ts`: `25 min`, `1 h 30 min`; i18n `goal.duration` uses it). Clock style
+  (`formatClock`) is only for the running timer, decimal hours (`formatHours`) for stats/KPIs.
+  Where a card shows a duration, say whether it is planned or logged.
 - **Logged time by day**: stats (`stats-core.ts`), the Review (`#lib/review.ts`) and streaks
   (`loggedMinutesByDay`) attribute a whole session to the day of `started_at`; the Calendar (`#lib/calendar.ts`) draws/totals actual spans, split at midnight.
   Calendar edits/logs go through `/api/sessions` (`POST`, `PATCH /[id]`, `DELETE /[id]`), validated
@@ -245,8 +255,9 @@ timer.serverNow)` so today moves live with the timer.
   bar keeps brand + search. `main` pads for capsule and mini-player (`--tabbar-*`, `--player-h`).
 - **Mobile UX principles** (phones ≤ 720px, the iPhone home-screen PWA):
   - _Hierarchy_: one clear primary action per phone screen (filled accent `Button`); everything
-    else secondary/ghost. Home's "Next up" card is the primary "what now?" while no timer runs;
-    with a timer, the mini-player is the "now" (the top-bar timer chip is hidden on phones).
+    else secondary/ghost. Home's "Next up" card (top of the task column, desktop too) is the
+    primary "what now?" while no timer runs; with a timer, the mini-player is the "now" (the
+    top-bar timer chip is hidden on phones).
   - _Thumb zone_: primary actions low on the screen — dialogs are bottom sheets whose
     `.dialog-actions` row sticks to the bottom with a full-width primary button. Give every
     dialog's button row `class="… dialog-actions"`; wrappers that unmount on close use

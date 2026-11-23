@@ -16,7 +16,8 @@
 	} from '@lucide/svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
-	import { formatDayLabel, formatDuration, weekDays } from '#lib/dates.ts';
+	import { formatDayLabel, weekDays } from '#lib/dates.ts';
+	import { formatDurationMin, formatDurationMs } from '#lib/duration.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
@@ -158,11 +159,16 @@
 				</button>
 			{/if}
 		{:else if loggedMs > 0}
+			<!-- Logged wins over planned; the word says which one it is (screen readers only on plan cards). -->
 			<span class="logged tabular">
-				<span class="dot" aria-hidden="true"></span>{formatDuration(loggedMs)}
+				<span class="dot" aria-hidden="true"></span>{formatDurationMs(loggedMs, t.intl)}
+				<span class="what" class:sr-only={variant === 'plan'}>{t.tasks.logged}</span>
 			</span>
 		{:else if task.durationMin !== null}
-			<span class="planned muted tabular">{formatDuration(task.durationMin * 60_000)}</span>
+			<span class="planned muted tabular">
+				{formatDurationMin(task.durationMin, t.intl)}
+				<span class="what" class:sr-only={variant === 'plan'}>{t.tasks.planned}</span>
+			</span>
 		{/if}
 
 		<!-- Home: inline with the meta row; plan: its own row under the pill. -->
@@ -564,6 +570,10 @@
 		font-size: var(--fs-sm);
 		color: var(--text-2);
 	}
+	.logged,
+	.planned {
+		white-space: nowrap;
+	}
 	.logged .dot {
 		width: 7px;
 		height: 7px;
@@ -572,6 +582,16 @@
 	}
 	.planned {
 		font-size: var(--fs-sm);
+	}
+	.planned {
+		display: inline-flex;
+		gap: var(--space-1);
+	}
+	.what {
+		color: var(--text-faint);
+	}
+	.logged .what {
+		margin-left: calc(-1 * var(--space-1));
 	}
 
 	.play {

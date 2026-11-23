@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowDownToLine, ArrowUpToLine, Plus } from '@lucide/svelte';
+	import { Plus } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { formAction } from '#lib/form-action.ts';
 	import { enhance, type SubmitFunction } from '$app/forms';
@@ -15,7 +15,6 @@
 		action,
 		placeholder,
 		otherOption = false,
-		topBottom = false,
 		day,
 		compact = false,
 		showDuration = false,
@@ -27,14 +26,9 @@
 		placeholder: string;
 		/** Adds an "Other" choice and allows submitting without a quest. */
 		otherOption?: boolean;
-		/** Show the Top/Bottom submit buttons (instead of a plain Add button). */
-		topBottom?: boolean;
 		/** Hidden `day` field value — plan columns pass their day, echo matching uses it. */
 		day?: string;
-		/**
-		 * Narrow board columns: one row with a dot-only quest picker and icon-only
-		 * Top/Bottom/Add buttons.
-		 */
+		/** Narrow board columns: one row with a dot-only quest picker and an icon-only Add. */
 		compact?: boolean;
 		showDuration?: boolean;
 		/** Omitted for backlog / "other" forms — then no picker is rendered. */
@@ -45,6 +39,17 @@
 
 	const t = useI18n();
 	let el: HTMLFormElement | undefined = $state();
+	let topButton: HTMLButtonElement | undefined = $state();
+
+	/**
+	 * Enter (implicit submit, the visible Add) appends at the bottom; Shift+Enter adds at the
+	 * top — a keyboard shortcut only, no extra control (↑/↓ reorder afterwards).
+	 */
+	function onTitleKeydown(e: KeyboardEvent) {
+		if (e.key !== 'Enter' || !e.shiftKey || e.isComposing || !el || !topButton) return;
+		e.preventDefault();
+		el.requestSubmit(topButton);
+	}
 
 	/** A failed submit of *this* form (same action and, on the plan board, same day). */
 	const echo = $derived(
@@ -63,12 +68,13 @@
 	});
 
 	// Default behavior already resets the form after a *successful* submission;
-	// this keeps focus in the input so several tasks can be typed in a row.
+	// this keeps focus in the input so several tasks can be typed in a row — without
+	// scrolling (a scrolled plan board must not jump back to the backlog rail).
 	const onSubmit: SubmitFunction<Record<string, unknown>, Record<string, unknown>> = () => {
 		return async ({ result, update }) => {
 			await update();
 			if (result.type === 'success')
-				el?.querySelector<HTMLInputElement>('input[name=title]')?.focus();
+				el?.querySelector<HTMLInputElement>('input[name=title]')?.focus({ preventScroll: true });
 		};
 	};
 </script>
@@ -76,6 +82,7 @@
 <form
 	class="add"
 	class:compact
+	data-intent={action}
 	method="POST"
 	action={formAction(action)}
 	use:enhance={onSubmit}
@@ -98,6 +105,7 @@
 		{placeholder}
 		autocomplete="off"
 		value={echo?.title ?? ''}
+		onkeydown={onTitleKeydown}
 	/>
 	{#if showDuration}
 		<input
@@ -112,39 +120,20 @@
 			value={echo?.duration ?? ''}
 		/>
 	{/if}
-	{#if topBottom}
-		<!-- Bottom first in DOM so implicit Enter-submit adds to the bottom; CSS `order` keeps
-		     the reference's visual order (Top, then Bottom). -->
-		<button
-			type="submit"
-			class="pos bottom"
-			class:icon-only={compact}
-			name="pos"
-			value="bottom"
-			title={t.tasks.addBottom}
-			aria-label={compact ? t.tasks.addBottom : undefined}
-		>
-			<ArrowDownToLine size={14} />
-			{#if !compact}{t.tasks.bottom}{/if}
-		</button>
-		<button
-			type="submit"
-			class="pos top"
-			class:icon-only={compact}
-			name="pos"
-			value="top"
-			title={t.tasks.addTop}
-			aria-label={compact ? t.tasks.addTop : undefined}
-		>
-			<ArrowUpToLine size={14} />
-			{#if !compact}{t.tasks.top}{/if}
-		</button>
-	{:else}
-		<Button size="sm" type="submit" icon={compact} aria-label={compact ? t.common.add : undefined}>
-			<Plus size={16} />
-			{#if !compact}{t.common.add}{/if}
-		</Button>
-	{/if}
+	<Button size="sm" type="submit" icon={compact} aria-label={compact ? t.common.add : undefined}>
+		<Plus size={16} />
+		{#if !compact}{t.common.add}{/if}
+	</Button>
+	<!-- After the Add button: the form's default (Enter) button must stay "bottom". -->
+	<button
+		bind:this={topButton}
+		type="submit"
+		name="pos"
+		value="top"
+		hidden
+		tabindex="-1"
+		aria-hidden="true"
+	></button>
 </form>
 
 {#if echo?.errors?.title}<p class="error">{echo.errors.title}</p>{/if}
@@ -195,50 +184,17 @@
 		text-align: right;
 	}
 
-	/* "Top"/"Bottom" submit buttons, matching the reference's inset look; icon-only in plan columns. */
-	.pos {
-		flex: none;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-1);
-		height: 32px;
-		padding: 0 var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--surface-2);
-		color: var(--text-2);
-		font-size: var(--fs-sm);
-		font-weight: var(--fw-medium);
-		white-space: nowrap;
-		transition:
-			background var(--dur) var(--ease),
-			color var(--dur) var(--ease);
-	}
-	.pos:hover {
-		background: var(--surface-hover);
-		color: var(--text);
-	}
-	.pos.icon-only {
-		width: 32px;
-		padding: 0;
-	}
-	.pos.top {
-		order: 1;
-	}
-	.pos.bottom {
-		order: 2;
-	}
-
 	/*
 	 * Phones: progressive disclosure — the idle form is just the picker and the input; the
-	 * duration and Top/Bottom appear once the form is in use (focused or holding a title).
+	 * duration and Add appear once the form is in use (focused or holding a title).
 	 */
 	@media (max-width: 720px) {
-		.add:not(.compact, :focus-within, :has(.title:not(:placeholder-shown))) :is(.duration, .pos) {
+		.add:not(.compact, :focus-within, :has(.title:not(:placeholder-shown))) > .duration,
+		.add:not(.compact, :focus-within, :has(.title:not(:placeholder-shown))) > :global(.btn) {
 			display: none;
 		}
-		.add:not(.compact) :is(.duration, .pos) {
+		.add:not(.compact) > .duration,
+		.add:not(.compact) > :global(.btn) {
 			animation: fade-in var(--dur) var(--ease-out);
 		}
 	}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { formAction } from '#lib/form-action.ts';
 	import { untrack } from 'svelte';
 	import Button from '#lib/components/Button.svelte';
 	import ColorSwatches from '#lib/components/ColorSwatches.svelte';
@@ -32,7 +33,7 @@
 
 <form
 	method="POST"
-	action={`?/${mode}`}
+	action={formAction(mode)}
 	use:enhance={() =>
 		async ({ result, update }) => {
 			await update({ reset: false });

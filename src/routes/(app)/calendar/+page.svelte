@@ -9,14 +9,9 @@
 	import WeekNav from '#lib/components/WeekNav.svelte';
 	import WeekGrid from '#lib/components/calendar/WeekGrid.svelte';
 	import SessionDialog, { type SessionEditor } from '#lib/components/calendar/SessionDialog.svelte';
-	import {
-		calendarWeek,
-		formatHM,
-		wallClock,
-		type CalendarSession,
-		type PickTask
-	} from '#lib/calendar.ts';
+	import { calendarWeek, wallClock, type CalendarSession, type PickTask } from '#lib/calendar.ts';
 	import { addDays, formatHours, formatMinutes, todayISO } from '#lib/dates.ts';
+	import { formatDurationMs } from '#lib/duration.ts';
 	import { dayHref, resolveDay, stepDay } from '#lib/day-view.ts';
 	import { clockElapsedMs } from '#lib/timer.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
@@ -159,7 +154,7 @@
 	{#snippet actions()}
 		<div class="week-stats">
 			<p class="totals tabular">
-				<strong data-testid="week-total">{formatHM(week.totalMs, t.intl)}</strong>
+				<strong data-testid="week-total">{formatDurationMs(week.totalMs, t.intl)}</strong>
 				<span data-testid="quest-total">
 					{t.calendar.questTotal(formatHours(week.questMs / 3_600_000, t.intl))}
 				</span>

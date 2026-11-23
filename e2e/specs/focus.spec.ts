@@ -328,7 +328,7 @@ test('"Log time…" validates on the server, logs a manual session and deletes i
 	await submit();
 	await expect(dialog.getByRole('status')).toHaveText('Logged 45 min.');
 	const sessions = dialog.getByRole('region', { name: 'Sessions on this day' });
-	await expect(sessions.locator('li')).toHaveText([/10:00 – 10:45\s*45:00\s*Manual/]);
+	await expect(sessions.locator('li')).toHaveText([/10:00 – 10:45\s*45 min\s*Manual/]);
 	const [logged] = await sql`
 		select id, source, duration_min,
 			to_char(started_at at time zone 'Europe/Berlin', 'YYYY-MM-DD HH24:MI') as start,

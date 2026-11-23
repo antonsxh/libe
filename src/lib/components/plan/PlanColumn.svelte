@@ -138,7 +138,6 @@
 		placeholder={t.tasks.addTask}
 		{quests}
 		otherOption
-		topBottom
 		compact
 		day={col.day}
 		{form}
@@ -200,7 +199,6 @@
 					<TaskAddForm
 						action="addOther"
 						placeholder={t.plan.addOther}
-						topBottom
 						compact
 						day={col.day}
 						{form}

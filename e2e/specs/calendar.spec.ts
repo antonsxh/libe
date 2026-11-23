@@ -74,15 +74,15 @@ test('entries sit at their wall-clock span: overlap lanes, midnight split, pause
 	expect(await place(segments(page, s4))).toMatchObject({ day: fri, t: 840, b: 880 });
 
 	await expect(page.getByTestId('day-total')).toHaveText([
-		'2h 30m',
-		'0m',
-		'1h 30m',
-		'1h',
-		'30m',
-		'0m',
-		'0m'
+		'2 h 30 min',
+		'0 min',
+		'1 h 30 min',
+		'1 h',
+		'30 min',
+		'0 min',
+		'0 min'
 	]);
-	await expect(page.getByTestId('week-total')).toHaveText('5h 30m');
+	await expect(page.getByTestId('week-total')).toHaveText('5 h 30 min');
 	await expect(page.getByTestId('quest-total')).toHaveText('/ 4h quest');
 });
 
@@ -117,7 +117,7 @@ test('click an entry to edit its span (resets pauses) or delete it', async ({
 	await dialog.getByRole('button', { name: 'Save' }).click();
 	await expect(dialog).toBeHidden();
 	await expect(segments(page, sid)).toHaveAccessibleName(/09:00 – 10:30/);
-	await expect(page.getByTestId('day-total').nth(1)).toHaveText('1h 30m');
+	await expect(page.getByTestId('day-total').nth(1)).toHaveText('1 h 30 min');
 	const [row] = await sql`
 		select paused_ms, extract(epoch from ended_at - started_at)::int as secs from sessions where id = ${sid}`;
 	expect(row).toEqual({ paused_ms: 0, secs: 90 * 60 });
@@ -128,7 +128,7 @@ test('click an entry to edit its span (resets pauses) or delete it', async ({
 		.getByRole('button', { name: 'Delete' })
 		.click();
 	await expect(segments(page, sid)).toHaveCount(0);
-	await expect(page.getByTestId('week-total')).toHaveText('0m');
+	await expect(page.getByTestId('week-total')).toHaveText('0 min');
 	expect(await sql`select 1 from sessions where id = ${sid}`).toHaveLength(0);
 });
 

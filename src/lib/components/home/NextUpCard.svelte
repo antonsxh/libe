@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDurationMin } from '#lib/duration.ts';
 	import { Play, Plus } from '@lucide/svelte';
 	import Button from '#lib/components/Button.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
@@ -29,8 +30,8 @@
 </script>
 
 <!--
-	Phones only (hidden above 720px): the one "what now?" of Home while no timer is active —
-	with a timer the mini-player is the "now".
+	Home's one primary "what now?" while no timer is active (phones and desktop) — with a timer
+	the mini-player (phones) / the nav's timer chip (desktop) is the "now".
 -->
 {#if timer.timer === null}
 	<section class="next" aria-labelledby="next-up-label" data-testid="next-up" transition:fadeScale>
@@ -45,7 +46,7 @@
 							<QuestPill color={task.questColor} label={task.questName} />
 						{/if}
 						{#if task.durationMin}
-							<span class="muted tabular">{t.common.minutes(task.durationMin)}</span>
+							<span class="muted tabular">{formatDurationMin(task.durationMin, t.intl)}</span>
 						{/if}
 					</p>
 				{/if}
@@ -81,12 +82,11 @@
 
 <style>
 	.next {
-		display: none;
+		margin-bottom: var(--space-5);
 	}
 	@media (max-width: 720px) {
 		.next {
-			display: block;
-			margin-bottom: var(--space-6);
+			margin-bottom: var(--space-3);
 		}
 	}
 
@@ -134,5 +134,25 @@
 	}
 	.cta :global(.btn) {
 		width: 100%;
+	}
+	/* Wider screens: the text on the left, the one primary action on the right. */
+	@media (min-width: 721px) {
+		.card {
+			grid-template-columns: minmax(0, 1fr) auto;
+			column-gap: var(--space-6);
+			align-items: center;
+			padding: var(--space-5) var(--space-5) var(--space-5) calc(var(--space-5) + 3px);
+		}
+		.card > :not(.cta) {
+			grid-column: 1;
+		}
+		.cta {
+			grid-column: 2;
+			grid-row: 1 / span 4;
+			margin-top: 0;
+		}
+		.cta :global(.btn) {
+			width: auto;
+		}
 	}
 </style>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDurationMin } from '#lib/duration.ts';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, Plus } from '@lucide/svelte';
 	import Button from '#lib/components/Button.svelte';
@@ -90,7 +91,7 @@
 					</span>
 					<span class="title">{task.title}</span>
 					{#if task.durationMin !== null}
-						<span class="dur muted tabular">{t.common.minutes(task.durationMin)}</span>
+						<span class="dur muted tabular">{formatDurationMin(task.durationMin, t.intl)}</span>
 					{/if}
 					{#if task.doneAt !== null}<span class="done-mark">✓</span>{/if}
 				</li>

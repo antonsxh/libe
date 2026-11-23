@@ -12,6 +12,7 @@ import { MAX_REST_DAYS } from '#lib/streak.ts';
 import { QUEST_BUDGET_MAX_H, QUEST_DESC_MAX, QUEST_NAME_MAX } from '#lib/quest-form.ts';
 import { TASK_DURATION_MAX_MIN, TASK_TITLE_MAX } from '#lib/task-form.ts';
 import { MAX_TIMER_MIN, POMODORO_LIMITS } from '#lib/timer.ts';
+import { formatDurationMin } from '#lib/duration.ts';
 import type { Messages } from './en.ts';
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
@@ -19,8 +20,7 @@ const lim = POMODORO_LIMITS;
 /** Schmales geschütztes Leerzeichen (zwischen Zahl und Einheit). */
 const nb = ' ';
 /** `2 h 10 min`, `45 min`, `4 h` (Dauer im Satz: Avatar-Fortschritt, Zielauswahl). */
-const duration = (h: number, m: number) =>
-	h === 0 ? `${m}${nb}min` : m === 0 ? `${h}${nb}h` : `${h}${nb}h ${m}${nb}min`;
+const duration = (h: number, m: number) => formatDurationMin(h * 60 + m, 'de-DE');
 
 export const de: Messages = {
 	common: {
@@ -40,7 +40,6 @@ export const de: Messages = {
 		task: 'Aufgabe',
 		thisWeek: 'Diese Woche',
 		loading: 'Wird geladen …',
-		minutes: (n) => `${n}${nb}min`,
 		actionsFor: (name) => `Aktionen für ${name}`,
 		markDone: 'Als erledigt markieren',
 		markNotDone: 'Als offen markieren',
@@ -136,10 +135,8 @@ export const de: Messages = {
 		noOpenQuests: 'Keine offenen Quests.',
 		pickerCompact: (name) => `Quest: ${name} (ändern)`,
 		chooseQuest: 'Quest wählen',
-		addBottom: 'Unten hinzufügen',
-		addTop: 'Oben hinzufügen',
-		bottom: 'Unten',
-		top: 'Oben',
+		logged: 'erfasst',
+		planned: 'geplant',
 		addToBacklog: 'Ins Backlog …',
 		addTask: 'Neue Aufgabe …',
 		backlogEmpty: 'Im Backlog wartet nichts.'
@@ -169,6 +166,10 @@ export const de: Messages = {
 			'Der Zeitblock konnte nicht gespeichert werden – der Beginn muss vor dem Ende liegen, beides zwischen 00:00 und 24:00.',
 		questWork: 'Quest-Arbeit',
 		addQuestWork: 'Neue Quest-Arbeit …',
+		firstQuest: {
+			text: 'Quests sind deine größeren Ziele – eine Sprache, ein Nebenprojekt. Leg eine an, um hier Arbeit dafür zu planen; alles andere kommt unter Sonstiges.',
+			action: 'Erste Quest anlegen'
+		},
 		timeline: 'Zeitleiste',
 		openTasks: (n) => `${n} ${plural(n, 'offene Aufgabe', 'offene Aufgaben')}`,
 		scheduleToday: 'Für heute einplanen',
@@ -505,7 +506,7 @@ export const de: Messages = {
 		confirmSignOutTitle: 'Dieses Gerät abmelden?',
 		confirmRevokeTitle: 'Gerät entfernen?',
 		confirmSignOut:
-			' wird abgemeldet. Um libe hier wieder zu nutzen, brauchst du einen Kopplungscode von einem anderen Gerät (oder das Setup-Secret).',
+			' wird abgemeldet. Um libe hier wieder zu nutzen, brauchst du einen Kopplungscode von einem anderen Gerät (oder das Server-Passwort).',
 		confirmRevoke:
 			' wird sofort abgemeldet und kann libe erst wieder öffnen, wenn es neu gekoppelt wurde.',
 		notifications: {
@@ -636,17 +637,20 @@ export const de: Messages = {
 		deviceName: 'Gerätename',
 		pairing: 'Wird gekoppelt …',
 		tooManyAttempts: (seconds) => `Zu viele Versuche. Versuche es in ${seconds}${nb}s erneut.`,
+		intro:
+			'libe ist dein persönlicher Planer: Ziele setzen, Tage planen und deine Fokuszeit erfassen.',
 		setup: {
 			pageTitle: 'libe einrichten',
 			title: 'libe einrichten',
-			titleRecovery: 'Mit dem Setup-Secret koppeln',
-			subtitle: 'Kopple dein erstes Gerät mit dem Setup-Secret aus der Serverkonfiguration.',
-			subtitleRecovery: 'Wiederherstellung: Kopple dieses Gerät mit dem Setup-Secret des Servers.',
+			titleRecovery: 'Mit dem Server-Passwort koppeln',
+			subtitle:
+				'Kopple dein erstes Gerät. Du brauchst das Server-Passwort – es wurde beim Einrichten dieses libe-Servers festgelegt.',
+			subtitleRecovery: 'Wiederherstellung: Kopple dieses Gerät mit dem Server-Passwort.',
 			notSet: 'LIBE_SETUP_SECRET ist nicht gesetzt.',
 			notSetHelpHtml:
 				'Setze es in der Serverumgebung (<code>.env</code> in der Entwicklung, unter <code>environment</code> des Dienstes <code>app</code> in <code>compose.yaml</code>) auf einen langen Zufallswert, z.&#8239;B. <code>openssl rand -base64 24</code>, starte den Server neu und lade diese Seite neu.',
-			secret: 'Setup-Secret',
-			secretHintHtml: 'Der Wert von <code>LIBE_SETUP_SECRET</code> auf dem Server.',
+			secret: 'Server-Passwort',
+			secretHintHtml: 'Für Admins: der Wert von <code>LIBE_SETUP_SECRET</code> auf dem Server.',
 			submit: 'Dieses Gerät koppeln',
 			yourName: 'Dein Name',
 			yourNameHint:
@@ -657,18 +661,19 @@ export const de: Messages = {
 		pair: {
 			pageTitle: 'Dieses Gerät koppeln · libe',
 			title: 'Dieses Gerät koppeln',
-			subtitle: 'Gib den Code ein, der auf einem bereits gekoppelten Gerät angezeigt wird.',
+			subtitle:
+				'Verbinde dieses Gerät mit einem bestehenden libe. Es teilt alles mit den bereits gekoppelten Geräten – libe ist für eine Person, kopple also nur deine eigenen Geräte.',
 			code: 'Kopplungscode',
 			codeHintHtml:
-				'Auf einem gekoppelten Gerät: Avatar-Menü → <strong>Neues Gerät koppeln</strong>. Codes sind 10 Minuten gültig.',
+				'Einen Code bekommst du auf einem Gerät, das dieses libe schon nutzt: Einstellungen → <strong>Neues Gerät koppeln</strong>. Codes sind 10 Minuten gültig.',
 			submit: 'Gerät koppeln',
 			standalone:
 				'Die Home-Bildschirm-App hat eine eigene Anmeldung, getrennt von Safari – kopple sie hier einmal.',
 			nothingPaired: 'Noch ist nichts gekoppelt.',
 			setUpFirst: 'Richte das erste Gerät',
-			withSecret: 'mit dem Setup-Secret ein.',
+			withSecret: 'mit dem Server-Passwort ein.',
 			lostAll: 'Alle Geräte verloren?',
-			useSecret: 'Setup-Secret verwenden'
+			useSecret: 'Server-Passwort verwenden'
 		},
 		session: {
 			pageTitle: 'Anmeldung · libe',
@@ -723,7 +728,7 @@ export const de: Messages = {
 		questBudgetInvalid: `Das Budget muss größer als 0 und höchstens ${QUEST_BUDGET_MAX_H} Stunden sein.`,
 		questUnknown: 'Unbekannte Quest.',
 		questGone: 'Diese Quest gibt es nicht mehr.',
-		pickQuest: 'Wähle eine Quest.',
+		pickQuest: 'Wähle eine Quest – oder leg auf der Seite „Quests“ deine erste an.',
 		questNotFound: 'Quest nicht gefunden.',
 		// Aufgaben
 		taskTitleRequired: 'Schreib auf, was zu tun ist.',
@@ -781,7 +786,7 @@ export const de: Messages = {
 		deviceNameRequired: 'Gib diesem Gerät einen Namen.',
 		deviceNameTooLong: `Der Name darf höchstens ${DEVICE_NAME_MAX} Zeichen lang sein.`,
 		setupDisabled: 'Die Einrichtung ist deaktiviert: LIBE_SETUP_SECRET ist nicht gesetzt.',
-		wrongSetupSecret: 'Falsches Setup-Secret.',
+		wrongSetupSecret: 'Falsches Server-Passwort.',
 		pairCodeFormat: 'Gib den 6-stelligen Code ein, der auf deinem anderen Gerät angezeigt wird.',
 		pairCodeExpired: 'Dieser Code ist abgelaufen. Erzeuge auf deinem anderen Gerät einen neuen.',
 		pairCodeUsed:

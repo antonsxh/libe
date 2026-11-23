@@ -11,13 +11,13 @@ import { MAX_REST_DAYS } from '#lib/streak.ts';
 import { QUEST_BUDGET_MAX_H, QUEST_DESC_MAX, QUEST_NAME_MAX } from '#lib/quest-form.ts';
 import { TASK_DURATION_MAX_MIN, TASK_TITLE_MAX } from '#lib/task-form.ts';
 import { MAX_TIMER_MIN, POMODORO_LIMITS } from '#lib/timer.ts';
+import { formatDurationMin } from '#lib/duration.ts';
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const lim = POMODORO_LIMITS;
 
 /** `2 h 10 min`, `45 min`, `4 h` — durations in sentences (avatar progress, goal choices). */
-const duration = (h: number, m: number) =>
-	h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h} h ${m} min`;
+const duration = (h: number, m: number) => formatDurationMin(h * 60 + m, 'en-US');
 
 export const en = {
 	common: {
@@ -37,7 +37,6 @@ export const en = {
 		task: 'Task',
 		thisWeek: 'This week',
 		loading: 'Loading…',
-		minutes: (n: number | string) => `${n} min`,
 		actionsFor: (name: string) => `Actions for ${name}`,
 		markDone: 'Mark as done',
 		markNotDone: 'Mark as not done',
@@ -140,10 +139,9 @@ export const en = {
 		noOpenQuests: 'No open quests.',
 		pickerCompact: (name: string) => `Quest: ${name} (change)`,
 		chooseQuest: 'Choose quest',
-		addBottom: 'Add at the bottom',
-		addTop: 'Add at the top',
-		bottom: 'Bottom',
-		top: 'Top',
+		/** After a task's duration on its card: which number it is. */
+		logged: 'logged',
+		planned: 'planned',
 		addToBacklog: 'Add to backlog…',
 		addTask: 'Add a task…',
 		backlogEmpty: 'Nothing waiting in the backlog.'
@@ -175,6 +173,11 @@ export const en = {
 			'That time block could not be saved — start before end, and keep it within 00:00–24:00.',
 		questWork: 'Quest work',
 		addQuestWork: 'Add quest work…',
+		/** Quest work without any open quest: one sentence + one action. */
+		firstQuest: {
+			text: 'Quests are your bigger goals — a language, a side project. Create one to plan work for it here; everything else goes under Other.',
+			action: 'Create your first quest'
+		},
 		timeline: 'Timeline',
 		openTasks: (n: number) => `${n} open ${plural(n, 'task', 'tasks')}`,
 		scheduleToday: 'Schedule for today',
@@ -526,7 +529,7 @@ export const en = {
 		confirmSignOutTitle: 'Sign out this device?',
 		confirmRevokeTitle: 'Revoke device?',
 		confirmSignOut:
-			' will be signed out. To use libe here again you’ll need a pairing code from another device (or the setup secret).',
+			' will be signed out. To use libe here again you’ll need a pairing code from another device (or the server password).',
 		confirmRevoke: ' will be signed out immediately and can’t open libe until it is paired again.',
 		notifications: {
 			title: 'Notifications',
@@ -657,18 +660,21 @@ export const en = {
 		deviceName: 'Device name',
 		pairing: 'Pairing…',
 		tooManyAttempts: (seconds: number) => `Too many attempts. Try again in ${seconds} s.`,
+		/** Under the logo on /setup and /pair: what libe is, for someone who has never seen it. */
+		intro: 'libe is a personal planner: set goals, plan your days and track the time you focus.',
 		setup: {
 			pageTitle: 'Set up libe',
 			title: 'Set up libe',
-			titleRecovery: 'Pair with the setup secret',
-			subtitle: 'Pair your first device with the setup secret from the server configuration.',
-			subtitleRecovery: 'Recovery: pair this device with the server’s setup secret.',
+			titleRecovery: 'Pair with the server password',
+			subtitle:
+				'Pair your first device. You need the server password — it was chosen when this libe server was installed.',
+			subtitleRecovery: 'Recovery: pair this device with the server password.',
 			notSet: 'LIBE_SETUP_SECRET is not set.',
 			/** Trusted static markup (`{@html}`). */
 			notSetHelpHtml:
 				'Set it in the server environment (<code>.env</code> for development, the <code>environment</code> of the <code>app</code> service in <code>compose.yaml</code>) to a long random value, e.g. <code>openssl rand -base64 24</code>, restart the server and reload this page.',
-			secret: 'Setup secret',
-			secretHintHtml: 'The value of <code>LIBE_SETUP_SECRET</code> on the server.',
+			secret: 'Server password',
+			secretHintHtml: 'For the admin: the value of <code>LIBE_SETUP_SECRET</code> on the server.',
 			submit: 'Pair this device',
 			yourName: 'Your name',
 			yourNameHint: 'Optional — shown in libe. You can change it later in Settings.',
@@ -678,18 +684,19 @@ export const en = {
 		pair: {
 			pageTitle: 'Pair this device · libe',
 			title: 'Pair this device',
-			subtitle: 'Enter the code shown on a device that is already paired.',
+			subtitle:
+				'Connect this device to an existing libe. It shares everything with the devices already paired — libe is for one person, so pair only your own devices.',
 			code: 'Pairing code',
 			codeHintHtml:
-				'On a paired device: avatar menu → <strong>Pair new device</strong>. Codes are valid for 10 minutes.',
+				'Get a code on a device that already uses this libe: Settings → <strong>Pair new device</strong>. Codes are valid for 10 minutes.',
 			submit: 'Pair device',
 			standalone:
 				'The home-screen app keeps its own sign-in, separate from Safari — pair it here once.',
 			nothingPaired: 'Nothing is paired yet.',
 			setUpFirst: 'Set up the first device',
-			withSecret: 'with the setup secret.',
+			withSecret: 'with the server password.',
 			lostAll: 'Lost all your devices?',
-			useSecret: 'Use the setup secret'
+			useSecret: 'Use the server password'
 		},
 		session: {
 			pageTitle: 'Signing in · libe',
@@ -738,7 +745,7 @@ export const en = {
 		questBudgetInvalid: `Budget must be more than 0 and at most ${QUEST_BUDGET_MAX_H} hours.`,
 		questUnknown: 'Unknown quest.',
 		questGone: 'That quest no longer exists.',
-		pickQuest: 'Pick a quest.',
+		pickQuest: 'Pick a quest — or create your first one on the Quests page.',
 		questNotFound: 'Quest not found.',
 		// tasks
 		taskTitleRequired: 'Write what needs to be done.',
@@ -795,7 +802,7 @@ export const en = {
 		deviceNameRequired: 'Give this device a name.',
 		deviceNameTooLong: `Keep the name under ${DEVICE_NAME_MAX} characters.`,
 		setupDisabled: 'Setup is disabled: LIBE_SETUP_SECRET is not set.',
-		wrongSetupSecret: 'Wrong setup secret.',
+		wrongSetupSecret: 'Wrong server password.',
 		pairCodeFormat: 'Enter the 6-digit code shown on your other device.',
 		pairCodeExpired: 'This code has expired. Generate a new one on your other device.',
 		pairCodeUsed: 'This code was already used. Generate a new one on your other device.',
