@@ -6,7 +6,8 @@
 	import TaskAddForm from '#lib/components/tasks/TaskAddForm.svelte';
 	import OverdueList from '#lib/components/tasks/OverdueList.svelte';
 	import { OVERDUE_RAIL_PREVIEW, previewOverdue } from '#lib/overdue.ts';
-	import { formatDayLabel, formatDuration } from '#lib/dates.ts';
+	import { formatDayLabel } from '#lib/dates.ts';
+	import { formatDurationMin } from '#lib/duration.ts';
 	import { fadeScale } from '#lib/motion.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { drag, endDrag, rowBefore, startDrag, submitMove } from './drag.svelte.ts';
@@ -124,7 +125,14 @@
 
 {#snippet addSlot()}
 	<div class="add-slot">
-		<TaskAddForm action="addBacklog" placeholder={t.tasks.addToBacklog} compact {quests} {form} />
+		<TaskAddForm
+			action="addBacklog"
+			placeholder={t.tasks.addToBacklog}
+			compact
+			{quests}
+			otherOption
+			{form}
+		/>
 	</div>
 {/snippet}
 
@@ -192,7 +200,7 @@
 							</form>
 							<span class="rtitle">{task.title}</span>
 							{#if task.durationMin !== null}
-								<span class="dur tabular">{formatDuration(task.durationMin * 60_000)}</span>
+								<span class="dur tabular">{formatDurationMin(task.durationMin, t.intl)}</span>
 							{/if}
 							{#if sheet && task.doneAt === null}
 								<!-- The sheet's job: pull a task into the day behind it, in one tap. -->

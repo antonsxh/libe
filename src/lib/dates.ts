@@ -166,17 +166,6 @@ export function nextDayStart(now: Date = new Date(), timeZone?: string): number 
 	return at;
 }
 
-/** Milliseconds → `H:MM:SS` or `MM:SS` (timer display). */
-export function formatDuration(ms: number): string {
-	const total = Math.max(0, Math.round(ms / 1000));
-	const h = Math.floor(total / 3600);
-	const m = Math.floor((total % 3600) / 60);
-	const s = total % 60;
-	const mm = String(m).padStart(2, '0');
-	const ss = String(s).padStart(2, '0');
-	return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-}
-
 /**
  * Hours with at most one decimal, without trailing `.0` (10.5 → "10.5h", 3 → "3h");
  * German: decimal comma and a narrow space before the unit ("10,5 h").

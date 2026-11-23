@@ -5,17 +5,22 @@
 	type Props = {
 		title: string;
 		subtitle?: string;
+		/** One sentence under the logo: what libe is (first contact: /setup, /pair). */
+		intro?: string;
 		children: Snippet;
 		/** Small print under the card. */
 		footer?: Snippet;
 	};
-	let { title, subtitle, children, footer }: Props = $props();
+	let { title, subtitle, intro, children, footer }: Props = $props();
 </script>
 
 <div class="shell">
-	<div class="brand" aria-hidden="true">
-		<Logo size={34} />
-		<span>libe</span>
+	<div class="head">
+		<div class="brand" aria-hidden="true">
+			<Logo size={34} />
+			<span>libe</span>
+		</div>
+		{#if intro}<p class="intro muted">{intro}</p>{/if}
 	</div>
 	<section class="card panel" aria-labelledby="auth-title">
 		<h1 id="auth-title">{title}</h1>
@@ -35,6 +40,17 @@
 		gap: var(--space-6);
 		padding: calc(var(--space-10) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
 			calc(var(--space-10) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
+	}
+	.head {
+		display: grid;
+		justify-items: center;
+		gap: var(--space-3);
+		width: min(440px, 100%);
+		text-align: center;
+	}
+	.intro {
+		font-size: var(--fs-md);
+		text-wrap: balance;
 	}
 	.brand {
 		display: flex;

@@ -89,7 +89,7 @@ test('/setup: a wrong secret is refused, the right one pairs and follows ?next; 
 	await page.locator('input[name=secret]').fill('definitely-the-wrong-secret');
 	await page.getByLabel('Device name').fill(name);
 	await page.getByRole('button', { name: /pair/i }).click();
-	await expect(page.getByRole('alert')).toHaveText('Wrong setup secret.');
+	await expect(page.getByRole('alert')).toHaveText('Wrong server password.');
 	expect(await sql`select 1 from devices where name = ${name}`).toHaveLength(0);
 
 	await page.locator('input[name=secret]').fill(SETUP_SECRET);

@@ -23,7 +23,7 @@
 	import Button from '#lib/components/Button.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import TaskPicker from '#lib/components/calendar/TaskPicker.svelte';
-	import { formatHM } from '#lib/calendar.ts';
+	import { formatDurationMs } from '#lib/duration.ts';
 	import { addDays, parseDay } from '#lib/dates.ts';
 	import { parseClock } from '#lib/timeline.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
@@ -181,7 +181,7 @@
 			/>
 		</div>
 		<p class="span muted tabular" aria-live="polite">
-			{#if span !== null && span > 0}{formatHM(span * 60_000, t.intl)}{:else}—{/if}
+			{#if span !== null && span > 0}{formatDurationMs(span * 60_000, t.intl)}{:else}—{/if}
 		</p>
 
 		{#each fieldErrors as msg (msg)}

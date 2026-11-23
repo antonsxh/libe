@@ -1,10 +1,17 @@
 /**
- * M2 — Home/Today: quest work list ordering (Top/Bottom across quests, ↑/↓ within the
- * open/done group), card ⋯ actions, backlog, Other + hideDone, quest filter, time blocks,
- * logged time.
+ * M2 — Home/Today: quest work list ordering (Enter = bottom, Shift+Enter = top across quests,
+ * ↑/↓ within the open/done group), card ⋯ actions, backlog, Other + hideDone, quest filter,
+ * time blocks, logged time. O1: Home without open quests (no "Pick a quest." dead end).
  */
 import type { Locator, Page } from '@playwright/test';
-import { test, expect, gotoLive, actionDone, reloadLive } from '../support/fixtures.ts';
+import {
+	test,
+	expect,
+	gotoLive,
+	actionDone,
+	reloadLive,
+	discardTimer
+} from '../support/fixtures.ts';
 import {
 	addDays,
 	createQuest,
@@ -25,15 +32,15 @@ async function addQuestWork(
 	page: Page,
 	title: string,
 	quest: string,
-	how: 'Top' | 'Bottom' | 'Enter'
+	how: 'Add' | 'Enter' | 'Shift+Enter'
 ) {
 	const form = page.locator('form.add', { has: page.getByPlaceholder('Add quest work…') });
 	await form.getByRole('button', { name: 'Choose quest' }).click();
 	await page.getByRole('menuitemradio', { name: quest }).click();
 	await form.getByPlaceholder('Add quest work…').fill(title);
 	const done = actionDone(page, 'addQuest');
-	if (how === 'Enter') await form.getByPlaceholder('Add quest work…').press('Enter');
-	else await form.getByRole('button', { name: how, exact: true }).click();
+	if (how === 'Add') await form.getByRole('button', { name: 'Add', exact: true }).click();
+	else await form.getByPlaceholder('Add quest work…').press(how);
 	await done;
 }
 
@@ -42,7 +49,7 @@ async function cardMenu(page: Page, card: Locator, title: string, item: string) 
 	await page.getByRole('menuitem', { name: item }).click();
 }
 
-test('Top/Bottom place new quest work in the one list shared by all quests', async ({
+test('Enter/Add append quest work, Shift+Enter puts it on top — one list for all quests', async ({
 	page,
 	sql
 }) => {
@@ -51,10 +58,10 @@ test('Top/Bottom place new quest work in the one list shared by all quests', asy
 	const qb = await createQuest(sql, { name: `Scope B ${id}` });
 	await gotoLive(page, '/');
 
-	await addQuestWork(page, `A bottom ${id}`, qa.name, 'Bottom');
-	await addQuestWork(page, `B top ${id}`, qb.name, 'Top');
-	await addQuestWork(page, `A top ${id}`, qa.name, 'Top');
-	await addQuestWork(page, `A enter ${id}`, qa.name, 'Enter'); // implicit submit = Bottom
+	await addQuestWork(page, `A bottom ${id}`, qa.name, 'Add');
+	await addQuestWork(page, `B top ${id}`, qb.name, 'Shift+Enter');
+	await addQuestWork(page, `A top ${id}`, qa.name, 'Shift+Enter');
+	await addQuestWork(page, `A enter ${id}`, qa.name, 'Enter'); // implicit submit = bottom
 
 	await reloadLive(page);
 	const open = await questList(page).locator('li.task:not(.done) .title').allTextContents();
@@ -197,7 +204,7 @@ test('Other: hideDone and the quest filter live in the URL and survive mutations
 	const form = page.locator('form.add', { has: page.getByPlaceholder('Add a task…') });
 	await form.getByPlaceholder('Add a task…').fill(`Other new ${id}`);
 	let done = actionDone(page, 'addOther');
-	await form.getByRole('button', { name: 'Bottom' }).click();
+	await form.getByRole('button', { name: 'Add', exact: true }).click();
 	await done;
 	await expect(otherList(page)).toContainText(`Other new ${id}`);
 	expect(new URL(page.url()).searchParams.get('hideDone')).toBe('1');
@@ -301,9 +308,123 @@ test('logged time shows on the card and in the header totals', async ({ page, sq
 	const hours = (min: number) => `${Math.round((Math.round(min) / 60) * 10) / 10}h`;
 
 	await gotoLive(page, '/');
-	await expect(cardOf(otherList(page), task.title).locator('.logged')).toHaveText('1:15:00');
+	await expect(cardOf(otherList(page), task.title).locator('.logged')).toHaveText(
+		'1 h 15 min logged'
+	);
 	await expect(page.locator('.day-stats .today strong')).toHaveText(hours(todayMin));
 	await expect(page.locator('.day-stats .week-label')).toHaveText(`${hours(weekMin)} this week`);
+});
+
+test.describe('Next up on desktop', () => {
+	test.beforeEach(async ({ api }) => discardTimer(api));
+	test.afterEach(async ({ api }) => discardTimer(api));
+
+	test('starts a focus timer for the first open task and steps aside while it runs', async ({
+		page,
+		sql
+	}) => {
+		const id = uid();
+		const day = await today(sql);
+		const quest = await createQuest(sql, { name: `Next desk ${id}` });
+		const task = await createTask(sql, {
+			title: `Next desk ${id}`,
+			questId: quest.id,
+			day,
+			durationMin: 45
+		});
+		// First open quest task of today = the card's pick.
+		await sql`update tasks set sort_order = (
+			select min(sort_order) - 1 from tasks where day = ${day} and kind = 'quest'
+		) where id = ${task.id}`;
+
+		await gotoLive(page, '/');
+		const next = page.getByTestId('next-up');
+		await expect(next).toContainText(task.title);
+		await next.getByRole('button', { name: `Start focus: ${task.title}` }).click();
+		await expect
+			.poll(async () => await sql`select task_id, state from sessions where state <> 'completed'`)
+			.toEqual([{ task_id: task.id, state: 'running' }]);
+		await expect(page).toHaveURL(/\/$/);
+		await expect(next).toHaveCount(0);
+		await reloadLive(page);
+		await expect(next).toHaveCount(0);
+	});
+});
+
+test.describe('without any open quest', () => {
+	/** Open quests closed for the test (the seed's and leftovers), reopened afterwards. */
+	let closed: string[] = [];
+	/** Quests the test creates — closed again afterwards, like everything else it made. */
+	const made: string[] = [];
+	test.beforeEach(async ({ sql }) => {
+		closed = (
+			await sql`update quests set closed_at = now() where closed_at is null returning id`
+		).map((r) => r.id as string);
+	});
+	test.afterEach(async ({ sql }) => {
+		if (made.length > 0) await sql`update quests set closed_at = now() where name in ${sql(made)}`;
+		made.length = 0;
+		if (closed.length > 0) await sql`update quests set closed_at = null where id in ${sql(closed)}`;
+		closed = [];
+	});
+
+	test('Home has no dead end: the first field, the backlog and the first quest all work @mobile', async ({
+		page,
+		sql
+	}) => {
+		const id = uid();
+		const day = await today(sql);
+		await gotoLive(page, '/');
+
+		// What a newcomer types into first lands as a task (it used to answer "Pick a quest.").
+		const first = page.locator('.main-col form.add input[name=title]').first();
+		await first.fill(`First ${id}`);
+		let done = actionDone(page, 'addOther');
+		await first.press('Enter');
+		await done;
+		expect(await sql`select kind, day from tasks where title = ${`First ${id}`}`).toEqual([
+			{ kind: 'other', day }
+		]);
+
+		// The backlog takes "Other" tasks too.
+		const later = backlog(page).getByPlaceholder('Add to backlog…');
+		await later.fill(`Later ${id}`);
+		done = actionDone(page, 'addBacklog');
+		await later.press('Enter');
+		await done;
+		expect(await sql`select kind, quest_id, day from tasks where title = ${`Later ${id}`}`).toEqual(
+			[{ kind: 'other', quest_id: null, day: null }]
+		);
+
+		await reloadLive(page);
+		await expect(cardOf(otherList(page), `First ${id}`)).toBeVisible();
+		await expect(backlog(page).locator('li.row', { hasText: `Later ${id}` })).toBeVisible();
+		await expect(page.getByText('Pick a quest', { exact: false })).toHaveCount(0);
+
+		// "Create your first quest" opens the quest dialog right on Home; quest work then works.
+		const name = `First quest ${id}`;
+		made.push(name);
+		await page.getByRole('button', { name: 'Create your first quest' }).click();
+		const dialog = page.getByRole('dialog', { name: 'New quest' });
+		await dialog.getByLabel('Name').fill(name);
+		done = actionDone(page, 'create');
+		await dialog.getByRole('button', { name: 'Create quest' }).click();
+		await done;
+		await expect(dialog).toBeHidden();
+		const [quest] = await sql`select id from quests where name = ${name} and closed_at is null`;
+		expect(quest).toBeDefined();
+
+		const work = page.getByPlaceholder('Add quest work…');
+		await work.fill(`Quest work ${id}`);
+		done = actionDone(page, 'addQuest');
+		await work.press('Enter');
+		await done;
+		expect(
+			await sql`select kind, quest_id, day from tasks where title = ${`Quest work ${id}`}`
+		).toEqual([{ kind: 'quest', quest_id: quest.id, day }]);
+		await reloadLive(page);
+		await expect(cardOf(questList(page), `Quest work ${id}`)).toBeVisible();
+	});
 });
 
 test.describe('without JavaScript', () => {
@@ -317,7 +438,7 @@ test.describe('without JavaScript', () => {
 		await page.goto('/?hideDone=1');
 		const form = page.locator('form.add', { has: page.getByPlaceholder('Add a task…') });
 		await form.getByPlaceholder('Add a task…').fill(`Native ${id}`);
-		await form.getByRole('button', { name: 'Bottom' }).click();
+		await form.getByRole('button', { name: 'Add', exact: true }).click();
 		await expect(otherList(page)).toContainText(`Native ${id}`);
 		expect(new URL(page.url()).searchParams.get('hideDone')).toBe('1');
 		expect(await sql`select kind, day from tasks where title = ${`Native ${id}`}`).toEqual([

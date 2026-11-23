@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDurationMin } from '#lib/duration.ts';
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { ArrowDown, ArrowUp, Check, Trash2 } from '@lucide/svelte';
 	import type { Task } from '#lib/server/db/schema.ts';
@@ -49,7 +50,7 @@
 	<span class="title"><span class="strike">{task.title}</span></span>
 
 	{#if task.durationMin !== null}
-		<span class="dur muted tabular">{t.common.minutes(task.durationMin)}</span>
+		<span class="dur muted tabular">{formatDurationMin(task.durationMin, t.intl)}</span>
 	{/if}
 
 	<span class="ops">

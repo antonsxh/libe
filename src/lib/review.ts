@@ -357,12 +357,6 @@ export function buildReview(
 
 /* ── formatting ────────────────────────────────────────────────────────── */
 
-/** Minutes → `h:mm` (exact, e.g. 270 → "4:30", 5 → "0:05"). */
-export function formatHMin(min: number): string {
-	const total = Math.max(0, Math.round(min));
-	return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-}
-
 /** Signed hours with one decimal: `+2.1h`, `−0.4h`, `±0h` (German: `+2,1 h`). */
 export function formatSignedHours(hours: number, locale = 'en-US'): string {
 	const r = Math.round(hours * 10) / 10;

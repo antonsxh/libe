@@ -12,6 +12,7 @@ import {
 import {
 	addTaskAction,
 	formStr,
+	optionalQuestTarget,
 	requireQuestTarget,
 	sharedTaskActions
 } from '#lib/server/task-actions.ts';
@@ -23,6 +24,7 @@ import {
 	deleteBlock
 } from '#lib/server/blocks.ts';
 import { homeTime } from '#lib/server/stats.ts';
+import { createQuestAction } from '#lib/server/quest-actions.ts';
 import { doneLast } from '#lib/ordering.ts';
 import { addDays, todayISO, formatDayLabel, minuteOfDay } from '#lib/dates.ts';
 import { parseClock, validateBlockSpan, type BlockFormResult } from '#lib/timeline.ts';
@@ -98,6 +100,9 @@ export const load = (async ({ url, locals }) => {
 export const actions = {
 	...sharedTaskActions,
 
+	/** "Create your first quest" (Home without open quests) — the same action as on Quests. */
+	create: createQuestAction,
+
 	/** Add a task to a quest on today's list; `pos` = top|bottom. */
 	addQuest: addTaskAction('addQuest', async (form) => {
 		const res = await requireQuestTarget(String(form.get('questId') ?? ''));
@@ -106,9 +111,9 @@ export const actions = {
 			: { ok: false, errors: { title: res.error } };
 	}),
 
-	/** Add a task to a quest's backlog (no day). */
+	/** Add a task to the backlog (no day): a quest's, or `other` (also without any quest). */
 	addBacklog: addTaskAction('addBacklog', async (form) => {
-		const res = await requireQuestTarget(String(form.get('questId') ?? ''));
+		const res = await optionalQuestTarget(String(form.get('questId') ?? ''));
 		return res.ok
 			? { ok: true, target: res.target, day: null }
 			: { ok: false, errors: { title: res.error } };

@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	calendarWeek,
-	formatHM,
 	gridStartHour,
 	layoutDay,
 	sessionSpanLabel,
@@ -228,16 +227,6 @@ describe('helpers', () => {
 		expect(slotMinute(50 * 4 + 13, 50, 6)).toBe(600 + 15);
 		expect(slotMinute(-5, 50, 6)).toBe(360);
 		expect(slotMinute(10_000, 50, 6)).toBe(1425);
-	});
-
-	test('formatHM', () => {
-		expect(formatHM(0)).toBe('0m');
-		expect(formatHM(45 * MIN)).toBe('45m');
-		expect(formatHM(539 * MIN)).toBe('8h 59m');
-		expect(formatHM(120 * MIN)).toBe('2h');
-		expect(formatHM(29_000)).toBe('0m');
-		expect(formatHM(539 * MIN, 'de-DE')).toBe('8\u202fh 59\u202fmin');
-		expect(formatHM(120 * MIN, 'de-DE')).toBe('2\u202fh');
 	});
 
 	test('sessionSpanLabel', () => {

@@ -4,7 +4,6 @@ import {
 	daysBetween,
 	endOfQuarter,
 	formatDayLabel,
-	formatDuration,
 	formatHours,
 	formatMinutes,
 	isISODay,
@@ -73,8 +72,6 @@ describe('dates', () => {
 
 	test('formatting', () => {
 		expect(formatMinutes(570)).toBe('09:30');
-		expect(formatDuration(36 * 60_000)).toBe('36:00');
-		expect(formatDuration(3_600_000)).toBe('1:00:00');
 		expect(formatHours(10.46)).toBe('10.5h');
 		expect(formatHours(3)).toBe('3h');
 	});

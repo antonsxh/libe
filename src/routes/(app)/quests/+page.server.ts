@@ -2,8 +2,8 @@ import { fail } from '@sveltejs/kit';
 import { isUuid } from '#lib/ids.ts';
 import { parseQuestForm, questFormEcho, validateQuestForm } from '#lib/quest-form.ts';
 import { questHours } from '#lib/server/stats.ts';
+import { createQuestAction } from '#lib/server/quest-actions.ts';
 import {
-	createQuest,
 	deleteQuest,
 	listClosedQuests,
 	listOpenQuests,
@@ -24,14 +24,7 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions = {
-	create: async ({ request, locals }) => {
-		const fields = parseQuestForm(await request.formData());
-		const result = validateQuestForm(fields);
-		const { errors } = i18n(locals.locale);
-		if (!result.ok) return fail(400, questFormEcho('create', fields, result.errors, errors));
-		const quest = await createQuest(result.draft);
-		return { intent: 'create', ok: true, questId: quest.id };
-	},
+	create: createQuestAction,
 
 	update: async ({ request, locals }) => {
 		const formData = await request.formData();

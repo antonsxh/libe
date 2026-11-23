@@ -4,7 +4,6 @@ import {
 	buildReview,
 	comparisonLabel,
 	daysElapsedInWeek,
-	formatHMin,
 	formatSignedHours,
 	percent,
 	quarterOf,
@@ -298,13 +297,6 @@ describe('quarter', () => {
 });
 
 describe('formatting', () => {
-	test('formatHMin', () => {
-		expect(formatHMin(270)).toBe('4:30');
-		expect(formatHMin(5)).toBe('0:05');
-		expect(formatHMin(59.6)).toBe('1:00');
-		expect(formatHMin(0)).toBe('0:00');
-	});
-
 	test('formatSignedHours', () => {
 		expect(formatSignedHours(2.14)).toBe('+2.1h');
 		expect(formatSignedHours(-0.44, 'de-DE')).toBe('−0,4\u202fh');

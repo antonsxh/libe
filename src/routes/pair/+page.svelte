@@ -46,7 +46,7 @@
 
 <svelte:head><title>{t.auth.pair.pageTitle}</title></svelte:head>
 
-<AuthShell title={t.auth.pair.title} subtitle={t.auth.pair.subtitle}>
+<AuthShell title={t.auth.pair.title} subtitle={t.auth.pair.subtitle} intro={t.auth.intro}>
 	{#if data.pairedAs}
 		<p class="notice">
 			{t.auth.alreadyPairedBefore}<strong>{data.pairedAs}</strong>{t.auth.alreadyPairedAfter}

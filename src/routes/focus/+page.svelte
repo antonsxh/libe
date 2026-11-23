@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDurationMin } from '#lib/duration.ts';
 	import { afterNavigate } from '$app/navigation';
 	import {
 		ArrowLeft,
@@ -316,7 +317,7 @@
 										</span>
 									{/if}
 									{#if task.durationMin}<span class="t-dur muted tabular">
-											{t.common.minutes(task.durationMin)}
+											{formatDurationMin(task.durationMin, t.intl)}
 										</span>{/if}
 								</label>
 							{/each}

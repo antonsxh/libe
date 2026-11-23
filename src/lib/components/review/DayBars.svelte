@@ -3,7 +3,8 @@
 	import { formatDayLabel, formatHours } from '#lib/dates.ts';
 	import type { StreakMark } from '#lib/streak.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
-	import { formatHMin, type ReviewDay, type ReviewQuest } from '#lib/review.ts';
+	import { formatDurationMin } from '#lib/duration.ts';
+	import { type ReviewDay, type ReviewQuest } from '#lib/review.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
@@ -53,10 +54,11 @@
 
 	function ariaLabel(d: ReviewDay): string {
 		const parts = d.byQuest.map(
-			(q) => `${quests[q.questId]?.name ?? t.common.quest} ${formatHMin(q.min)}`
+			(q) => `${quests[q.questId]?.name ?? t.common.quest} ${formatDurationMin(q.min, t.intl)}`
 		);
-		const quest = t.review.dayAria(longDay(d.day), formatHMin(d.questMin));
-		const other = d.otherMin > 0 ? t.review.dayAriaOther(formatHMin(d.otherMin)) : '';
+		const quest = t.review.dayAria(longDay(d.day), formatDurationMin(d.questMin, t.intl));
+		const other =
+			d.otherMin > 0 ? t.review.dayAriaOther(formatDurationMin(d.otherMin, t.intl)) : '';
 		const base = parts.length ? `${quest} (${parts.join(', ')})${other}` : `${quest}${other}`;
 		const mark = marks?.[days.indexOf(d)];
 		return mark ? `${base}; ${t.streak.marks[mark]}` : base;
@@ -114,7 +116,7 @@
 				<div class="tip" role="tooltip" id={`tip-${d.day}`}>
 					<p class="tip-head">
 						<span>{longDay(d.day)}</span>
-						<strong class="tabular">{formatHMin(d.questMin)}</strong>
+						<strong class="tabular">{formatDurationMin(d.questMin, t.intl)}</strong>
 					</p>
 					{#if d.byQuest.length}
 						<ul>
@@ -123,7 +125,7 @@
 								<li>
 									<span class="dot" style:--q={questColorVar(quest?.color)}></span>
 									<span class="name">{quest?.name ?? t.common.quest}</span>
-									<span class="tabular">{formatHMin(q.min)}</span>
+									<span class="tabular">{formatDurationMin(q.min, t.intl)}</span>
 								</li>
 							{/each}
 						</ul>
@@ -133,7 +135,7 @@
 					{#if d.otherMin > 0}
 						<p class="other">
 							<span>{t.common.other}</span>
-							<span class="tabular">{formatHMin(d.otherMin)}</span>
+							<span class="tabular">{formatDurationMin(d.otherMin, t.intl)}</span>
 						</p>
 					{/if}
 				</div>

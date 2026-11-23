@@ -2,7 +2,6 @@
 	import { untrack } from 'svelte';
 	import { CircleCheck } from '@lucide/svelte';
 	import {
-		formatHM,
 		gridStartHour,
 		layoutDay,
 		sessionSpanLabel,
@@ -14,6 +13,7 @@
 		type CalendarWeek
 	} from '#lib/calendar.ts';
 	import { formatMinutes, todayISO } from '#lib/dates.ts';
+	import { formatDurationMs } from '#lib/duration.ts';
 	import { isPhoneViewport } from '#lib/motion.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import { layoutBlocks } from '#lib/timeline.ts';
@@ -121,7 +121,9 @@
 				style:grid-column={i + 2}
 			>
 				<span class="wd">{d.weekday} <span class="num">{d.dayNum}</span></span>
-				<span class="total tabular" data-testid="day-total">{formatHM(week.dayMs[i], t.intl)}</span>
+				<span class="total tabular" data-testid="day-total">
+					{formatDurationMs(week.dayMs[i], t.intl)}
+				</span>
 			</div>
 		{/each}
 
@@ -287,6 +289,7 @@
 	.total {
 		font-size: var(--fs-xs);
 		color: var(--text-faint);
+		white-space: nowrap;
 	}
 	.head.today .total {
 		color: var(--text-muted);

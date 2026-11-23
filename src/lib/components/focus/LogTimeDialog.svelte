@@ -6,7 +6,7 @@
 	import { addDays, formatMinutes, todayISO } from '#lib/dates.ts';
 	import { durationBetween, endClock } from '#lib/manual-log.ts';
 	import { parseClock } from '#lib/timeline.ts';
-	import { formatClock } from '#lib/timer.ts';
+	import { formatDurationMin } from '#lib/duration.ts';
 	import { useTimer, type TaskRef } from '#lib/timer-store.svelte.ts';
 	import type { LoggedSession } from '#lib/server/sessions.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
@@ -198,7 +198,7 @@
 							<span class="tabular span">
 								{clock(s.startedAt)} – {s.endedAt ? clock(s.endedAt) : '…'}
 							</span>
-							<span class="tabular muted">{formatClock(s.minutes * 60)}</span>
+							<span class="tabular muted">{formatDurationMin(s.minutes, t.intl)}</span>
 							<span class="src muted">{t.timer.sources[s.source]}</span>
 							<button
 								type="button"

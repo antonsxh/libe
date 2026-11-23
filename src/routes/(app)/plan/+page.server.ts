@@ -22,7 +22,6 @@ import {
 	addTaskAction,
 	formStr,
 	optionalQuestTarget,
-	requireQuestTarget,
 	sharedTaskActions
 } from '#lib/server/task-actions.ts';
 import { doneLast } from '#lib/ordering.ts';
@@ -155,9 +154,9 @@ export const actions: Actions = {
 			: { ok: false, errors: { title: 'unknownDay' } };
 	}),
 
-	/** Add a task to a quest's backlog (backlog column). */
+	/** Add a task to the backlog (backlog column): a quest's, or `other`. */
 	addBacklog: addTaskAction('addBacklog', async (form) => {
-		const target = await requireQuestTarget(formStr(form, 'questId'));
+		const target = await optionalQuestTarget(formStr(form, 'questId'));
 		return target.ok
 			? { ok: true, target: target.target, day: null }
 			: { ok: false, errors: { title: target.error } };
