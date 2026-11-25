@@ -899,9 +899,9 @@
 		color: var(--text);
 	}
 	.weekday.on {
-		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-		background: var(--accent-soft);
-		color: var(--accent);
+		border-color: var(--selected-border);
+		background: var(--selected-bg);
+		color: var(--selected-text);
 		font-weight: var(--fw-medium);
 	}
 	.weekday:has(:focus-visible) {

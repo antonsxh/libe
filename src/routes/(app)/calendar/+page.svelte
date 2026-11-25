@@ -243,8 +243,8 @@
 		border-color: var(--border-strong);
 	}
 	.plan-toggle.on .box {
-		background: var(--accent);
-		border-color: var(--accent);
+		background: var(--control-on);
+		border-color: var(--control-on);
 	}
 
 	.week-stats {

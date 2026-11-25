@@ -334,13 +334,13 @@
 	.bar {
 		width: 100%;
 		height: 5px;
-		border-radius: 99px;
+		border-radius: var(--radius-pill);
 		background: var(--surface-2);
 		overflow: hidden;
 	}
 	.bar-fill {
 		height: 100%;
-		border-radius: 99px;
+		border-radius: var(--radius-pill);
 		background: var(--accent);
 		transition: width var(--dur) var(--ease);
 	}

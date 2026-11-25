@@ -45,6 +45,7 @@ Bun is on the `PATH` (CI uses the version pinned by `packageManager` in `package
 | `bun run test:tauri`      | Tauri app e2e (debug build, tauri-driver, `xvfb-run`; slow) |
 | `bun scripts/release.ts`  | release planning / `set-version` (see docs/RELEASING.md)    |
 | `nix build .#desktop`     | NixOS package of the desktop app (needs Nix; CI runs it)    |
+| `bun scripts/contrast.ts` | palette report: WCAG contrast, quest colours vs accent      |
 
 ### Database without Docker
 
@@ -238,7 +239,13 @@ timer.serverNow)` so today moves live with the timer.
 ## Styling rules
 
 - Only token variables for colours, spacing, radii, font sizes (`var(--surface)`, `var(--space-4)`…).
-  Add a token to `tokens.css` instead of hard-coding a value that repeats.
+  Add a token to `tokens.css` instead of hard-coding a value that repeats. **No colour literals
+  outside `tokens.css`** (hex/rgb/hsl), and states use role tokens rather than the accent mixed
+  by hand: `--control-on` (checked controls), `--selected-bg` / `--selected-border` /
+  `--selected-text` (selections), `--focus-ring` (via `--ring`), `--backdrop`, `--shadow-color`
+  — so a new look or a light theme only changes `tokens.css`. After changing colours run
+  `bun scripts/contrast.ts` (also: `bun scripts/contrast.ts draft.css` for a palette draft);
+  `scripts/contrast.test.ts` enforces it in `bun run test` (its `KNOWN_GAPS` only shrinks).
 - Global utilities (`src/lib/styles/global.css`): `.label` (uppercase section label), `.card`,
   `.muted`, `.tabular`, `.hatch` (diagonal hatching tinted by `--q`), `.sr-only`, `.strike`
   (animatable strike-through, full under `.struck`).

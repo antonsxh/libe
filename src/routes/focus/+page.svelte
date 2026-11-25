@@ -701,7 +701,7 @@
 	}
 	.task.on {
 		border-color: var(--running-border);
-		background: var(--accent-soft);
+		background: var(--selected-bg);
 	}
 	.task:has(:focus-visible) {
 		box-shadow: var(--ring);

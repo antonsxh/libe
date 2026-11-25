@@ -270,7 +270,7 @@
 		font-size: var(--fs-sm);
 	}
 	.done input {
-		accent-color: var(--accent);
+		accent-color: var(--control-on);
 	}
 	.sessions {
 		margin-top: var(--space-5);

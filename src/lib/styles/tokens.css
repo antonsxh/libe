@@ -1,6 +1,9 @@
 /*
- * libe design tokens — measured from the reference screenshots.
- * Dark-only theme. Every colour/size used in components should come from here.
+ * libe design tokens. Dark-only theme. Every colour/size used in components comes from here:
+ * no colour literals elsewhere, and components use role names (`--control-on`, `--backdrop`,
+ * `--selected-bg`), not raw palette entries, so a new look or a light theme only changes this
+ * file. `bun scripts/contrast.ts` reports contrast and quest-colour spacing (tested in
+ * `bun run test`).
  */
 :root {
 	color-scheme: dark;
@@ -36,6 +39,13 @@
 		var(--accent) 50%,
 		var(--border)
 	); /* card with the active timer */
+
+	/* ── States (role names; components never mix these themselves) ── */
+	--control-on: var(--accent); /* checked checkbox/radio, selected swatch/emoji outline */
+	--selected-bg: var(--accent-soft); /* selected list item / toggle */
+	--selected-border: color-mix(in srgb, var(--accent) 55%, transparent);
+	--selected-text: var(--accent);
+	--focus-ring: color-mix(in srgb, var(--accent) 55%, transparent);
 
 	/* ── Semantic ─────────────────────────────────────────── */
 	--danger: #e5645f;
@@ -133,15 +143,18 @@
 	--radius-pill: 999px;
 
 	/* ── Effects ──────────────────────────────────────────── */
-	--shadow-pop: 0 12px 32px rgb(0 0 0 / 0.45), 0 0 0 1px var(--border);
-	--shadow-float: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35); /* floating bars */
+	--shadow-color: 0 0 0; /* rgb channels of shadows and backdrops */
+	--shadow-pop: 0 12px 32px rgb(var(--shadow-color) / 0.45), 0 0 0 1px var(--border);
+	--shadow-float:
+		0 10px 30px rgb(var(--shadow-color) / 0.5), 0 2px 8px rgb(var(--shadow-color) / 0.35); /* floating bars */
+	--backdrop: rgb(var(--shadow-color) / 0.6); /* behind modal dialogs and the palette */
 	/* Translucent "glass" of the floating phone bars; content shows blurred underneath. */
 	--glass-bg: color-mix(in srgb, var(--surface) 68%, transparent);
 	--glass-bg-solid: var(--surface); /* without backdrop-filter support */
 	--glass-blur: blur(20px) saturate(170%);
 	--glass-border: color-mix(in srgb, var(--text) 9%, transparent); /* hairline edge */
 	--tab-pill: color-mix(in srgb, var(--text) 11%, transparent); /* active tab indicator */
-	--ring: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+	--ring: 0 0 0 2px var(--focus-ring);
 	--ease: cubic-bezier(0.2, 0, 0, 1);
 	--dur: 140ms;
 	--dur-slow: 400ms; /* progress fills (goal ring) */
