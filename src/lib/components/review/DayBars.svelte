@@ -168,7 +168,7 @@
 		font-size: var(--fs-xs);
 	}
 	.longest :global(svg) {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.bars {
 		flex: 1;
@@ -234,7 +234,7 @@
 		color: var(--text-faint);
 	}
 	.mark[data-mark='done'] {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.mark .pip {
 		width: 5px;
@@ -252,7 +252,7 @@
 	}
 	.col[data-state='today'] .value,
 	.col[data-state='today'] .weekday {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.col[data-state='today'] .bar {
 		background: var(--accent);

@@ -3,7 +3,7 @@
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 
 	type Props = HTMLButtonAttributes & {
-		/** primary = amber CTA, secondary = surface + border, ghost = text only */
+		/** primary = accent CTA, secondary = surface + border, ghost = text only */
 		variant?: 'primary' | 'secondary' | 'ghost';
 		size?: 'sm' | 'md';
 		/** Square button for a single icon. Pass an `aria-label`. */

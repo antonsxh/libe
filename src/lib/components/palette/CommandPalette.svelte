@@ -660,7 +660,7 @@
 		padding: 0 var(--space-2);
 		background: none;
 		border: 0;
-		color: var(--accent);
+		color: var(--accent-text);
 		font: inherit;
 		font-size: var(--fs-md);
 	}
@@ -773,7 +773,7 @@
 		border-color: var(--border-strong);
 	}
 	.go:hover {
-		color: var(--accent);
+		color: var(--accent-text);
 		background: var(--surface-hover);
 	}
 

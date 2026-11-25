@@ -175,8 +175,20 @@ export const CHECKS: Check[] = [
 	})),
 	{ fg: '--accent-ink', bg: '--accent', min: AA_TEXT, what: 'primary button label' },
 	{ fg: '--accent-ink', bg: '--accent-hover', min: AA_TEXT, what: 'primary button, hover' },
-	...TEXT_SURFACES.map((bg) => ({ fg: '--accent', bg, min: AA_TEXT, what: 'today / now text' })),
+	...TEXT_SURFACES.map((bg) => ({
+		fg: '--accent-text',
+		bg,
+		min: AA_TEXT,
+		what: 'today / now text, links'
+	})),
+	...['--bg', '--surface'].map((bg) => ({
+		fg: '--accent',
+		bg,
+		min: AA_UI,
+		what: 'accent lines, rings, dots'
+	})),
 	...TEXT_SURFACES.map((bg) => ({ fg: '--danger', bg, min: AA_TEXT, what: 'error text' })),
+	...TEXT_SURFACES.map((bg) => ({ fg: '--success', bg, min: AA_TEXT, what: 'success text' })),
 	{ fg: '--overdue', bg: '--surface', min: AA_UI, what: 'overdue dots' },
 	{ fg: '--focus-ring', bg: '--bg', min: AA_UI, what: 'focus ring' },
 	{ fg: '--focus-ring', bg: '--surface', min: AA_UI, what: 'focus ring' }

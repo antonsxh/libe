@@ -82,7 +82,7 @@
 		line-height: 1.6;
 	}
 	.footer :global(a) {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.footer :global(a:hover) {
 		text-decoration: underline;
@@ -137,7 +137,7 @@
 		font-size: var(--fs-sm);
 	}
 	.panel :global(.notice a) {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.panel :global(.submit .btn) {
 		width: 100%;

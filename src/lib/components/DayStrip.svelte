@@ -4,7 +4,7 @@
 
 	/**
 	 * Phones only (≤ 720px): Mon–Sun of the shown week as weekday initial + date number. The
-	 * selected day sits on a pill that slides between days; today's number is amber; at most
+	 * selected day sits on a pill that slides between days; today's number is in the accent colour; at most
 	 * one dot per day (`marked`; overdue days — `alerts` — in the overdue colour). Links (`hrefFor`) work without JS; with JS `onselect`
 	 * navigates in place (the page decides how).
 	 */
@@ -128,7 +128,7 @@
 			color: var(--text-muted);
 		}
 		.today .num {
-			color: var(--accent);
+			color: var(--accent-text);
 		}
 		.dot {
 			width: var(--day-dot);

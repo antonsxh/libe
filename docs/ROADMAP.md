@@ -1357,6 +1357,7 @@ quest to pick. The overhaul runs in small milestones, each shippable on its own:
 | R1a | Token foundation, no visible change: role tokens, no colour literals outside `tokens.css`, palette check script, styleguide by role                              | ✅ done |
 | R1b | Rebrand "Hain": the palette picked from rendered variants (V3 "Waldboden"), mint accent, quest colours off the mint hue, Figtree                                 | ✅ done |
 | R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                                        | ✅ done |
+| R4  | "Apple + Linear" look (replaces Hain): palette, Geist, Apple system colours for quests, `--accent-text`                                                          | ✅ done |
 | O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | planned |
 | O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
 | O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
@@ -1385,6 +1386,14 @@ Owner decisions:
   grid, card edges, motion, accent discipline) came along unseen. The accent discipline stays
   in O4; like every later visual change it is rendered as variants on the real pages first
   and picked by the owner before it is applied.
+- **Hain was dropped (R4) for "Apple + Linear" with Geist.** How it was picked: four neutral
+  palettes × four fonts rendered on the real pages and compared side by side; the owner chose
+  the Apple + Linear palette and Geist, then refinements from Linear's rules (few, soft
+  borders — "structure should be felt, not seen"; the nav recedes; elevation through
+  lightness; a restrained accent) and **Apple's system colours as quest colours**. Tokens and
+  font only — Apple-style components are a later milestone. The R1b/R2 notes below describe
+  the Hain look as it was; where older notes say "mint" or "amber" for the accent, read the
+  accent (blue now).
 - **The name "libe" stays.** "Quest" stays as the product word and gets explained once.
 
 ## O1 — what exists
@@ -1532,3 +1541,50 @@ The favicon and every app icon are in the Hain colours; the mark itself is uncha
   maskable safe zone), the ICO encoder, the committed files' sizes, and that the committed
   SVGs equal the builder's output for the current tokens — a token change without rerunning
   the generator fails `bun run test`.
+
+## R4 — what exists
+
+libe has the "Apple + Linear" look; the layout and every component are unchanged, only tokens,
+the UI font, the icons and the colours outside `tokens.css` changed. Where older milestone
+notes in this file say "amber" or "mint" for the now line, today markers, the running timer,
+progress bars or primary buttons, read "the accent" (blue now).
+
+- **Palette** (`tokens.css`, neutral, elevation by lightness): `--bg #000000`, `--bg-nav
+#000000` (the nav recedes), `--surface #111113`, `--surface-2 #1a1a1d`, `--surface-hover
+#161618`, `--track #1a1a1d`, `--bar-muted #3a3a3e`; lines (few, soft) `--border #1c1c1f`,
+  `--border-dashed #262629`, `--border-strong #2a2a2e`; text `--text #f5f5f7`, `--text-2
+#d2d2d7`, `--text-muted #98989f`, `--text-faint #6e6e73`.
+- **Accent**: Apple blue `--accent #0071e3`, `--accent-hover #0062c4`, `--accent-ink #ffffff`
+  (4.7:1 / 5.9:1); `--focus-ring #409cff` (a literal now, not an accent mix); `--danger
+#ff6b62`; `--success #30d158` (no longer the accent). `--accent-soft`, `--today-tint`,
+  `--running-border`, `--selected-bg` / `--selected-border`, `--control-on`, `--overdue` stay
+  derived role tokens with their old formulas.
+- **`--accent-text #4da3ff`** — the accent as a text or icon colour. `#0071e3` carries white
+  button text but is only ~4.0–4.5:1 as text on the black surfaces; `--accent-text` is 8.0 /
+  7.2 / 6.6:1 on `--bg` / `--surface` / `--surface-2`. Rule: `color:` uses the accent only
+  through `--accent-text`; fills, borders, lines, rings, dots and the logo stroke keep
+  `--accent`. `--selected-text` = `--accent-text`. Changed to `--accent-text`: today's day
+  numbers (Plan columns, Calendar head, phone `DayStrip`), Review's today column labels, its
+  quest-hours KPI and done streak marks, the longest-day icon, streak flames (nav, Home chip),
+  the active quest filter funnel, the `QuestPicker` tick, Overdue "today" hover, Backlog's
+  primary op hover, palette cancel / go hover, auth footer and notice links, Focus' overtime
+  clock, "switch" link and empty-state link, Settings' own-device icon and "this device" badge,
+  the styleguide's stat sample. `/styleguide` shows `--accent-text` among the accent swatches.
+- **Quest colours** = Apple's system colours (dark variants): red `#ff4245`, orange `#ff9230`,
+  amber `#ffd600`, lime `#b4e34a`, green `#30d158`, teal `#00c7be`, blue `#8a7bff` (indigo
+  leaning, 29° of hue from the blue accent), purple `#bf5af2`, pink `#ff6ac1`, olive `#b78a66`,
+  slate `#8e8e93`. Keys unchanged (stored in the DB).
+- **Palette check** (`scripts/contrast.ts`): the "today / now text" checks test
+  `--accent-text`; new UI checks `--accent` ≥ 3:1 on `--bg` / `--surface` (lines, rings, dots:
+  4.5 / 4.0:1) and `--success` ≥ 4.5:1 as text. All checks pass, `KNOWN_GAPS` stays empty.
+- **Font**: Geist (`@fontsource-variable/geist` 5.3.0, OFL, self-hosted like Figtree was)
+  replaces Figtree. Geist's default digits are proportional, but it has `tnum` (all digits
+  600 units), so `.tabular` / `tabular-nums` (Focus clock, times) keep a fixed width.
+- **Outside `tokens.css`**: `theme-color` and the manifest colours `#000000`; the desktop
+  window background (`BACKGROUND` in `src-tauri/src/lib.rs`, black) and the desktop shell's
+  palette (`src-tauri/ui/style.css`, incl. `--accent-text`; Geist if installed, else the
+  system font).
+- **Icons**: regenerated with `bun scripts/icons.ts` from the tokens — blue stroke, white dot,
+  black tile; geometry and compositions unchanged.
+- **Unchanged**: layout, components, radii, spacing, motion, the logo's geometry. Code comments
+  that still said "amber" for the accent now say "accent".

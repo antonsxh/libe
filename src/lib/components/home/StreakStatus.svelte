@@ -79,7 +79,7 @@
 	}
 	.chip.lit :global(svg),
 	.chip.milestone :global(svg) {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.chip.milestone {
 		border-color: color-mix(in srgb, var(--accent) 55%, transparent);

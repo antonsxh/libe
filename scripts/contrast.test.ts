@@ -63,8 +63,8 @@ describe('colour maths', () => {
 });
 
 /**
- * Checks the current palette is known to fail — empty since R1b ("Hain") closed the old
- * palette's gaps. Never add one: fix the token instead.
+ * Checks the current palette is known to fail — empty since R1b closed the old palette's
+ * gaps (and R4 kept it so with `--accent-text`). Never add one: fix the token instead.
  */
 const KNOWN_GAPS: string[] = [];
 

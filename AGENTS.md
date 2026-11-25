@@ -239,14 +239,19 @@ timer.serverNow)` so today moves live with the timer.
 
 ## Styling rules
 
-- The look is **"Hain"**: near-black ground with an olive/forest cast, near-neutral text, mint as
-  the one accent, Figtree (`docs/ROADMAP.md` → "R1b — what exists"). Visual changes are first
+- The look is **"Apple + Linear"** (`docs/ROADMAP.md` → "R4 — what exists"): a black ground,
+  elevation through lightness (each raised layer a step lighter, not shadows), few and soft
+  borders ("structure is felt, not seen"), a nav that recedes, near-white text, one restrained
+  blue accent, the **Geist** font, and Apple's system colours for quests. `--accent` is for
+  fills, lines, rings and dots; wherever the accent is a **text or icon colour** use
+  `--accent-text` (the accent itself is too dark for text on black). Visual changes are first
   rendered as variants on the real pages and picked by the owner, then applied.
 - Only token variables for colours, spacing, radii, font sizes (`var(--surface)`, `var(--space-4)`…).
   Add a token to `tokens.css` instead of hard-coding a value that repeats. **No colour literals
   outside `tokens.css`** (hex/rgb/hsl), and states use role tokens rather than the accent mixed
-  by hand: `--control-on` (checked controls), `--selected-bg` / `--selected-border` /
-  `--selected-text` (selections), `--focus-ring` (via `--ring`), `--backdrop`, `--shadow-color`
+  by hand: `--accent-text` (accent as text/icon colour), `--control-on` (checked controls),
+  `--selected-bg` / `--selected-border` / `--selected-text` (selections), `--focus-ring` (via
+  `--ring`), `--backdrop`, `--shadow-color`
   — so a new look or a light theme only changes `tokens.css`. After changing colours run
   `bun scripts/contrast.ts` (also: `bun scripts/contrast.ts draft.css` for a palette draft);
   `scripts/contrast.test.ts` enforces it in `bun run test` (its `KNOWN_GAPS` only shrinks).

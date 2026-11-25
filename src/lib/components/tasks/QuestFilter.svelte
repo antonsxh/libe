@@ -119,7 +119,7 @@
 		background: var(--surface-hover);
 	}
 	.funnel.active {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 
 	.pop {

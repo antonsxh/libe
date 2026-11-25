@@ -454,7 +454,7 @@
 		flex: none;
 	}
 	.streak :global(svg.lit) {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.person {
 		color: var(--text);

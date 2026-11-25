@@ -211,7 +211,7 @@
 		transition: color var(--dur) var(--ease);
 	}
 	.today:hover {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 
 	/* Plan's rail: title over the age, an icon-only "Today". */
@@ -240,7 +240,7 @@
 		color: var(--text-faint);
 	}
 	.compact .today:hover {
-		color: var(--accent);
+		color: var(--accent-text);
 		background: var(--surface-hover);
 	}
 

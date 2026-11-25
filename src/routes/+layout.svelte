@@ -1,5 +1,5 @@
 <script lang="ts">
-	import '@fontsource-variable/figtree';
+	import '@fontsource-variable/geist';
 	import '#lib/styles/global.css';
 	import { untrack } from 'svelte';
 	import { dev } from '$app/env';
