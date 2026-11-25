@@ -3,6 +3,9 @@
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Button from '#lib/components/Button.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
+	import GroupedList from '#lib/components/GroupedList.svelte';
+	import GroupedRow from '#lib/components/GroupedRow.svelte';
+	import SegmentedControl from '#lib/components/SegmentedControl.svelte';
 	import MiniPlayer from '#lib/components/MiniPlayer.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
@@ -31,6 +34,8 @@
 	const states = ['--control-on', '--selected-bg', '--selected-border', '--focus-ring'];
 	const semantic = ['--danger', '--success', '--overdue', '--backdrop'];
 	let sheetOpen = $state(false);
+	let sampleChoice = $state('60');
+	let sampleSegment = $state('25');
 </script>
 
 <svelte:head><title>Styleguide · libe</title></svelte:head>
@@ -117,6 +122,43 @@
 		<Button icon aria-label="Filter"><Filter size={16} /></Button>
 		<Button size="sm">Today</Button>
 		<Button disabled>Disabled</Button>
+	</div>
+</section>
+
+<section>
+	<h2 class="label">Grouped list & segmented control (Apple-style)</h2>
+	<div class="grouped-demo">
+		<GroupedList
+			header="Choice"
+			footer="Native radios: arrow keys, screen readers, submits without JS."
+			name="sg-choice"
+			options={[
+				{ value: '30', label: '30 min' },
+				{ value: '60', label: '1 h' },
+				{ value: 'off', label: 'No daily goal' }
+			]}
+			bind:value={sampleChoice}
+		/>
+		<GroupedList header="Rows">
+			<GroupedRow>
+				<input type="text" aria-label="Sample field" placeholder="Text field filling the row" />
+			</GroupedRow>
+			<GroupedRow label="Label" for="sg-value">
+				<input id="sg-value" type="text" value="Value on the right" />
+			</GroupedRow>
+			<GroupedRow label="Duration" labelId="sg-duration">
+				<SegmentedControl
+					name="sg-segment"
+					labelledby="sg-duration"
+					options={[
+						{ value: '25', label: '25 min' },
+						{ value: '45', label: '45 min' },
+						{ value: '60', label: '1 h' }
+					]}
+					bind:value={sampleSegment}
+				/>
+			</GroupedRow>
+		</GroupedList>
 	</div>
 </section>
 
@@ -228,6 +270,12 @@
 		font-family: var(--font-mono);
 		font-size: var(--fs-xs);
 		color: var(--text-muted);
+	}
+	.grouped-demo {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+		gap: var(--space-6);
+		max-width: 760px;
 	}
 	.caption {
 		margin: var(--space-4) 0 var(--space-2);

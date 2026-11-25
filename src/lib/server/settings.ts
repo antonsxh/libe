@@ -1,6 +1,6 @@
 /**
  * App settings (single row `id = 1`): the pomodoro intervals, the UI language, the profile,
- * the daily goal and the streak rest days.
+ * the daily goal, the streak rest days and whether the first-run flow is done.
  */
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '#lib/server/db/index.ts';
@@ -140,6 +140,31 @@ export async function saveDailyGoal(goalMin: number | null, q: Queryable = db): 
 		.insert(settings)
 		.values({ id: 1, ...cols })
 		.onConflictDoUpdate({ target: settings.id, set: cols });
+}
+
+/**
+ * Whether the first-run flow (`/welcome`) is done — finished or skipped, or an install that
+ * already had data when the column was added (migration `0008_onboarding`). No row = no.
+ */
+export async function isOnboarded(q: Queryable = db): Promise<boolean> {
+	const [row] = await q
+		.select({ onboardedAt: settings.onboardedAt })
+		.from(settings)
+		.where(eq(settings.id, 1));
+	return row?.onboardedAt != null;
+}
+
+/** Mark the first-run flow done (keeps the first timestamp). */
+export async function markOnboarded(q: Queryable = db): Promise<void> {
+	const now = new Date();
+	await q
+		.insert(settings)
+		.values({ id: 1, onboardedAt: now, updatedAt: now })
+		.onConflictDoUpdate({
+			target: settings.id,
+			set: { onboardedAt: now, updatedAt: now },
+			setWhere: and(eq(settings.id, 1), isNull(settings.onboardedAt))
+		});
 }
 
 /** Save the streak rest days (already validated: `parseRestDays`; 0 = none). */

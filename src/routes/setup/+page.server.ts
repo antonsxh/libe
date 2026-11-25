@@ -10,8 +10,9 @@ import {
 	setupSecretConfigured
 } from '#lib/server/auth.ts';
 import { countActiveDevices, createDevice } from '#lib/server/devices.ts';
-import { setDisplayNameIfUnset } from '#lib/server/settings.ts';
+import { isOnboarded, setDisplayNameIfUnset } from '#lib/server/settings.ts';
 import { normalizeDisplayName } from '#lib/profile.ts';
+import { WELCOME_PATH, postSetupTarget } from '#lib/onboarding.ts';
 import { i18n } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -22,6 +23,9 @@ import type { Actions, PageServerLoad } from './$types';
  *
  * The optional "Your name" (`displayName`, shown for the first device) only fills an empty
  * profile name — a public form never overwrites the stored name, and the page never shows it.
+ *
+ * The first device of an install that hasn't been through the first-run flow lands on
+ * `/welcome` (whatever `next` says) — the flow is its welcome, so no `libe_welcome` notice.
  */
 export const load = (async ({ locals, request, url }) => ({
 	configured: setupSecretConfigured(),
@@ -58,6 +62,12 @@ export const actions = {
 			return fail(400, { ...echo, error: t.errors.wrongSetupSecret });
 		}
 
+		const [activeDevices, onboarded] = await Promise.all([countActiveDevices(), isOnboarded()]);
+		const target = postSetupTarget({
+			firstDevice: activeDevices === 0,
+			onboarded,
+			next: safeNext(form.get('next'))
+		});
 		const { token } = await createDevice({
 			name: parsedName.value,
 			kind: parseDeviceKind(form.get('kind')),
@@ -65,7 +75,7 @@ export const actions = {
 		});
 		if (parsedDisplayName.value) await setDisplayNameIfUnset(parsedDisplayName.value);
 		setDeviceCookie(cookies, url, token);
-		setWelcomeCookie(cookies, url);
-		redirect(303, safeNext(form.get('next')));
+		if (target !== WELCOME_PATH) setWelcomeCookie(cookies, url);
+		redirect(303, target);
 	}
 } satisfies Actions;

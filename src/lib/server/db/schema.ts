@@ -184,7 +184,7 @@ export const pomodoroRuns = pgTable(
 /**
  * App settings — a single row (`id = 1`): pomodoro intervals (minutes), the UI language,
  * the owner's profile (global, the same on every device — see `#lib/profile.ts`), the daily
- * goal and the streak rest days (`#lib/streak.ts`).
+ * goal, the streak rest days (`#lib/streak.ts`) and whether the first-run flow is done.
  */
 export const settings = pgTable(
 	'settings',
@@ -212,6 +212,12 @@ export const settings = pgTable(
 		 * (`#lib/streak.ts`) — 0 = none.
 		 */
 		streakRestDays: smallint('streak_rest_days').notNull().default(0),
+		/**
+		 * When the first-run flow (`/welcome`) was finished or skipped; null = not yet (fresh
+		 * install — the row may not exist either). Installs that had data before the column
+		 * existed were marked onboarded by the migration (`0008_onboarding`).
+		 */
+		onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(t) => [

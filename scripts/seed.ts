@@ -1,7 +1,8 @@
 /**
  * Seeds a demo dataset: 4 quests with backlog + scheduled tasks and completed focus
  * sessions spread over the last ~10 weeks (rising trend) so stats and sparklines
- * show real data. Refuses to run when `quests` is not empty.
+ * show real data, and marks the install onboarded (no `/welcome` flow). Refuses to run when
+ * `quests` is not empty.
  *
  *   bun run db:seed
  */
@@ -9,7 +10,7 @@ import { count } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { addDays, startOfWeek, todayISO } from '#lib/dates.ts';
-import { quests, sessions, tasks, type NewSession } from '#lib/server/db/schema.ts';
+import { quests, sessions, settings, tasks, type NewSession } from '#lib/server/db/schema.ts';
 import type { QuestColor } from '#lib/quest-colors.ts';
 
 const url = process.env.DATABASE_URL;
@@ -191,6 +192,13 @@ async function seed(): Promise<void> {
 		taskCount += 2;
 
 		await tx.insert(sessions).values(newSessions);
+
+		// A demo install is in use already: no first-run flow (`/welcome`).
+		const now = new Date();
+		await tx
+			.insert(settings)
+			.values({ id: 1, onboardedAt: now })
+			.onConflictDoUpdate({ target: settings.id, set: { onboardedAt: now } });
 	});
 	console.log(
 		`[seed] created ${questDefs.length} quests, ${taskCount} tasks, ${newSessions.length} sessions`
