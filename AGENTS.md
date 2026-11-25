@@ -46,6 +46,7 @@ Bun is on the `PATH` (CI uses the version pinned by `packageManager` in `package
 | `bun scripts/release.ts`  | release planning / `set-version` (see docs/RELEASING.md)    |
 | `nix build .#desktop`     | NixOS package of the desktop app (needs Nix; CI runs it)    |
 | `bun scripts/contrast.ts` | palette report: WCAG contrast, quest colours vs accent      |
+| `bun scripts/icons.ts`    | regenerate favicons, PWA/Apple and desktop icons from logo  |
 
 ### Database without Docker
 
@@ -279,7 +280,11 @@ timer.serverNow)` so today moves live with the timer.
     Animate on the tap, but the data still comes from the server (no faked state).
   - _Never overload data_: on phones show less, details on demand; don't add numbers/charts —
     fold or drop them (Home's week bar and streak hint are hidden on phones).
-- Static icons are generated from the logo (`static/favicon.svg`); keep `src-tauri/icons/` in sync.
+- The mark's geometry and colour roles live once in `#lib/logo.ts` (used by `Logo.svelte`).
+  Every static icon (`static/favicon.svg`/`.ico`/PNGs, `static/icons/`, `assets/icon.svg`,
+  `src-tauri/icons/`) is generated from it and `tokens.css` by `bun scripts/icons.ts`
+  (Playwright Chromium + `tauri icon`) — never edit them by hand; rerun it after changing the
+  logo or `--accent` / `--text` / `--bg` (`scripts/icons.test.ts` fails on a stale `favicon.svg`).
 
 ## End-to-end tests
 

@@ -1356,7 +1356,7 @@ quest to pick. The overhaul runs in small milestones, each shippable on its own:
 | O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                                   | ✅ done |
 | R1a | Token foundation, no visible change: role tokens, no colour literals outside `tokens.css`, palette check script, styleguide by role                              | ✅ done |
 | R1b | Rebrand "Hain": the palette picked from rendered variants (V3 "Waldboden"), mint accent, quest colours off the mint hue, Figtree                                 | ✅ done |
-| R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                                        | planned |
+| R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                                        | ✅ done |
 | O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | planned |
 | O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
 | O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
@@ -1506,3 +1506,29 @@ line, today markers, the running timer, progress bars or primary buttons, read "
   desktop window background (`BACKGROUND` in `src-tauri/src/lib.rs`) and the desktop shell's
   palette (`src-tauri/ui/style.css`, which bundles no font: Figtree if installed, else the
   system font). The favicon and app icons are still the old ones (R2).
+
+## R2 — what exists
+
+The favicon and every app icon are in the Hain colours; the mark itself is unchanged.
+
+- **Decision**: the owner kept the current mark (variant "A": the rounded "l" stroke and the
+  dot, same geometry) and only recoloured it: stroke `--accent` (mint), dot `--text`, on a
+  **dark** `--bg` tile (not a mint tile). Each file keeps its old composition and size: the
+  rounded tile (radius 7 of 32, transparent corners) for the favicons, the PWA "any" icons
+  and the desktop app; the full opaque square with the mark at 92 % for
+  `apple-touch-icon.png` and at 78 % (inside the 40 % safe circle) for the maskable icon.
+- **One source**: `src/lib/logo.ts` holds the geometry (path, stroke width, dot, the centre
+  icons use) and the colour roles (`LOGO_TOKENS`); `Logo.svelte` renders from it with CSS
+  variables, as before.
+- **Generator** `bun scripts/icons.ts`: reads the colours from `tokens.css` (`readTokens` /
+  `resolveColor` of `scripts/contrast.ts`) and writes `static/favicon.svg` and the README's
+  `assets/icon.svg`; renders `favicon-32.png`, `apple-touch-icon.png`, `icons/icon-192.png`,
+  `icon-512.png`, `icon-maskable-512.png` with Playwright's Chromium (transparent where the
+  tile is rounded, opaque otherwise); writes `favicon.ico` (16/32/48 PNG entries, a small
+  ICO encoder of its own); renders a 1024² PNG, runs `tauri icon` on it in a temp dir and
+  copies only the files that already exist in `src-tauri/icons/` (`icon.png` stays the
+  1024² render). Needs Chromium (`bunx playwright install chromium`).
+- **Tests** (`scripts/icons.test.ts`): the SVG builder (token colours, shared geometry,
+  maskable safe zone), the ICO encoder, the committed files' sizes, and that the committed
+  SVGs equal the builder's output for the current tokens — a token change without rerunning
+  the generator fails `bun run test`.
