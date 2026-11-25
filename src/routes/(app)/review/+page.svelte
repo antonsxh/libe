@@ -234,7 +234,7 @@
 		line-height: 1.1;
 	}
 	.num.accent {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.num.faint {
 		color: var(--text-faint);

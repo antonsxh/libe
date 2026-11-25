@@ -23,6 +23,7 @@
 	const accents = [
 		'--accent',
 		'--accent-hover',
+		'--accent-text',
 		'--accent-soft',
 		'--today-tint',
 		'--running-border'
@@ -70,7 +71,9 @@
 	<h2 class="label">Accent, states & semantic</h2>
 	{@render swatches(accents)}
 	<p class="muted caption">
-		Components use the role names, never the accent mixed by hand: checked controls
+		<code>--accent</code> is for fills, lines, rings and dots; as a text or icon colour use
+		<code>--accent-text</code> (the accent is too dark for text on black). Components use the role
+		names, never the accent mixed by hand: checked controls
 		<code>--control-on</code>, selections <code>--selected-bg</code> /
 		<code>--selected-border</code> / <code>--selected-text</code>, focus <code>--focus-ring</code>
 		(via <code>--ring</code>), modal backdrops <code>--backdrop</code>.
@@ -267,7 +270,7 @@
 	}
 	.stat {
 		font-size: var(--fs-stat);
-		color: var(--accent);
+		color: var(--accent-text);
 		line-height: 1;
 	}
 	.stat span {

@@ -46,7 +46,7 @@
 		last?: boolean;
 		/** `plan` = compact board card with prev/next-day menu entries. */
 		variant?: 'home' | 'plan';
-		/** Render the amber drop-indicator line above the card. */
+		/** Render the accent drop-indicator line above the card. */
 		dropBefore?: boolean;
 		/** This card is the one being dragged (rendered faded). */
 		dragging?: boolean;
@@ -332,7 +332,7 @@
 		border-radius: var(--radius-lg) 0 0 var(--radius-lg);
 		background: var(--q);
 	}
-	/* Drop indicator: a 2px amber line centred in the gap above the card. */
+	/* Drop indicator: a 2px accent line centred in the gap above the card. */
 	.drop-before::after {
 		content: '';
 		position: absolute;
@@ -347,7 +347,7 @@
 	.dragging {
 		opacity: 0.4;
 	}
-	/* The task with the active timer: amber outline + progress line along the bottom. */
+	/* The task with the active timer: accent outline + progress line along the bottom. */
 	.running,
 	.running:hover {
 		border-color: var(--running-border);

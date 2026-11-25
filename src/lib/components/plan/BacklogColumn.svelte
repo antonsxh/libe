@@ -469,7 +469,7 @@
 	.row.dragging {
 		opacity: 0.4;
 	}
-	/* 2px amber drop line centred in the 4px gap above the row. */
+	/* 2px accent drop line centred in the 4px gap above the row. */
 	.row.drop-before::after {
 		content: '';
 		position: absolute;

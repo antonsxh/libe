@@ -486,7 +486,7 @@
 		font-size: min(var(--fs-timer), 17vw);
 	}
 	.clock.overtime {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.clock.dim {
 		color: var(--text-muted);
@@ -615,7 +615,7 @@
 		padding: 0;
 		border: none;
 		background: transparent;
-		color: var(--accent);
+		color: var(--accent-text);
 		font-size: var(--fs-sm);
 	}
 	.link:hover {
@@ -731,7 +731,7 @@
 		text-align: center;
 	}
 	.empty a {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.planned {
 		display: grid;

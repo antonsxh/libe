@@ -284,7 +284,7 @@
 		color: var(--text);
 	}
 	.head.today .num {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.total {
 		font-size: var(--fs-xs);
@@ -429,7 +429,7 @@
 		padding-right: var(--space-3);
 	}
 
-	/* The running/paused timer: amber outline, pulsing dot. */
+	/* The running/paused timer: accent outline, pulsing dot. */
 	.entry.active {
 		border-color: var(--accent);
 		box-shadow: 0 0 0 1px var(--accent);

@@ -1,38 +1,42 @@
 /*
- * libe design tokens — "Hain" (grove): near-black ground with an olive/forest cast at low
- * chroma, near-neutral text, mint as the one accent. Dark-only theme. Every colour/size used in components comes from here:
- * no colour literals elsewhere, and components use role names (`--control-on`, `--backdrop`,
- * `--selected-bg`), not raw palette entries, so a new look or a light theme only changes this
- * file. `bun scripts/contrast.ts` reports contrast and quest-colour spacing (tested in
- * `bun run test`).
+ * libe design tokens — "Apple + Linear": a black ground, elevation through lightness (each
+ * raised layer a step lighter), few and soft borders, near-white text, one restrained blue
+ * accent and Apple's system colours for quests. Dark-only theme. Every colour/size used in
+ * components comes from here: no colour literals elsewhere, and components use role names
+ * (`--control-on`, `--backdrop`, `--selected-bg`, `--accent-text`), not raw palette entries, so
+ * a new look or a light theme only changes this file. `bun scripts/contrast.ts` reports
+ * contrast and quest-colour spacing (tested in `bun run test`).
  */
 :root {
 	color-scheme: dark;
 
-	/* ── Surfaces (OKLCH: today's lightness, chroma ≈ 0.011, hue 125°) ── */
-	--bg: #0d0f0a; /* page */
-	--bg-nav: #080a06; /* top bar */
-	--surface: #141611; /* cards, inputs, panels */
-	--surface-2: #1a1d17; /* raised: icon tiles, avatar, active nav item */
-	--surface-hover: #181a14;
-	--track: #161813; /* empty progress/bar track */
-	--bar-muted: #3b3e37; /* inactive chart bars */
+	/* ── Surfaces (neutral; elevation = lightness, not shadows or borders) ── */
+	--bg: #000000; /* page */
+	--bg-nav: #000000; /* top bar: recedes into the page */
+	--surface: #111113; /* cards, inputs, panels */
+	--surface-2: #1a1a1d; /* raised: icon tiles, avatar, active nav item */
+	--surface-hover: #161618;
+	--track: #1a1a1d; /* empty progress/bar track */
+	--bar-muted: #3a3a3e; /* inactive chart bars */
 
-	/* ── Lines ────────────────────────────────────────────── */
-	--border: #24261f;
-	--border-strong: #2f322a;
-	--border-dashed: #272a23; /* "add …" inputs, empty-state tiles */
+	/* ── Lines (few and soft: structure is felt, not seen) ── */
+	--border: #1c1c1f;
+	--border-strong: #2a2a2e;
+	--border-dashed: #262629; /* "add …" inputs, empty-state tiles */
 
-	/* ── Text (near-neutral; a green tint here makes the UI look fogged) ── */
-	--text: #f3f3f2;
-	--text-2: #cacbc7; /* secondary, still readable */
-	--text-muted: #91918d; /* labels, nav items */
-	--text-faint: #696965; /* placeholders, done tasks */
+	/* ── Text ─────────────────────────────────────────────── */
+	--text: #f5f5f7;
+	--text-2: #d2d2d7; /* secondary, still readable */
+	--text-muted: #98989f; /* labels, nav items */
+	--text-faint: #6e6e73; /* placeholders, done tasks */
 
-	/* ── Accent (mint, hue 164° — kept off the ground's hue) ── */
-	--accent: #6fdcae;
-	--accent-hover: #8de6c1;
-	--accent-ink: #08231a; /* text on accent */
+	/* ── Accent (Apple blue, used sparingly) ──────────────────
+	 * `--accent` is for fills, lines, rings and dots (≥ 3:1) and carries white text; as a text
+	 * or icon colour it is too dark on black, so text uses `--accent-text` (≥ 4.5:1). */
+	--accent: #0071e3;
+	--accent-hover: #0062c4;
+	--accent-ink: #ffffff; /* text on accent */
+	--accent-text: #4da3ff; /* accent as text/icon colour: today, links, active states */
 	--accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 	--today-tint: color-mix(in srgb, var(--accent) 7%, transparent); /* today column / timeline */
 	--running-border: color-mix(
@@ -45,33 +49,34 @@
 	--control-on: var(--accent); /* checked checkbox/radio, selected swatch/emoji outline */
 	--selected-bg: var(--accent-soft); /* selected list item / toggle */
 	--selected-border: color-mix(in srgb, var(--accent) 55%, transparent);
-	--selected-text: var(--accent);
-	--focus-ring: color-mix(in srgb, var(--accent) 55%, transparent);
+	--selected-text: var(--accent-text);
+	--focus-ring: #409cff;
 
 	/* ── Semantic ─────────────────────────────────────────── */
-	--danger: #e5645f;
-	--success: var(--accent); /* one green, not two */
+	--danger: #ff6b62;
+	--success: #30d158;
 	/* Overdue tasks: dots, markers and small accents only — never a large red surface. */
 	--overdue: color-mix(in srgb, var(--danger) 72%, var(--text-muted));
 
 	/* ── Quest colour family (see #lib/quest-colors.ts) ─────
-	 * Keys are stored in the DB: never rename, only retune. Green (leaf) and teal (cyan) stay
-	 * ≥ 25° of hue away from the mint accent (scripts/contrast.ts). */
-	--quest-red: #e5645f;
-	--quest-orange: #e8874f;
-	--quest-amber: #f0b44c;
-	--quest-lime: #b4cd55;
-	--quest-green: #78b955;
-	--quest-teal: #36b8c5;
-	--quest-blue: #5b9be6;
-	--quest-purple: #9b7bd8;
-	--quest-pink: #d96ba8;
-	--quest-olive: #8e9e5a;
-	--quest-slate: #8a8a93; /* "other" tasks */
+	 * Apple's system colours (dark variants). Keys are stored in the DB: never rename, only
+	 * retune. "blue" is indigo-leaning so it stays ≥ 25° of hue away from the blue accent
+	 * (scripts/contrast.ts). */
+	--quest-red: #ff4245;
+	--quest-orange: #ff9230;
+	--quest-amber: #ffd600;
+	--quest-lime: #b4e34a;
+	--quest-green: #30d158;
+	--quest-teal: #00c7be;
+	--quest-blue: #8a7bff;
+	--quest-purple: #bf5af2;
+	--quest-pink: #ff6ac1;
+	--quest-olive: #b78a66;
+	--quest-slate: #8e8e93; /* "other" tasks */
 
 	/* ── Typography ───────────────────────────────────────── */
 	--font-sans:
-		'Figtree Variable', Figtree, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+		'Geist Variable', Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
 	--fs-tab: 0.6875rem; /* 11  tiny labels (avatar initials) */

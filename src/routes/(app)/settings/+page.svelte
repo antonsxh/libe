@@ -737,7 +737,7 @@
 		color: var(--text-muted);
 	}
 	.self .icon {
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.info {
 		flex: 1;
@@ -763,7 +763,7 @@
 		padding: 1px var(--space-2);
 		border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
 		border-radius: var(--radius-pill);
-		color: var(--accent);
+		color: var(--accent-text);
 		font-size: var(--fs-xs);
 		font-weight: var(--fw-medium);
 	}
