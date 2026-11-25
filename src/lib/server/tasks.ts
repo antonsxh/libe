@@ -60,6 +60,16 @@ function flattenTask(row: { task: Task; questName: string | null; questColor: st
 	return { ...row.task, questName: row.questName, questColor: row.questColor };
 }
 
+/** One task with its quest's name/colour. */
+export async function getTaskWithQuest(id: string): Promise<TaskWithQuest | undefined> {
+	const [row] = await db
+		.select(taskWithQuestSelect)
+		.from(tasks)
+		.leftJoin(quests, eq(quests.id, tasks.questId))
+		.where(eq(tasks.id, id));
+	return row ? flattenTask(row) : undefined;
+}
+
 /** Open ("today") tasks of one kind for a day, in list order, with the quest joined. */
 export async function listDayTasks(day: string, kind: TaskKind): Promise<TaskWithQuest[]> {
 	const rows = await db
@@ -296,6 +306,19 @@ export async function moveTaskTo(
 			await tx.update(tasks).set({ order: k }).where(eq(tasks.id, sibling.id));
 		}
 	});
+}
+
+/** Change a task's title and planned minutes (already validated); tells timer clients. */
+export async function updateTaskDetails(
+	id: string,
+	input: { title: string; durationMin: number | null }
+): Promise<void> {
+	await db
+		.update(tasks)
+		.set({ title: input.title, durationMin: input.durationMin })
+		.where(eq(tasks.id, id));
+	// The active timer may show this task's title.
+	await broadcastTimer();
 }
 
 export async function setTaskDone(id: string, done: boolean): Promise<void> {

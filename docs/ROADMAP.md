@@ -22,9 +22,10 @@ pomodoro_runs(id, task_id, phase focus|short_break|long_break, round, phase_star
               phase_min, ended_at, created_at)                     -- M4, active run = ended_at NULL
 settings(id = 1, pomodoro_focus_min, pomodoro_short_break_min, pomodoro_long_break_min,
          pomodoro_long_break_every, pomodoro_auto_start, language auto|en|de, display_name,
-         avatar_color, avatar_emoji, daily_goal_min, streak_rest_days, updated_at)
+         avatar_color, avatar_emoji, daily_goal_min, streak_rest_days, onboarded_at, updated_at)
                                                        -- M4, single row; language: 0003_ui_language;
-                                                       -- profile 0004/0005; rest days 0006
+                                                       -- profile 0004/0005; rest days 0006;
+                                                       -- first-run flow 0008 (O2)
 devices(id, token_hash UNIQUE, name, kind browser|pwa|tauri, user_agent, paired_at, last_seen_at,
         cookie_renewed_at, revoked_at)                                    -- M7 (0002_devices)
 pairing_codes(id, code_hash, expires_at, used_at, attempts, created_by_device_id → devices,
@@ -1358,7 +1359,7 @@ quest to pick. The overhaul runs in small milestones, each shippable on its own:
 | R1b | Rebrand "Hain": the palette picked from rendered variants (V3 "Waldboden"), mint accent, quest colours off the mint hue, Figtree                                 | ✅ done |
 | R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                                        | ✅ done |
 | R4  | "Apple + Linear" look (replaces Hain): palette, Geist, Apple system colours for quests, `--accent-text`                                                          | ✅ done |
-| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | planned |
+| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | ✅ done |
 | O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
 | O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
 | R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
@@ -1588,3 +1589,82 @@ progress bars or primary buttons, read "the accent" (blue now).
   black tile; geometry and compositions unchanged.
 - **Unchanged**: layout, components, radii, spacing, motion, the logo's geometry. Code comments
   that still said "amber" for the accent now say "accent".
+
+## O2 — what exists
+
+A short, skippable first-run flow right after the first pairing — the newcomer from the audit
+didn't know what libe is or what to do.
+
+- **Look**: the owner's mock-up "V1 · three steps" in Apple/SwiftUI idioms on phone and
+  desktop, built only from tokens (the mock-up's colours/font were an older palette). Large
+  bold titles under an accent lucide symbol (Target, Flag, Timer; Logo on the welcome
+  screen), one muted line, inset grouped lists, page dots for steps 1–3, "‹ Back" in accent
+  text top left from step 1 on. Phones: the primary full-width (`--cta-h`, `--radius-cta`)
+  in a sticky footer above the home indicator, the secondary as plain accent text under it.
+  Wider screens: one narrow centred column (`--welcome-col`), a hairline above the footer,
+  dots left, buttons bottom right like a macOS sheet (secondary left of the primary). Step
+  changes rise in with `tickIn` (not the first paint; nothing under reduced motion); hover
+  styles only for `(hover: hover)` (no sticky tint after a tap).
+- **Screens** (`/welcome`, outside `(app)`; `components/welcome/`: `WelcomeScreen` shell +
+  `StepIntro`, `StepGoal`, `StepQuest`, `StepFocus`): 0. "Welcome to libe" + Quests / Focus / Review rows; **Get started**, "Skip setup".
+  1. "How much time a day?" — grouped choice list 30 min / 1 h / 2 h / 3 h / No daily goal
+     (the stored goal preselected if listed, else 1 h); **Continue** saves it, "Set later"
+     skips.
+  2. "What do you want to work on?" — section Quest (name field, colour swatches), section
+     First step (title field, segmented 25 min / 45 min / 1 h, footer "It goes on today's
+     list."); **Continue** creates the quest and the task on today's list (bottom), "Skip"
+     creates nothing.
+  3. "Ready for your first focus?" — the task as a card (quest dot + name, "45 min planned");
+     **Start focus** / "Later — go to Home". Without a task (step 2 skipped): "You're all
+     set" + **Go to Home** — the timer needs a task, so no new timer semantics.
+- **State in the URL**: `?step=1…3` (anything else = the welcome screen) and `&task=<id>`
+  once step 2 created the task (`#lib/onboarding.ts`: `parseStep`, `welcomeHref`,
+  `previousStep`). Every step is its own history entry, so back/forward and reloads show the
+  same screen; "Back" is a plain link to the previous step. Back from step 3 to step 2 shows
+  the created quest/task and Continue **edits** them (`saveFirstQuest` with the existing
+  task; `updateQuest` + new `updateTaskDetails`, which broadcasts the timer) instead of
+  creating a second pair. Forms post with `formAction(...)` so a failed submit keeps the URL.
+- **Writes** (form actions in `routes/welcome/+page.server.ts`, progressive enhancement):
+  `goal` → `parseDailyGoal` + `saveDailyGoal`; `quest` → `validateQuestForm` (description,
+  icon, budget defaulted), `validateTaskTitle`, `parseFirstStepDuration` (25/45/60 only),
+  errors translated and echoed; `finish` → `markOnboarded()` then Home, or with
+  `then=focus`: with JS the action returns and the page starts the focus through
+  `useTimer().start(…, { navigate: true })` (an active timer gets the usual "Stop current and
+  start this?") and opens `/focus`; without JS the action calls `startTimer` (the function
+  behind `POST /api/timer`) and redirects to `/focus` (`/focus?task=` if another timer runs).
+- **Data**: `settings.onboarded_at` (timestamptz, null = not yet), migration
+  `0008_onboarding`. The settings row is created lazily, so the migration upserts it with
+  `onboarded_at = now()` when the install has any quest, task, session or device (even a
+  revoked one) — existing installs never see the flow; a fresh install has no row → null.
+  `isOnboarded` / `markOnboarded` (keeps the first timestamp) in `server/settings.ts`, data
+  access in `server/onboarding.ts`. `scripts/seed.ts` marks the demo install onboarded.
+- **Redirects**: only a **first-device** `/setup` (no active device before it) of a not yet
+  onboarded install lands on `/welcome` (`postSetupTarget`), whatever its `next`; it sets
+  no `libe_welcome` cookie (the flow is the welcome). `/setup` with devices (recovery),
+  `/pair`, the Tauri `/pair/session` and every app page behave as before — abandoning the
+  flow leaves `onboarded_at` null but traps no one. `/welcome` when onboarded → 303 to `/`.
+  It is a normal authenticated route (unpaired → `/setup?next=/welcome`).
+- **Apple-style primitives** (in `/styleguide`): `GroupedList` (inset grouped rows on
+  `--grouped-bg`, hairlines inset from the left, header/footer; with `options` a
+  `<fieldset>` of native radios with an accent checkmark — arrow keys, screen readers, no-JS
+  submit), `GroupedRow` (label left + control right, `stacked`, or a borderless text field
+  filling the row; a focused field rings its row), `SegmentedControl` (native radio group,
+  raised thumb, touch hit area via `.hit-target`). New tokens: `--grouped-*`,
+  `--segmented-*`, `--page-dot*`, `--cta-h`, `--radius-cta`, `--fs-title`, `--fw-bold`,
+  `--symbol-lg`, `--welcome-col` (`scripts/contrast.ts` all ok).
+- **i18n**: `onboarding.*` in `en.ts` / `de.ts` (German from the mock-up: „Los geht’s“,
+  „Später festlegen“, „Später, zur Startseite“). Durations via `formatDurationMin`, "planned"
+  via `t.tasks.planned`. The tab title names the step (the route announcer reads it).
+- **Decisions**: "Skip setup" sits in the welcome screen's empty secondary slot; the
+  default quest colour is teal (as in the mock-up); colours are the full `ColorSwatches`
+  row (stacked under its label, wraps on phones); Back stays top left on desktop too (the
+  owner's brief), not in the footer as in the mock-up's Mac window.
+- **Tests**: unit `onboarding.test.ts` (step parsing/links round trip, goal choices ⊂
+  Settings presets, first-step durations, `postSetupTarget`). e2e `onboarding.spec.ts`: a
+  first pairing lands on `/welcome`, the flow saves the goal (120), creates quest + today's
+  task (45 min), Back edits instead of duplicating (checked against the reintroduced bug),
+  Start focus → running session + `onboarded_at`, then `/welcome` → `/`; skipping every step
+  (`@mobile`, reload keeps the step, nothing created, `onboarded_at` set only by the last
+  button); no trap (Home stays Home, a `/setup` with devices keeps `next`), server-side
+  validation, "Skip setup". `onboarded_at`, the goal and the timer are reset around each
+  test. `/welcome` is not in `pages.spec.ts` (it redirects once onboarded).

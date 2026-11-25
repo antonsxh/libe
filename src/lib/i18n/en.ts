@@ -709,6 +709,55 @@ export const en = {
 			pairAgain: 'Pair this device'
 		}
 	},
+	/** First-run flow (`/welcome`) after the first pairing. */
+	onboarding: {
+		pageTitle: 'Welcome · libe',
+		back: 'Back',
+		/** Page dots (screen readers). */
+		progress: (step: number, total: number) => `Step ${step} of ${total}`,
+		skipSetup: 'Skip setup',
+		continue: 'Continue',
+		intro: {
+			title: 'Welcome to libe',
+			questsTitle: 'Quests',
+			questsText: 'Plan what matters to you in small steps.',
+			focusTitle: 'Focus',
+			focusText: 'Start a timer and libe logs the time for you.',
+			reviewTitle: 'Review',
+			reviewText: 'See at the end of the week where your time went.',
+			start: 'Get started'
+		},
+		goal: {
+			title: 'How much time a day?',
+			lead: 'Your daily goal. You can change it any time in Settings.',
+			label: 'Daily goal',
+			none: 'No daily goal',
+			later: 'Set later'
+		},
+		quest: {
+			title: 'What do you want to work on?',
+			lead: 'A quest is a bigger goal: a language, a project, running.',
+			section: 'Quest',
+			name: 'Quest name',
+			namePlaceholder: 'Learn Spanish',
+			color: 'Colour',
+			stepSection: 'First step',
+			stepTitle: 'First step',
+			stepPlaceholder: 'Work through lesson 1',
+			duration: 'Duration',
+			stepFooter: 'It goes on today’s list.',
+			skip: 'Skip'
+		},
+		focus: {
+			title: 'Ready for your first focus?',
+			lead: 'A timer runs, you work, libe logs the time. You can pause any time.',
+			start: 'Start focus',
+			later: 'Later — go to Home',
+			noTaskTitle: 'You’re all set',
+			noTaskLead: 'Add a first step on Home whenever you like, then start a focus from there.',
+			home: 'Go to Home'
+		}
+	},
 	/** One-time notice on the first page after pairing a device. */
 	welcome: {
 		paired: (name: string | null) =>

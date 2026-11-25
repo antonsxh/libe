@@ -94,6 +94,7 @@
 	--fw-regular: 400;
 	--fw-medium: 500;
 	--fw-semibold: 600;
+	--fw-bold: 700; /* large titles only */
 
 	--tracking-label: 0.12em; /* uppercase section labels: QUEST WORK, THIS WEEK */
 
@@ -200,6 +201,25 @@
 	--goal-track: color-mix(in srgb, var(--accent) 16%, transparent);
 	--goal-done: var(--success);
 	--goal-done-glow: 0 0 3px color-mix(in srgb, var(--success) 70%, transparent);
+
+	/* ── Apple-style primitives (GroupedList, SegmentedControl, the /welcome flow) ── */
+	--grouped-bg: var(--surface); /* inset grouped list on the page ground */
+	--grouped-separator: var(--border); /* hairline between rows, inset from the left */
+	--grouped-radius: var(--radius-lg);
+	--grouped-row-h: 44px; /* min. row height (= --hit-min) */
+	--grouped-inset: var(--space-4); /* row padding and separator inset */
+	--segmented-bg: color-mix(in srgb, var(--text) 7%, transparent); /* the control's track */
+	--segmented-thumb: color-mix(in srgb, var(--text) 16%, var(--surface)); /* selected segment */
+	--segmented-shadow: 0 1px 3px rgb(var(--shadow-color) / 0.45);
+	--segmented-h: 32px;
+	--page-dot: 7px; /* step dots of a multi-step flow */
+	--page-dot-off: color-mix(in srgb, var(--text) 22%, transparent);
+	--page-dot-on: var(--text);
+	--cta-h: 50px; /* full-width primary button at the bottom of a phone screen */
+	--radius-cta: 14px;
+	--fs-title: 1.75rem; /* 28  large bold screen titles (first-run flow) */
+	--symbol-lg: 52px; /* accent symbol above a large title */
+	--welcome-col: 480px; /* the first-run flow's column on wide screens */
 
 	/* ── Hatching (planned blocks, calendar entries) ──────── */
 	--hatch-angle: 135deg;

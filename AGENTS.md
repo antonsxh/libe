@@ -153,6 +153,15 @@ timer.serverNow)` so today moves live with the timer.
   (its `+layout.svelte` renders `AppNav` + `<main>`). `/focus` sits outside the group
   (full-screen, no nav). The root layout only loads global CSS, the timer snapshot and the
   app-wide dialogs.
+- **First-run flow** `/welcome` (outside `(app)`, like `/focus`): welcome → daily goal → first
+  quest + today's first step → first focus. The step lives in the URL (`?step=1…3`,
+  `&task=<id>` after step 2; rules in `#lib/onboarding.ts`), writes are form actions reusing
+  `parseDailyGoal`, `validateQuestForm`, `validateTaskTitle` and `startTimer` /
+  `useTimer().start`. It runs only while `settings.onboarded_at` is null (`isOnboarded` /
+  `markOnboarded`, `server/settings.ts`); only a **first-device** `/setup` redirects there
+  (`postSetupTarget`) — never `/pair`, `/pair/session` or app pages, so leaving halfway traps
+  no one. Finishing or "Skip setup" sets `onboarded_at`; then `/welcome` redirects to `/`. The
+  seed marks the install onboarded (the e2e suite relies on it).
 - **Timer**: never compute timer state on the client. Mutations go through
   `POST /api/timer` (`server/timer.ts`); clients render from the snapshot via the pure
   `timerView()` (`#lib/timer.ts`). In components use `useTimer()` (`#lib/timer-store.svelte.ts`,
@@ -263,7 +272,10 @@ timer.serverNow)` so today moves live with the timer.
 - Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`,
   `Avatar`, `ColorSwatches`, `EmojiPicker`, `Dialog` (centred modal; bottom sheet on phones),
   `MiniPlayer` (phone timer bar, rendered by the `(app)` layout), `DayStrip` / `DaySwipe`
-  (phone day view).
+  (phone day view). Apple-style (later milestones move more pages to these): `GroupedList`
+  (inset grouped rows, header/footer; with `options` a radio choice list with a checkmark) +
+  `GroupedRow` (label left, control right, or a borderless text field filling the row) and
+  `SegmentedControl` (radio group) — tokens `--grouped-*`, `--segmented-*`.
   Look at `/styleguide` in the running app before building new UI.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
   Below 720px the nav is a floating capsule at the bottom (icons only, a sliding pill, the account
@@ -295,7 +307,7 @@ timer.serverNow)` so today moves live with the timer.
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n, palette, profile, streak, mobile-polish, day-view, push, overdue),
+i18n, palette, profile, streak, mobile-polish, day-view, push, overdue, onboarding),
 helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 

@@ -686,6 +686,54 @@ export const de: Messages = {
 			pairAgain: 'Dieses Gerät koppeln'
 		}
 	},
+	onboarding: {
+		pageTitle: 'Willkommen · libe',
+		back: 'Zurück',
+		progress: (step, total) => `Schritt ${step} von ${total}`,
+		skipSetup: 'Einrichtung überspringen',
+		continue: 'Weiter',
+		intro: {
+			title: 'Willkommen bei libe',
+			questsTitle: 'Quests',
+			questsText: 'Plane die Dinge, die dir wichtig sind, in kleinen Schritten.',
+			focusTitle: 'Fokus',
+			focusText: 'Starte einen Timer, libe schreibt die Zeit für dich mit.',
+			reviewTitle: 'Rückblick',
+			reviewText: 'Sieh am Ende der Woche, wohin deine Zeit gegangen ist.',
+			start: 'Los geht’s'
+		},
+		goal: {
+			title: 'Wie viel Zeit am Tag?',
+			lead: 'Dein Tagesziel. Du kannst es jederzeit in den Einstellungen ändern.',
+			label: 'Tagesziel',
+			none: 'Kein Tagesziel',
+			later: 'Später festlegen'
+		},
+		quest: {
+			title: 'Woran willst du arbeiten?',
+			lead: 'Eine Quest ist ein größeres Ziel: eine Sprache, ein Projekt, Laufen.',
+			section: 'Quest',
+			name: 'Name der Quest',
+			namePlaceholder: 'Spanisch lernen',
+			color: 'Farbe',
+			stepSection: 'Erster Schritt',
+			stepTitle: 'Erster Schritt',
+			stepPlaceholder: 'Lektion 1 durcharbeiten',
+			duration: 'Dauer',
+			stepFooter: 'Er landet auf deiner Liste für heute.',
+			skip: 'Überspringen'
+		},
+		focus: {
+			title: 'Bereit für deinen ersten Fokus?',
+			lead: 'Ein Timer läuft, du arbeitest, libe schreibt die Zeit mit. Pausieren geht jederzeit.',
+			start: 'Fokus starten',
+			later: 'Später, zur Startseite',
+			noTaskTitle: 'Alles bereit',
+			noTaskLead:
+				'Leg auf der Startseite einen ersten Schritt an, wann immer du magst, und starte von dort einen Fokus.',
+			home: 'Zur Startseite'
+		}
+	},
 	welcome: {
 		paired: (name) =>
 			name
