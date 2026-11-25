@@ -133,7 +133,7 @@
 		font-size: var(--fs-sm);
 	}
 	.check input {
-		accent-color: var(--accent);
+		accent-color: var(--control-on);
 	}
 	.hint {
 		margin-top: var(--space-2);

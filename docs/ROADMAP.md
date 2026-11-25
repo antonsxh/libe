@@ -1351,15 +1351,16 @@ quit on the first screen — admin wording on `/setup`, an empty Home without a 
 action on desktop, and the first field everybody types into answering "Pick a quest." with no
 quest to pick. The overhaul runs in small milestones, each shippable on its own:
 
-| #   | Scope                                                                                                                                                            | Status  |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                                   | ✅ done |
-| R1  | Rebrand "Hain", part 1: new tokens (colours, type), fonts, logo and icons                                                                                        | planned |
-| R2  | Rebrand "Hain", part 2: apply it across every page and component                                                                                                 | planned |
-| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | planned |
-| O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
-| O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
-| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
+| #   | Scope                                                                                                                                             | Status  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                    | ✅ done |
+| R1a | Token foundation, no visible change: role tokens, no colour literals outside `tokens.css`, palette check script, styleguide by role               | ✅ done |
+| R1b | Rebrand "Hain": palette, quest colours, Figtree, radii, accent discipline, block pattern, card edges — values picked from rendered variants first | planned |
+| R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                         | planned |
+| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                      | planned |
+| O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                       | planned |
+| O4  | Hierarchy and feedback: one primary action per screen, the one big "all done" celebration, nav progress, motion/type polish, Review on phones     | planned |
+| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                    | planned |
 
 Owner decisions:
 
@@ -1367,6 +1368,19 @@ Owner decisions:
   quest.app and must move away from it — that is what R1/R2 are for; O-milestones before them
   keep the existing tokens, fonts and logo.
 - **Dark stays the default**; a light mode is wanted later (R3).
+- **Mint is the accent** (the competitor is yellow/amber; green fits "Hain"). **No Bricolage
+  Grotesque** (or another quirky display face): it broke the timer's digits and isn't calm.
+- **How R1 is done** (after PR #31 was rejected): the first attempt changed tokens and ~50
+  files in one go and looked worse than before — surfaces lighter (L 0.20 → 0.23) with
+  green-tinted text, so the contrast range shrank and everything read "fogged"; the mint accent
+  shared the surfaces' hue; quest red drifted to pink, quest green towards mint; the card edge
+  overlay turned into a hook; the dot grid read as noise; Bricolage broke the clock. So R1 is
+  split: R1a moves the infrastructure without changing a pixel; R1b first renders 2–3 palette
+  variants on the real pages (Home, Plan, Calendar, Focus, Review; desktop and phone), the
+  owner picks one, and only then it is applied. Direction for the variants: near-black
+  surfaces with a slight green cast (low chroma, old lightness), near-neutral text, mint only
+  as the accent. The accent discipline (O4's item) moves into R1b, since it decides how much
+  mint shows.
 - **The name "libe" stays.** "Quest" stays as the product word and gets explained once.
 
 ## O1 — what exists
@@ -1435,3 +1449,24 @@ Owner decisions:
   Log-time session list, the plan column's Add button, "Wrong server password.".
 - **Not done here** (later milestones): onboarding (`/welcome`, `onboarded_at`), progressive
   disclosure, label culling, tab labels, celebration, motion tweaks, any token/font/logo change.
+
+## R1a — what exists
+
+Infrastructure for the rebrand, with the current look unchanged (amber, Inter, the same
+values everywhere — every app page renders as before; only `/styleguide` changed).
+
+- **Role tokens** in `tokens.css`, set to the current values: `--control-on` (native
+  checkboxes in Log time / pomodoro settings, the calendar's plan toggle, the selected emoji),
+  `--selected-bg` / `--selected-border` / `--selected-text` (rest-day toggles, Focus' selected
+  task background), `--focus-ring` (`--ring`, the selected colour swatch), `--shadow-color` +
+  `--backdrop` (shadows, dialog and palette backdrops). The last two colour literals outside
+  `tokens.css` (the backdrops) are gone; Home's week bar uses `--radius-pill`.
+- **Palette check** `scripts/contrast.ts` (taken from PR #31, extended): WCAG 2 contrast for
+  every text/UI pair on `--bg` / `--surface` / `--surface-2`, quest colours ≥ 3:1 on
+  `--surface`, ≥ ΔE 0.08 (OKLab) **and ≥ 25° hue (OKLCH)** from the accent unless grey, closest
+  quest pair ≥ ΔE 0.06. `bun scripts/contrast.ts [file]` prints the report for `tokens.css` or a
+  draft. `contrast.test.ts` runs it in `bun run test`; the current palette's known gaps are
+  listed (`KNOWN_GAPS`: `--text-faint` ≈ 2.7:1, quest amber = the accent) and R1b must remove
+  them — the test also fails on a stale entry.
+- `/styleguide` shows the palette by role (surfaces, text & lines, accent, states, semantic)
+  and a timer sample, as the baseline for R1b's comparison.

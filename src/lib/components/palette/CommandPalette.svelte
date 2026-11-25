@@ -599,7 +599,7 @@
 		flex-direction: column;
 	}
 	dialog.palette::backdrop {
-		background: rgb(0 0 0 / 0.6);
+		background: var(--backdrop);
 		backdrop-filter: blur(2px);
 	}
 

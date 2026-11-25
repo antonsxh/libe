@@ -8,6 +8,7 @@
 	import QuestPill from '#lib/components/QuestPill.svelte';
 	import { QUEST_COLORS, questColorVar } from '#lib/quest-colors.ts';
 
+	// The palette by role, as components use it (see tokens.css).
 	const surfaces = [
 		'--bg',
 		'--bg-nav',
@@ -15,11 +16,19 @@
 		'--surface-2',
 		'--surface-hover',
 		'--track',
-		'--bar-muted',
-		'--border',
-		'--border-strong'
+		'--bar-muted'
 	];
-	const texts = ['--text', '--text-2', '--text-muted', '--text-faint', '--accent'];
+	const lines = ['--border', '--border-dashed', '--border-strong'];
+	const texts = ['--text', '--text-2', '--text-muted', '--text-faint'];
+	const accents = [
+		'--accent',
+		'--accent-hover',
+		'--accent-soft',
+		'--today-tint',
+		'--running-border'
+	];
+	const states = ['--control-on', '--selected-bg', '--selected-border', '--focus-ring'];
+	const semantic = ['--danger', '--success', '--overdue', '--backdrop'];
 	let sheetOpen = $state(false);
 </script>
 
@@ -31,25 +40,43 @@
 	{/snippet}
 </PageHeader>
 
-<section>
-	<h2 class="label">Surfaces & lines</h2>
+{#snippet swatches(tokens: string[])}
 	<div class="swatches">
-		{#each surfaces as token (token)}
+		{#each tokens as token (token)}
 			<div class="swatch">
 				<div class="chip" style:background="var({token})"></div>
 				<code>{token}</code>
 			</div>
 		{/each}
 	</div>
+{/snippet}
+
+<section>
+	<h2 class="label">Surfaces</h2>
+	{@render swatches(surfaces)}
 </section>
 
 <section>
-	<h2 class="label">Text</h2>
+	<h2 class="label">Text & lines</h2>
 	<div class="row">
 		{#each texts as token (token)}
 			<span style:color="var({token})">{token}</span>
 		{/each}
 	</div>
+	{@render swatches(lines)}
+</section>
+
+<section>
+	<h2 class="label">Accent, states & semantic</h2>
+	{@render swatches(accents)}
+	<p class="muted caption">
+		Components use the role names, never the accent mixed by hand: checked controls
+		<code>--control-on</code>, selections <code>--selected-bg</code> /
+		<code>--selected-border</code> / <code>--selected-text</code>, focus <code>--focus-ring</code>
+		(via <code>--ring</code>), modal backdrops <code>--backdrop</code>.
+	</p>
+	{@render swatches(states)}
+	{@render swatches(semantic)}
 </section>
 
 <section>
@@ -166,6 +193,7 @@
 	<div class="type">
 		<h1>Thursday, October 15</h1>
 		<p class="stat tabular">17.4h <span class="muted">/ 20h</span></p>
+		<p class="timer tabular">1:17:56</p>
 		<p style:font-size="var(--fs-lg)">Design the next chapter</p>
 		<p>Body text — The few things that actually matter.</p>
 		<p class="muted" style:font-size="var(--fs-sm)">Secondary meta text</p>
@@ -244,5 +272,11 @@
 	}
 	.stat span {
 		font-size: var(--fs-lg);
+	}
+	.timer {
+		font-size: var(--fs-2xl);
+		font-weight: var(--fw-medium);
+		letter-spacing: -0.03em;
+		line-height: 1;
 	}
 </style>
