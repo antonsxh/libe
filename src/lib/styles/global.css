@@ -21,7 +21,6 @@ body {
 	line-height: 1.45;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-	font-feature-settings: 'cv11', 'ss01';
 }
 
 h1,

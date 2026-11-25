@@ -1351,16 +1351,16 @@ quit on the first screen — admin wording on `/setup`, an empty Home without a 
 action on desktop, and the first field everybody types into answering "Pick a quest." with no
 quest to pick. The overhaul runs in small milestones, each shippable on its own:
 
-| #   | Scope                                                                                                                                             | Status  |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                    | ✅ done |
-| R1a | Token foundation, no visible change: role tokens, no colour literals outside `tokens.css`, palette check script, styleguide by role               | ✅ done |
-| R1b | Rebrand "Hain": palette, quest colours, Figtree, radii, accent discipline, block pattern, card edges — values picked from rendered variants first | planned |
-| R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                         | planned |
-| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                      | planned |
-| O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                       | planned |
-| O4  | Hierarchy and feedback: one primary action per screen, the one big "all done" celebration, nav progress, motion/type polish, Review on phones     | planned |
-| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                    | planned |
+| #   | Scope                                                                                                                                                            | Status  |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                                   | ✅ done |
+| R1a | Token foundation, no visible change: role tokens, no colour literals outside `tokens.css`, palette check script, styleguide by role                              | ✅ done |
+| R1b | Rebrand "Hain": the palette picked from rendered variants (V3 "Waldboden"), mint accent, quest colours off the mint hue, Figtree                                 | ✅ done |
+| R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                                        | planned |
+| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | planned |
+| O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
+| O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
+| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
 
 Owner decisions:
 
@@ -1379,8 +1379,12 @@ Owner decisions:
   variants on the real pages (Home, Plan, Calendar, Focus, Review; desktop and phone), the
   owner picks one, and only then it is applied. Direction for the variants: near-black
   surfaces with a slight green cast (low chroma, old lightness), near-neutral text, mint only
-  as the accent. The accent discipline (O4's item) moves into R1b, since it decides how much
-  mint shows.
+  as the accent.
+- **Picked (R1b)**: variant V3 "Waldboden" (olive/forest cast, hue 125°), the retuned quest
+  colours and Figtree. R1b applies exactly what was shown — nothing else of #31 (radii, dot
+  grid, card edges, motion, accent discipline) came along unseen. The accent discipline stays
+  in O4; like every later visual change it is rendered as variants on the real pages first
+  and picked by the owner before it is applied.
 - **The name "libe" stays.** "Quest" stays as the product word and gets explained once.
 
 ## O1 — what exists
@@ -1470,3 +1474,35 @@ values everywhere — every app page renders as before; only `/styleguide` chang
   them — the test also fails on a stale entry.
 - `/styleguide` shows the palette by role (surfaces, text & lines, accent, states, semantic)
   and a timer sample, as the baseline for R1b's comparison.
+
+## R1b — what exists
+
+libe has its own look ("Hain"); the layout and every component are unchanged, only tokens
+and the UI font changed. Where older milestone notes in this file say "amber" for the now
+line, today markers, the running timer, progress bars or primary buttons, read "the accent"
+(mint now).
+
+- **How it was picked**: one exploration build, token overrides injected into the real pages
+  (Home, Home + timer, Focus, Plan, Calendar, Review, Quests; phone Home/timer/Focus) for five
+  palettes — today, #31's colours, V1 "Nacht" (chroma 0.006, hue 165°), V2 "Moos" (0.014, 165°),
+  V3 "Waldboden" (0.011, 125°) — compared side by side; the owner chose **V3**, the quest colours
+  as shown and **Figtree**.
+- **Palette** (`tokens.css`; OKLCH lightness as before, chroma ≈ 0.011, hue 125°): `--bg
+#0d0f0a`, `--bg-nav #080a06`, `--surface #141611`, `--surface-2 #1a1d17`, `--surface-hover
+#181a14`, `--track #161813`, `--bar-muted #3b3e37`; lines `--border #24261f`,
+  `--border-dashed #272a23`, `--border-strong #2f322a`; text (near-neutral) `--text #f3f3f2`,
+  `--text-2 #cacbc7`, `--text-muted #91918d`, `--text-faint #696965` (≥ 3:1 now).
+- **Accent**: mint `--accent #6fdcae`, `--accent-hover #8de6c1`, ink `--accent-ink #08231a`,
+  replacing amber one to one (same places as before); `--success` = the accent (one green).
+  The ground's hue (125°) is 39° away from mint's (164°), so mint stands out by hue as well.
+- **Quest colours**: unchanged except green → leaf `#78b955` (136°) and teal → cyan `#36b8c5`
+  (205°), both ≥ 25° of hue from mint. Amber is a plain quest colour now (no longer the
+  accent; still the default avatar colour). `scripts/contrast.ts`: all checks pass,
+  `KNOWN_GAPS` is empty.
+- **Font**: Figtree (`@fontsource-variable/figtree` 5.3.0, OFL, self-hosted, precached by the
+  service worker) replaces Inter for everything; Inter's `cv11`/`ss01` settings are gone
+  (Figtree has neither feature; it has `tnum`, so tabular times keep working).
+- **Outside `tokens.css`**: `theme-color` (`app.html`) and the manifest colours `#0d0f0a`; the
+  desktop window background (`BACKGROUND` in `src-tauri/src/lib.rs`) and the desktop shell's
+  palette (`src-tauri/ui/style.css`, which bundles no font: Figtree if installed, else the
+  system font). The favicon and app icons are still the old ones (R2).

@@ -238,6 +238,9 @@ timer.serverNow)` so today moves live with the timer.
 
 ## Styling rules
 
+- The look is **"Hain"**: near-black ground with an olive/forest cast, near-neutral text, mint as
+  the one accent, Figtree (`docs/ROADMAP.md` → "R1b — what exists"). Visual changes are first
+  rendered as variants on the real pages and picked by the owner, then applied.
 - Only token variables for colours, spacing, radii, font sizes (`var(--surface)`, `var(--space-4)`…).
   Add a token to `tokens.css` instead of hard-coding a value that repeats. **No colour literals
   outside `tokens.css`** (hex/rgb/hsl), and states use role tokens rather than the accent mixed

@@ -63,18 +63,10 @@ describe('colour maths', () => {
 });
 
 /**
- * Checks the current palette is known to fail. The look changes in R1b ("Hain"), which must
- * fix them: delete an entry once it passes (the test fails on a stale entry, so the list
- * cannot rot) and never add one.
+ * Checks the current palette is known to fail — empty since R1b ("Hain") closed the old
+ * palette's gaps. Never add one: fix the token instead.
  */
-const KNOWN_GAPS = [
-	// --text-faint is ~2.7:1 (placeholders, done tasks): below 3:1 for non-text UI.
-	'contrast --text-faint on --bg',
-	'contrast --text-faint on --surface',
-	'contrast --text-faint on --surface-2',
-	// The amber quest colour is the accent itself.
-	'quest amber vs accent'
-];
+const KNOWN_GAPS: string[] = [];
 
 describe('tokens.css', () => {
 	test('every palette check passes, except the documented known gaps', () => {
