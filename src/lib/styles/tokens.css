@@ -1,5 +1,6 @@
 /*
- * libe design tokens. Dark-only theme. Every colour/size used in components comes from here:
+ * libe design tokens — "Hain" (grove): near-black ground with an olive/forest cast at low
+ * chroma, near-neutral text, mint as the one accent. Dark-only theme. Every colour/size used in components comes from here:
  * no colour literals elsewhere, and components use role names (`--control-on`, `--backdrop`,
  * `--selected-bg`), not raw palette entries, so a new look or a light theme only changes this
  * file. `bun scripts/contrast.ts` reports contrast and quest-colour spacing (tested in
@@ -8,30 +9,30 @@
 :root {
 	color-scheme: dark;
 
-	/* ── Surfaces ─────────────────────────────────────────── */
-	--bg: #0e0e10; /* page */
-	--bg-nav: #09090b; /* top bar */
-	--surface: #151517; /* cards, inputs, panels */
-	--surface-2: #1c1b20; /* raised: icon tiles, avatar, active nav item */
-	--surface-hover: #1a1a1d;
-	--track: #1a1a1c; /* empty progress/bar track */
-	--bar-muted: #3d3c42; /* inactive chart bars */
+	/* ── Surfaces (OKLCH: today's lightness, chroma ≈ 0.011, hue 125°) ── */
+	--bg: #0d0f0a; /* page */
+	--bg-nav: #080a06; /* top bar */
+	--surface: #141611; /* cards, inputs, panels */
+	--surface-2: #1a1d17; /* raised: icon tiles, avatar, active nav item */
+	--surface-hover: #181a14;
+	--track: #161813; /* empty progress/bar track */
+	--bar-muted: #3b3e37; /* inactive chart bars */
 
 	/* ── Lines ────────────────────────────────────────────── */
-	--border: #252527;
-	--border-strong: #323236;
-	--border-dashed: #2a2a2d; /* "add …" inputs, empty-state tiles */
+	--border: #24261f;
+	--border-strong: #2f322a;
+	--border-dashed: #272a23; /* "add …" inputs, empty-state tiles */
 
-	/* ── Text ─────────────────────────────────────────────── */
-	--text: #f4f4f5;
-	--text-2: #c9c9ce; /* secondary, still readable */
-	--text-muted: #8b8b92; /* labels, nav items */
-	--text-faint: #5a5a61; /* placeholders, done tasks */
+	/* ── Text (near-neutral; a green tint here makes the UI look fogged) ── */
+	--text: #f3f3f2;
+	--text-2: #cacbc7; /* secondary, still readable */
+	--text-muted: #91918d; /* labels, nav items */
+	--text-faint: #696965; /* placeholders, done tasks */
 
-	/* ── Accent (amber) ───────────────────────────────────── */
-	--accent: #f0b44c;
-	--accent-hover: #f5c46a;
-	--accent-ink: #1b1305; /* text on accent */
+	/* ── Accent (mint, hue 164° — kept off the ground's hue) ── */
+	--accent: #6fdcae;
+	--accent-hover: #8de6c1;
+	--accent-ink: #08231a; /* text on accent */
 	--accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 	--today-tint: color-mix(in srgb, var(--accent) 7%, transparent); /* today column / timeline */
 	--running-border: color-mix(
@@ -49,17 +50,19 @@
 
 	/* ── Semantic ─────────────────────────────────────────── */
 	--danger: #e5645f;
-	--success: #5dbe7a;
+	--success: var(--accent); /* one green, not two */
 	/* Overdue tasks: dots, markers and small accents only — never a large red surface. */
 	--overdue: color-mix(in srgb, var(--danger) 72%, var(--text-muted));
 
-	/* ── Quest colour family (see #lib/quest-colors.ts) ───── */
+	/* ── Quest colour family (see #lib/quest-colors.ts) ─────
+	 * Keys are stored in the DB: never rename, only retune. Green (leaf) and teal (cyan) stay
+	 * ≥ 25° of hue away from the mint accent (scripts/contrast.ts). */
 	--quest-red: #e5645f;
 	--quest-orange: #e8874f;
 	--quest-amber: #f0b44c;
 	--quest-lime: #b4cd55;
-	--quest-green: #5dbe7a;
-	--quest-teal: #4fb8b0;
+	--quest-green: #78b955;
+	--quest-teal: #36b8c5;
 	--quest-blue: #5b9be6;
 	--quest-purple: #9b7bd8;
 	--quest-pink: #d96ba8;
@@ -68,7 +71,7 @@
 
 	/* ── Typography ───────────────────────────────────────── */
 	--font-sans:
-		'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+		'Figtree Variable', Figtree, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
 	--fs-tab: 0.6875rem; /* 11  tiny labels (avatar initials) */

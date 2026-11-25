@@ -1,24 +1,25 @@
-/* Same tokens as the web app (src/lib/styles/tokens.css), trimmed to what this page needs. */
+/* Same tokens as the web app ("Hain", src/lib/styles/tokens.css), trimmed to what this page needs. */
 :root {
 	color-scheme: dark;
-	--bg: #0e0e10;
-	--surface: #151517;
-	--surface-2: #1c1b20;
-	--border: #252527;
-	--border-strong: #323236;
-	--text: #f4f4f5;
-	--text-2: #c9c9ce;
-	--text-muted: #8b8b92;
-	--text-faint: #5a5a61;
-	--accent: #f0b44c;
-	--accent-hover: #f5c46a;
-	--accent-ink: #1b1305;
+	--bg: #0d0f0a;
+	--surface: #141611;
+	--surface-2: #1a1d17;
+	--border: #24261f;
+	--border-strong: #2f322a;
+	--text: #f3f3f2;
+	--text-2: #cacbc7;
+	--text-muted: #91918d;
+	--text-faint: #696965;
+	--accent: #6fdcae;
+	--accent-hover: #8de6c1;
+	--accent-ink: #08231a;
 	--danger: #e5645f;
 	--ring: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--accent) 70%, transparent);
 	--radius-md: 10px;
 	--radius-xl: 18px;
+	/* The shell bundles no font files: Figtree when installed, else the system UI font. */
 	--font-sans:
-		'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+		'Figtree Variable', Figtree, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 *,
 *::before,
