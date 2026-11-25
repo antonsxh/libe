@@ -96,7 +96,7 @@
 		padding: var(--space-1) var(--space-2) var(--space-1) 0;
 		border-radius: var(--radius-md);
 		font-size: var(--fs-md);
-		color: var(--accent);
+		color: var(--accent-text);
 		text-decoration: none;
 	}
 	@media (hover: hover) {
@@ -132,7 +132,7 @@
 	}
 	.symbol {
 		display: inline-flex;
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.symbol :global(svg) {
 		width: var(--symbol-lg);
@@ -217,7 +217,7 @@
 		padding: 0 var(--space-4);
 		border-radius: var(--radius-md);
 		background: transparent;
-		color: var(--accent);
+		color: var(--accent-text);
 		font-size: var(--fs-md);
 	}
 	@media (hover: hover) {

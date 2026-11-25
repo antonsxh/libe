@@ -78,9 +78,12 @@
 	.value :global(input:is([type='text'], :not([type])):focus-visible) {
 		box-shadow: none;
 	}
-	/* The focused text field marks its whole row (the field itself has no box). */
+	/* The focused text field marks its row (the field itself has no box): a rounded ring just
+	   inside the row, so it never runs into the group's corners or the next row. */
 	.row:has(:global(input:is([type='text'], :not([type])):focus-visible)) {
-		box-shadow: inset 0 0 0 2px var(--focus-ring);
+		outline: 2px solid var(--focus-ring);
+		outline-offset: -4px;
+		border-radius: var(--radius-md);
 	}
 	:not(.bare, .stacked) > .value :global(input) {
 		text-align: right;

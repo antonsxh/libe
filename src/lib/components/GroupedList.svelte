@@ -141,7 +141,7 @@
 	.check {
 		display: inline-flex;
 		flex: none;
-		color: var(--control-on);
+		color: var(--accent-text); /* an icon in the accent colour */
 		opacity: 0;
 		scale: 0.6;
 		transition:

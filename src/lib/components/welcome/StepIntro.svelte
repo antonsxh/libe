@@ -54,7 +54,7 @@
 	}
 	li :global(svg) {
 		margin-top: 2px;
-		color: var(--accent);
+		color: var(--accent-text);
 	}
 	.name {
 		font-weight: var(--fw-semibold);
