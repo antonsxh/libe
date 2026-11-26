@@ -7,6 +7,8 @@ import { test, expect, gotoLive, actionDone, reloadLive } from '../support/fixtu
 import { addDays, createQuest, createSession, createTask, today, uid } from '../support/db.ts';
 
 const card = (page: Page, name: string) => page.locator('.quest-card', { hasText: name });
+/** A native disclosure row of the quest dialog ("More options", "Icon"). */
+const disclosure = (dialog: Locator, name: string) => dialog.locator('summary', { hasText: name });
 const openGridNames = (page: Page) =>
 	page.locator('.grid').first().locator('.quest-card a.name').allTextContents();
 
@@ -31,15 +33,22 @@ test('create a quest: server validation keeps the input, then every field is sto
 	const dialog = page.getByRole('dialog', { name: 'New quest' });
 
 	await dialog.getByLabel('Name').fill(name);
+	await dialog.getByLabel('blue', { exact: true }).check();
+	// Icon, description and budget sit behind "More options"; the emoji choice opens on tap.
+	await expect(dialog.getByLabel('Weekly budget')).toBeHidden();
+	await disclosure(dialog, 'More options').click();
 	await dialog.getByLabel('Description').fill('Made by the e2e suite');
+	await dialog.getByLabel('Weekly budget').fill('7.5');
+	await expect(dialog.getByRole('button', { name: 'Use 📖 as icon' })).toBeHidden();
+	await disclosure(dialog, 'Icon').click();
 	// Two emoji — no browser constraint catches this, only the server.
 	await dialog.getByLabel('Icon', { exact: true }).fill('🚀🚀');
-	await dialog.getByLabel('blue', { exact: true }).check();
-	await dialog.getByLabel('Weekly budget · h').fill('7.5');
 	await dialog.getByRole('button', { name: 'Create quest' }).click();
 
+	// The error reopens what it is about, the input is kept.
 	await expect(dialog.getByText('Use exactly one emoji.')).toBeVisible();
 	await expect(dialog.getByLabel('Name')).toHaveValue(name);
+	await expect(dialog.getByLabel('Weekly budget')).toHaveValue('7.5');
 	expect(await sql`select 1 from quests where name = ${name}`).toHaveLength(0);
 
 	await dialog.getByRole('button', { name: 'Use 📖 as icon' }).click();
@@ -58,6 +67,62 @@ test('create a quest: server validation keeps the input, then every field is sto
 	});
 });
 
+test('create with only name and colour: the folded options submit their defaults', async ({
+	page,
+	sql
+}) => {
+	const name = `Quick quest ${uid()}`;
+	await gotoLive(page, '/quests');
+	await page.getByRole('button', { name: 'New quest' }).first().click();
+	const dialog = page.getByRole('dialog', { name: 'New quest' });
+	await expect(dialog.getByLabel('Weekly budget')).toBeHidden();
+	await dialog.getByLabel('Name').fill(name);
+	await dialog.getByLabel('green', { exact: true }).check();
+	const done = actionDone(page, 'create');
+	await dialog.getByRole('button', { name: 'Create quest' }).click();
+	await done;
+	await expect(dialog).toBeHidden();
+
+	const [row] = await sql`
+		select description, icon, color, weekly_budget_h from quests where name = ${name}`;
+	expect(row).toEqual({ description: '', icon: '✨', color: 'green', weekly_budget_h: null });
+});
+
+test('editing a quest with a budget opens "More options"; saving keeps the budget', async ({
+	page,
+	sql
+}) => {
+	const quest = await createQuest(sql, { name: `Budget quest ${uid()}`, icon: '✨', budgetH: 4 });
+	const renamed = `${quest.name} (renamed)`;
+	await gotoLive(page, '/quests');
+
+	await (await menuAction(page, quest.name, 'Edit')).click();
+	const dialog = page.getByRole('dialog', { name: 'Edit quest' });
+	await expect(dialog.getByLabel('Weekly budget')).toBeVisible(); // open without a tap
+	await expect(dialog.getByLabel('Weekly budget')).toHaveValue('4');
+	await dialog.getByLabel('Name').fill(renamed);
+	const done = actionDone(page, 'update');
+	await dialog.getByRole('button', { name: 'Save' }).click();
+	await done;
+	await expect(dialog).toBeHidden();
+	const [row] = await sql`select name, icon, weekly_budget_h from quests where id = ${quest.id}`;
+	expect(row).toEqual({ name: renamed, icon: '✨', weekly_budget_h: 4 });
+
+	// A quest with nothing set there opens folded — and keeps its values when saved.
+	const plain = await createQuest(sql, { name: `Plain quest ${uid()}`, icon: '✨' });
+	await reloadLive(page);
+	await (await menuAction(page, plain.name, 'Edit')).click();
+	const edit = page.getByRole('dialog', { name: 'Edit quest' });
+	await expect(edit.getByLabel('Name')).toHaveValue(plain.name);
+	await expect(edit.getByLabel('Weekly budget')).toBeHidden();
+	await edit.getByLabel('purple', { exact: true }).check();
+	const saved = actionDone(page, 'update');
+	await edit.getByRole('button', { name: 'Save' }).click();
+	await saved;
+	const [after] = await sql`select icon, color, weekly_budget_h from quests where id = ${plain.id}`;
+	expect(after).toEqual({ icon: '✨', color: 'purple', weekly_budget_h: null });
+});
+
 test('edit a quest from its ⋯ menu', async ({ page, sql }) => {
 	const quest = await createQuest(sql, { name: `Edit quest ${uid()}`, budgetH: 3 });
 	const renamed = `${quest.name} (renamed)`;
@@ -65,11 +130,11 @@ test('edit a quest from its ⋯ menu', async ({ page, sql }) => {
 
 	await (await menuAction(page, quest.name, 'Edit')).click();
 	const dialog = page.getByRole('dialog', { name: 'Edit quest' });
-	await expect(dialog.getByLabel('Weekly budget · h')).toHaveValue('3');
+	await expect(dialog.getByLabel('Weekly budget')).toHaveValue('3');
 	await dialog.getByLabel('Name').fill(renamed);
-	await dialog.getByLabel('Weekly budget · h').fill('');
+	await dialog.getByLabel('Weekly budget').fill('');
 	const done = actionDone(page, 'update');
-	await dialog.getByRole('button', { name: 'Save changes' }).click();
+	await dialog.getByRole('button', { name: 'Save' }).click();
 	await done;
 	await expect(dialog).toBeHidden();
 

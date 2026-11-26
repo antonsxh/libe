@@ -607,8 +607,10 @@ Fix found by the suite:
 - German copy: informal „du“, glossary Quest, Backlog, Fokus, Planen (nav) / „Woche planen“,
   Rückblick, Kalender, Einstellungen, Heute, Start (Home), Pomodoro, Aufgabe (task), Sitzung
   (session), Zeit erfassen (log time), Zeitblock, koppeln / Kopplungscode (pair), Server-Passwort (setup secret, since O1),
-  Update-Kanal (update track), Sonstiges (other), Serie (streak), Ruhetag (rest day),
-  überfällig (overdue).
+  Update-Kanal (update track), Sonstiges (other — the one word for tasks without a quest, since
+  O3b), Serie (streak; the count reads „3 Tage in Folge“), Ruhetag (rest day), überfällig
+  (overdue), Symbol (a quest's icon, since O3b), Weitere Optionen (more options), Ich (the tab
+  bar's account slot).
 - e2e: `e2e/specs/i18n.spec.ts` (setting persists and applies, `auto` per browser locale,
   translated validation errors, German phone layout). The config pins `locale: 'en-US'`;
   the spec resets the setting to `auto` around every test.
@@ -1361,7 +1363,7 @@ quest to pick. The overhaul runs in small milestones, each shippable on its own:
 | R4  | "Apple + Linear" look (replaces Hain): palette, Geist, Apple system colours for quests, `--accent-text`                                                          | ✅ done |
 | O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | ✅ done |
 | O3a | Less at once, part 1: Home as one list (variant A) — overdue rows, one "Today" list, one add row, Backlog and Daily plan as rows/sheets                          | ✅ done |
-| O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
+| O3b | Slimmer quest dialog ("More options"), empty states (one symbol, one sentence, one action), phone tab labels, wording                                            | ✅ done     |
 | O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
 | R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
 
@@ -1745,3 +1747,94 @@ didn't know what libe is or what to do.
   button); no trap (Home stays Home, a `/setup` with devices keeps `next`), server-side
   validation, "Skip setup". `onboarded_at`, the goal and the timer are reset around each
   test. `/welcome` is not in `pages.spec.ts` (it redirects once onboarded).
+
+## O3b — what exists
+
+"Less at once", part two: the owner approved points 2–5 of the O3 mock-up ("Weniger auf
+einmal": quest dialog, empty states, tab bar, wording). Home itself is O3a (a separate PR).
+
+- **Quest dialog** (`QuestForm` in `Dialog`: `/quests` new + edit, Home's first-quest card):
+  two inset grouped lists on the sheet (`--grouped-bg-raised` / `--grouped-separator-raised`,
+  one step lighter than the dialog) — the name (a borderless row, placeholder "Launch my
+  idea") and the colour swatches — then one disclosure row **More options** ("Icon, budget…"
+  while folded). It is a native `<details>`: it works without JS and the folded fields still
+  submit (empty icon → `✨`, empty description, no budget — the server fills in the defaults as
+  before). Unfolded: **Icon** (a row with the current emoji; the emoji choice — text field + 16
+  suggestions — opens only on tap, a nested `<details>`), **Description** (a borderless
+  two-line field) and **Weekly budget** (number right-aligned, "h" once there is one). It
+  starts open when the quest has something set there (`hasQuestExtras`: an icon other than
+  `✨`, a description or a budget) or a field in it failed validation (the icon's choice opens
+  too). One primary button at the bottom — **Create quest** / **Save** (full width in the
+  phone sheet's sticky `.dialog-actions`); no Cancel (✕, Esc, backdrop, drag) and no "You can
+  change everything later" hint. Errors are listed under the groups (`role="alert"`), the
+  fields get `aria-invalid`. Same actions and validation (`createQuestAction`, `update`,
+  `validateQuestForm`).
+- **Empty states** — `EmptyState.svelte` (symbol in `--accent-text`, bold title, one muted
+  line, one primary action as a link or button; `--empty-text-max`,
+  `--empty-action-min-w`), in `/styleguide`. Navigation stays (week nav, Plan's backlog
+  button/rail):
+  - **Review**, a week with no logged time (`week.totalMin = 0`, completed sessions; "Other"
+    time counts): this week → "Nothing logged yet" + **Start focus** (`/focus`); a past week
+    → "Nothing logged" and a future one → "This week hasn’t started yet", both without an
+    action (focusing can't fill them). The headline is just "Your week." The quarter summary
+    stays when the quarter has any time.
+  - **Quests** without any quest (open or closed): "No quest yet" + what a quest is +
+    **Create quest** (the dialog); the header button and the summary line give way. With
+    only closed quests the page stays as it was.
+  - **Calendar**, a week without any session (none logged, no live one, no planned blocks
+    shown): "This week is empty" + **Log time** — the calendar's own Log time dialog at
+    `emptyWeekLogStart` (`#lib/calendar.ts`: this week → the last half hour before now on
+    today, quarter-hour aligned; a past week → its Monday 09:00; a future week → no action).
+    The totals keep their place but are hidden; the day strip and grid return with the
+    first session.
+  - **Plan**, a week with no task planned on any day (`weekPlanned`, unfiltered — a quest
+    filter or hidden done tasks never make a week "empty"): "Nothing planned" + **Add a task**,
+    which shows the week (until the week changes) and focuses the add row of the selected
+    day (today, `?day=`, or Monday). The backlog rail stays (desktop); the phone's day strip
+    returns with the columns. Weeks with some tasks keep the phone's per-day empty state.
+- **Tab bar labels** (phones): a small label (`--fs-tab-label`, 10 px) under every icon, the
+  names of `t.nav` (Home/Start, Plan/Planen, Calendar/Kalender, Quests, Review/Rückblick) and
+  **Me** / **Ich** under the avatar (`--tab-avatar` 22 px). The active tab — icon and label —
+  is `--accent-text` on its pill. `--tabbar-h` 60 → 64 px; `main`, the mini-player and the
+  phone calendar height follow through the token. German fits 375 px (the i18n phone test
+  checks no label is truncated).
+- **Section labels in sentence case**: `.label` is no longer uppercase-tracked — 14 px
+  (`--fs-label`) semibold `--text-muted`; so are `GroupedList` headers, the palette's group
+  labels and Plan's backlog group heads / collapsed rail strip. Uppercase stays only on the
+  Focus screen (crumb, timer state — `--tracking-label`).
+- **Wording** (EN → DE):
+  - Streak count "3-day streak" → **"3 days in a row"** / „3 Tage in Folge“ (unchanged in
+    German); milestone "7 days in a row — nice!".
+  - Home's backlog head "7 open tasks" → **"7 in backlog"** / „7 im Backlog“.
+  - "Other" everywhere for tasks without a quest: Plan's Other add row "Add an other task…" →
+    **"Add to Other…"** / „Sonstige Aufgabe …“ → **„Zu Sonstiges …“** (Home's Other row uses it
+    too, so its two add rows differ); Review "Quest work vs other" → "Quest work vs Other",
+    the quarter line "other work" → "Other", chart texts ", other …" → ", Other …".
+  - Placeholders say "task": Home's quest row "Add quest work…" → **"Add a task…"** / „Neue
+    Quest-Arbeit …“ → **„Neue Aufgabe …“**; the filter "Filter quest work by quest" →
+    "Filter tasks by quest" / „Aufgaben nach Quest filtern“.
+  - Quest dialog: "Weekly budget · h" → "Weekly budget" (+ "h"), "Save changes" → "Save",
+    the description placeholder → "Description (optional)", German „Icon“ → **„Symbol“**.
+- **Hints only when they help** (`streakHint`, `#lib/streak.ts`): under Home's streak chip
+  "Log 20 min more today to keep it" while a running streak needs time today, "Rest day —
+  your streak is safe" on a rest day that carries it, and "Log 15 min today to start one"
+  only once today has some time but not enough. Nothing while there is no streak and
+  nothing logged today, nothing once today counts or a milestone shows.
+- **Decisions**: the Review empty state's action only for the running week; Calendar/Plan
+  hide their grid/columns (not just dim them) — the action brings them back; the quest
+  dialog's default colour stays amber; the avatar slot's label is "Me"/"Ich" (the mock-up);
+  tab labels reuse the nav names (German „Start“, „Planen“, „Rückblick“ as in the glossary,
+  not the mock-up's English words); "Save" for edits (`t.common.save`).
+- **Tests**: unit `hasQuestExtras` (`quest-form.test.ts`), `emptyWeekLogStart`
+  (`calendar.test.ts`), `streakHint` (`streak.test.ts`). e2e: `quests.spec.ts` — create with
+  folded options (icon/budget only after "More options", the emoji choice only after a tap,
+  a server error reopens them), create with only name + colour stores the defaults, editing a
+  quest with a budget opens folded options and saving keeps the budget, a quest without
+  extras opens folded and keeps its values; `calendar.spec.ts` — an empty week's **Log time**
+  logs a session (Monday 09:00) and brings the grid back; `plan.spec.ts` — an empty week's
+  **Add a task** focuses Monday's add row, the task lands there; `review.spec.ts` — future /
+  past empty weeks show the empty state (no KPIs, no action, week nav kept), a week with only
+  Other time is not empty; `i18n.spec.ts` — German tab labels visible and not truncated.
+  Updated: streak texts, Home/mobile placeholders, the filter's name, the quest dialog's
+  labels, calendar/day-view slot tests (a session elsewhere keeps the grid), Plan week
+  navigation (a task in every visited week).

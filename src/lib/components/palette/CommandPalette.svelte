@@ -682,10 +682,8 @@
 	.group-label {
 		padding: var(--space-3) var(--space-2) var(--space-1);
 		font-size: var(--fs-xs);
-		font-weight: var(--fw-medium);
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--text-faint);
+		font-weight: var(--fw-semibold);
+		color: var(--text-muted);
 	}
 
 	.option {

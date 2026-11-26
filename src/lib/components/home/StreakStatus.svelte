@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Flame } from '@lucide/svelte';
 	import { splitMinutes } from '#lib/daily-goal.ts';
-	import type { Streak } from '#lib/streak.ts';
+	import { streakHint, type Streak } from '#lib/streak.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	type Props = {
@@ -17,15 +17,14 @@
 		const { h, m } = splitMinutes(streak.remainingMin);
 		return t.goal.duration(h, m);
 	});
-	const hint = $derived(
-		streak.state === 'pending'
-			? t.streak.pending(remaining)
-			: streak.state === 'rest'
-				? t.streak.rest
-				: streak.state === 'none'
-					? t.streak.startHint(remaining)
-					: null
-	);
+	/** Only while it helps (`streakHint`): keep it, a rest day, or a start already under way. */
+	const hint = $derived.by(() => {
+		const kind = streakHint(streak);
+		if (kind === 'keep') return t.streak.pending(remaining);
+		if (kind === 'rest') return t.streak.rest;
+		if (kind === 'start') return t.streak.startHint(remaining);
+		return null;
+	});
 </script>
 
 <!--

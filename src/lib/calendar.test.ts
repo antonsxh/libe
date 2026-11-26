@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	calendarWeek,
+	emptyWeekLogStart,
 	gridStartHour,
 	layoutDay,
 	sessionSpanLabel,
@@ -243,5 +244,26 @@ describe('helpers', () => {
 		expect(sessionSpanLabel(s('2026-11-12T22:00:00Z', '2026-11-12T23:00:00Z'), TZ)).toBe(
 			'23:00 – 00:00'
 		);
+	});
+});
+
+describe('emptyWeekLogStart', () => {
+	const week = weekDays('2026-11-16');
+
+	test('this week: the last half hour before now on today, quarter-hour aligned', () => {
+		expect(emptyWeekLogStart(week, '2026-11-18', 14 * 60 + 52)).toEqual({
+			day: '2026-11-18',
+			minute: 14 * 60 + 15
+		});
+		expect(emptyWeekLogStart(week, '2026-11-18', 10)).toEqual({ day: '2026-11-18', minute: 0 });
+	});
+
+	test('a past week: 09:00 on its Monday', () => {
+		expect(emptyWeekLogStart(week, '2026-11-25', 600)).toEqual({ day: '2026-11-16', minute: 540 });
+	});
+
+	test('a future week: nothing to log', () => {
+		expect(emptyWeekLogStart(week, '2026-11-10', 600)).toBeNull();
+		expect(emptyWeekLogStart([], '2026-11-10', 600)).toBeNull();
 	});
 });

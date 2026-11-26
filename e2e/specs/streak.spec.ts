@@ -102,7 +102,7 @@ test('Home shows the current streak (pending today), menu and Review the longest
 
 	await gotoLive(page, '/');
 	await expect(streakBox(page)).toHaveAttribute('data-state', 'pending');
-	await expect(chip(page)).toHaveText('3-day streak');
+	await expect(chip(page)).toHaveText('3 days in a row');
 	await expect(page.getByTestId('streak-hint')).toHaveText(/^Log .+ more today to keep it$/);
 	// The streak is part of the header's meta line: it must fit the first screen.
 	await expect(chip(page)).toBeInViewport();
@@ -110,7 +110,7 @@ test('Home shows the current streak (pending today), menu and Review the longest
 
 	if (!phone(page)) {
 		await avatar(page).click();
-		await expect(page.getByTestId('menu-streak')).toHaveText('3-day streak · Longest: 5 days');
+		await expect(page.getByTestId('menu-streak')).toHaveText('3 days in a row · Longest: 5 days');
 		await page.keyboard.press('Escape');
 	}
 
@@ -130,7 +130,7 @@ test('a rest day saved in Settings bridges a gap; seven rest days are rejected',
 	const gapIndex = (new Date(`${gap}T12:00:00Z`).getUTCDay() + 6) % 7; // 0 = Monday
 
 	await gotoLive(page, '/');
-	await expect(chip(page)).toHaveText('1-day streak');
+	await expect(chip(page)).toHaveText('1 day in a row');
 
 	await gotoLive(page, '/settings#streak');
 	await expect(page.getByTestId('streak-rule')).toHaveText(
@@ -166,7 +166,7 @@ test('a rest day saved in Settings bridges a gap; seven rest days are rejected',
 	await reloadLive(page);
 	await expect(page.getByRole('checkbox', { name: weekdayName(gap) })).toBeChecked();
 	await gotoLive(page, '/');
-	await expect(chip(page)).toHaveText('2-day streak');
+	await expect(chip(page)).toHaveText('2 days in a row');
 
 	// Review marks the gap as a rest day between two streak days.
 	await gotoLive(page, `/review?week=${gap}`);
@@ -197,7 +197,7 @@ test('a running timer crossing the goal flips pending to active live, with the 7
 
 	await gotoLive(page, '/');
 	await expect(streakBox(page)).toHaveAttribute('data-state', 'pending');
-	await expect(chip(page)).toHaveText('6-day streak');
+	await expect(chip(page)).toHaveText('6 days in a row');
 	await expect(page.getByTestId('streak-hint')).toHaveText(/^Log (5|6) min more today to keep it$/);
 
 	// The running session (shifted 10 minutes back in the DB, pushed by a pause) crosses the goal.
@@ -205,13 +205,13 @@ test('a running timer crossing the goal flips pending to active live, with the 7
 	await sql`update sessions set started_at = started_at - interval '10 minutes' where state = 'running'`;
 	await timerCmd(api, { action: 'pause' });
 	await expect(streakBox(page)).toHaveAttribute('data-state', 'active');
-	await expect(streakBox(page).getByRole('status')).toHaveText('7-day streak — nice!');
+	await expect(streakBox(page).getByRole('status')).toHaveText('7 days in a row — nice!');
 
 	// Completing it moves the time into the server's numbers: still today, still 7.
 	await timerCmd(api, { action: 'complete' });
 	await expect.poll(() => loggedToday(sql)).toBeGreaterThanOrEqual(GOAL);
 	await reloadLive(page);
-	await expect(streakBox(page).getByRole('status')).toHaveText('7-day streak — nice!');
+	await expect(streakBox(page).getByRole('status')).toHaveText('7 days in a row — nice!');
 	await avatar(page).click();
-	await expect(page.getByTestId('menu-streak')).toHaveText('7-day streak · Longest: 7 days');
+	await expect(page.getByTestId('menu-streak')).toHaveText('7 days in a row · Longest: 7 days');
 });

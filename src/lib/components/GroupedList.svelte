@@ -68,10 +68,8 @@
 	}
 	.head {
 		padding: 0 var(--grouped-inset) var(--space-2);
-		font-size: var(--fs-xs);
-		font-weight: var(--fw-medium);
-		letter-spacing: 0.02em;
-		text-transform: uppercase;
+		font-size: var(--fs-label);
+		font-weight: var(--fw-semibold);
 		color: var(--text-muted);
 	}
 	legend.head {

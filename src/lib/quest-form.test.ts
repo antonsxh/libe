@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { parseQuestForm, validateQuestForm, type QuestFormFields } from './quest-form.ts';
+import {
+	hasQuestExtras,
+	parseQuestForm,
+	validateQuestForm,
+	type QuestFormFields
+} from './quest-form.ts';
 
 const fields = (partial: Partial<QuestFormFields> = {}): QuestFormFields => ({
 	name: 'Launch my idea',
@@ -77,5 +82,26 @@ describe('parseQuestForm', () => {
 			color: 'teal',
 			weeklyBudgetH: ''
 		});
+	});
+});
+
+describe('hasQuestExtras', () => {
+	test('a new quest (nothing given) starts collapsed', () => {
+		expect(hasQuestExtras(null)).toBe(false);
+		expect(hasQuestExtras(undefined)).toBe(false);
+		expect(hasQuestExtras({})).toBe(false);
+	});
+
+	test('the default icon, blank description and no budget are not "set"', () => {
+		expect(hasQuestExtras({ icon: '✨', description: '  ', weeklyBudgetH: null })).toBe(false);
+		expect(hasQuestExtras({ icon: '', description: '', weeklyBudgetH: '' })).toBe(false);
+	});
+
+	test('any of icon, description or budget opens "More options"', () => {
+		expect(hasQuestExtras({ icon: '🚀' })).toBe(true);
+		expect(hasQuestExtras({ icon: '✨', description: 'Why it matters' })).toBe(true);
+		expect(hasQuestExtras({ icon: '✨', weeklyBudgetH: 3 })).toBe(true);
+		// Echoed form input after a failed submit (strings).
+		expect(hasQuestExtras({ icon: '', description: '', weeklyBudgetH: '0' })).toBe(true);
 	});
 });

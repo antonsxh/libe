@@ -70,12 +70,11 @@ button {
 
 /* ── Utilities shared across features ─────────────────────── */
 
-/** Uppercase spaced section label: QUEST WORK, OTHER, THIS WEEK. */
+/** Section label in sentence case (Apple / Linear): "Quest work", "Backlog", "This quarter". */
 .label {
-	font-size: var(--fs-sm);
-	font-weight: var(--fw-medium);
-	letter-spacing: var(--tracking-label);
-	text-transform: uppercase;
+	font-size: var(--fs-label);
+	font-weight: var(--fw-semibold);
+	letter-spacing: -0.005em;
 	color: var(--text-muted);
 }
 

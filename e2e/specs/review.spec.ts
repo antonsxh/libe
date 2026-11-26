@@ -4,7 +4,7 @@
  * closed quests.
  */
 import type { Page } from '@playwright/test';
-import { test, expect, gotoLive } from '../support/fixtures.ts';
+import { test, expect, gotoLive, reloadLive } from '../support/fixtures.ts';
 import {
 	addDays,
 	createQuest,
@@ -87,8 +87,8 @@ test('this week and quarter match independent SQL aggregates', async ({ page, sq
 		const o = sum(week, (r) => r.day === d && r.questId === null);
 		const label = await barLabel(page, d);
 		expect(label, d).toContain(`: ${hmin(q)} quest work`);
-		if (Math.round(o) > 0) expect(label, d).toContain(`other ${hmin(o)}`);
-		else expect(label, d).not.toContain('other');
+		if (Math.round(o) > 0) expect(label, d).toContain(`Other ${hmin(o)}`);
+		else expect(label, d).not.toContain('Other');
 	}
 	await expect(page.getByTestId('kpi-quest')).toHaveText(hours(questMin));
 	await expect(page.getByTestId('kpi-budget')).toHaveText(`/ ${hours(budgetMin)}`);
@@ -155,28 +155,36 @@ test('a session crossing midnight counts on its start day; closed quests are lis
 	await expect(page.getByTestId('kpi-budget')).toHaveText(`/ ${hours(budget * 60)}`);
 });
 
-test('weeks without data: future week has no averages or deltas, a past one shows its comparison', async ({
+test('weeks without data show one sentence instead of zeros; a week with only Other time is not empty', async ({
 	page,
 	sql
 }) => {
 	const future = addDays(mondayOf(await today(sql)), 70);
 	await gotoLive(page, `/review?week=${future}`);
-	await expect(page.getByTestId('kpi-quest')).toHaveText('0h');
-	await expect(page.getByTestId('kpi-share')).toHaveText('—');
-	await expect(page.getByText('This week hasn’t started yet')).toBeVisible();
-	await expect(page.locator('.delta')).toHaveCount(0);
-	await expect(page.locator('[data-testid="day-bar"]')).toHaveCount(7);
-	await expect(page.locator('.col[data-state="future"]')).toHaveCount(7);
+	const empty = page.getByTestId('review-empty');
+	await expect(empty).toContainText('This week hasn’t started yet');
+	await expect(empty.getByRole('link')).toHaveCount(0); // nothing to start in a future week
+	await expect(page.getByTestId('kpi-quest')).toHaveCount(0);
+	await expect(page.locator('[data-testid="day-bar"]')).toHaveCount(0);
+	// The week nav stays.
+	await expect(page.getByRole('link', { name: 'Previous week' })).toBeVisible();
 
 	const past = await emptyPastWeek(sql);
-	const prevWeek = await minutes(sql, addDays(past, -7), addDays(past, -1));
 	await gotoLive(page, `/review?week=${past}`);
-	await expect(page.getByTestId('kpi-share')).toHaveText('—');
-	await expect(page.getByText('No time logged')).toBeVisible();
-	await expect(page.getByTestId('kpi-avg')).toHaveText('0h');
-	const prevQuest = sum(prevWeek, (r) => r.questId !== null);
-	const signed = Math.round((-prevQuest / 60) * 10) / 10;
-	await expect(page.getByTestId('delta-quest')).toHaveText(
-		new RegExp(`^${signed === 0 ? '±0h' : `−${Math.abs(signed)}h`.replace('.', '\\.')}`)
-	);
+	await expect(page.getByTestId('review-empty')).toContainText('Nothing logged');
+	await expect(page.getByTestId('kpi-share')).toHaveCount(0);
+
+	// Only "Other" time: the week has something to show (0 % quest work, not an empty state).
+	const errand = await createTask(sql, { title: `Errand ${uid()}` });
+	await createSession(sql, {
+		taskId: errand.id,
+		day: addDays(past, 1),
+		start: '10:00',
+		minutes: 45
+	});
+	await reloadLive(page);
+	await expect(page.getByTestId('review-empty')).toHaveCount(0);
+	await expect(page.getByTestId('kpi-quest')).toHaveText('0h');
+	await expect(page.getByTestId('kpi-share')).toHaveText('0');
+	await expect(page.getByTestId('split-other')).toHaveText('0.8h');
 });

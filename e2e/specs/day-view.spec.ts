@@ -8,6 +8,7 @@ import { test, expect, gotoLive, reloadLive, actionDone } from '../support/fixtu
 import {
 	addDays,
 	createQuest,
+	createSession,
 	createTask,
 	emptyPastWeek,
 	mondayOf,
@@ -196,6 +197,9 @@ test('Calendar: the day view shows one day; tapping an empty slot logs a session
 	const monday = await emptyPastWeek(sql);
 	const thu = addDays(monday, 3);
 	const task = await createTask(sql, { title: `Day slot ${id}` });
+	// One session on Monday, so the week shows its grid (an empty week shows its empty state).
+	const other = await createTask(sql, { title: `Day slot neighbour ${id}` });
+	await createSession(sql, { taskId: other.id, day: monday, start: '10:00', minutes: 30 });
 
 	await gotoLive(page, `/calendar?week=${monday}`);
 	await strip(page)
@@ -207,7 +211,7 @@ test('Calendar: the day view shows one day; tapping an empty slot logs a session
 	await expect(slot).toHaveAccessibleName(/Thu/);
 	await settle(page);
 
-	// Empty week → grid starts at 6:00; 50 px per hour below a 10 px pad. 13:22 → 13:15.
+	// No session before 6:00 → grid starts at 6:00; 50 px per hour below a 10 px pad. 13:22 → 13:15.
 	// The grid scrolls inside its card: bring 12:00 to its top so the point is on screen.
 	await slot.evaluate((el) => (el.closest('.cal')!.scrollTop = 6 * 50));
 	const box = (await slot.boundingBox())!;

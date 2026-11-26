@@ -13,6 +13,7 @@ import {
 	restWeekdays,
 	STREAK_FALLBACK_MIN,
 	streakBase,
+	streakHint,
 	streakMarks,
 	streakThreshold,
 	toRestMask,
@@ -269,6 +270,37 @@ describe('live composition', () => {
 		expect(nextStreakBase(fri, 0)).toMatchObject({ before: 2, day: addDays(TODAY, 1) });
 		expect(nextStreakBase(base, 0)).toMatchObject({ before: 0, longestBefore: 2 });
 		expect(nextStreakBase(base, 60)).toMatchObject({ before: 3, longestBefore: 3 });
+	});
+});
+
+describe('streakHint', () => {
+	test('no streak and nothing logged today: no hint', () => {
+		expect(streakHint(streak({}))).toBeNull();
+		expect(streakHint(streak({ [-3]: 60 }))).toBeNull(); // broken long ago
+	});
+
+	test('no streak, but today has some time: how much more starts one', () => {
+		const s = streak({ 0: 20 });
+		expect(s.state).toBe('none');
+		expect(streakHint(s)).toBe('start');
+	});
+
+	test('a streak that still needs time today: keep it', () => {
+		expect(streakHint(streak({ [-1]: 60 }))).toBe('keep');
+		expect(streakHint(streak({ [-1]: 60, 0: 30 }))).toBe('keep');
+	});
+
+	test('a rest day carrying the streak says so', () => {
+		const s = streak({ [-1]: 60 }, restMaskOf([FRI]));
+		expect(s.state).toBe('rest');
+		expect(streakHint(s)).toBe('rest');
+	});
+
+	test('nothing once today counts (or a milestone shows instead)', () => {
+		expect(streakHint(streak({ [-1]: 60, 0: 60 }))).toBeNull();
+		const seventh = streak({ [-6]: 60, [-5]: 60, [-4]: 60, [-3]: 60, [-2]: 60, [-1]: 60, 0: 60 });
+		expect(seventh.milestone).toBe(7);
+		expect(streakHint(seventh)).toBeNull();
 	});
 });
 

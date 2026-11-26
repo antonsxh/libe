@@ -63,6 +63,8 @@ export const en = {
 		quests: 'Quests',
 		review: 'Review',
 		main: 'Main',
+		/** Phones: the tab bar's account avatar (a link to Settings). */
+		me: 'Me',
 		brandHome: 'libe home',
 		timerChip: (display: string, state: string, title: string) =>
 			`Timer ${display} (${state}): ${title} — open focus`,
@@ -133,7 +135,7 @@ export const en = {
 		moveToBacklog: 'Move to backlog',
 		moveToTomorrow: 'Move to tomorrow',
 		moveToToday: 'Move to today',
-		filter: 'Filter quest work by quest',
+		filter: 'Filter tasks by quest',
 		filterDialog: 'Quest filter',
 		filterHint: 'Show tasks of',
 		noOpenQuests: 'No open quests.',
@@ -190,7 +192,8 @@ export const en = {
 	},
 	plan: {
 		title: 'Plan the week',
-		addOther: 'Add an other task…',
+		/** Add row of an Other zone (Plan's days, Home's Other). */
+		addOther: 'Add to Other…',
 		todayMarker: '(today)',
 		openBacklog: 'Open backlog tasks',
 		collapseBacklog: 'Collapse backlog',
@@ -200,7 +203,13 @@ export const en = {
 		emptyDayHint: 'Add a task, or pull one from the backlog.',
 		addTask: 'Add a task',
 		openBacklogSheet: 'Open the backlog',
-		hasOpenTasks: 'open tasks'
+		hasOpenTasks: 'open tasks',
+		/** A week without any planned task: one sentence + one action. */
+		emptyWeek: {
+			title: 'Nothing planned',
+			text: 'Add a task to a day — or pull one in from the backlog.',
+			action: 'Add a task'
+		}
 	},
 	/** Overdue tasks (planned before today, not done): Home's Overdue group, Plan, nav, palette. */
 	overdue: {
@@ -240,6 +249,12 @@ export const en = {
 		now: 'now',
 		editAria: (title: string, span: string) => `Edit ${title}, ${span}`,
 		done: 'Done',
+		/** A week without any logged time: one sentence + one action (Log time). */
+		empty: {
+			title: 'This week is empty',
+			text: 'Time you focus or log shows up here.',
+			action: 'Log time'
+		},
 		dialog: {
 			titleEdit: 'Edit session',
 			titleNew: 'Log time',
@@ -366,6 +381,12 @@ export const en = {
 		scheduled: 'Scheduled',
 		scheduledEmpty: 'Nothing scheduled for this quest yet.',
 		notFound: 'Quest not found',
+		/** No quest at all: one sentence + one action. */
+		empty: {
+			title: 'No quest yet',
+			text: 'A quest is a bigger goal, like a language or a project.',
+			action: 'Create quest'
+		},
 		card: {
 			deleteConfirm: (name: string) =>
 				`Delete “${name}”? Its tasks and all logged time are deleted too.`,
@@ -377,18 +398,24 @@ export const en = {
 		form: {
 			name: 'Name',
 			namePlaceholder: 'Launch my idea',
+			/** The disclosure row with icon, description and weekly budget. */
+			more: 'More options',
+			/** After "More options" while it is folded. */
+			moreHint: 'Icon, budget…',
 			description: 'Description',
-			descriptionPlaceholder: 'The few things that actually matter…',
+			descriptionPlaceholder: 'Description (optional)',
 			icon: 'Icon',
 			suggested: 'Suggested emoji',
 			useIcon: (emoji: string) => `Use ${emoji} as icon`,
-			budget: 'Weekly budget · h',
-			budgetPlaceholder: 'none',
+			budget: 'Weekly budget',
+			budgetPlaceholder: 'None',
+			/** After the budget's number (hours). */
+			budgetUnit: 'h',
+			/** Screen readers: the unit of the budget field. */
+			budgetHours: 'hours',
 			colour: 'Colour',
 			colourGroup: 'Quest colour',
-			changeLater: 'You can change everything later.',
-			create: 'Create quest',
-			saveChanges: 'Save changes'
+			create: 'Create quest'
 		}
 	},
 	/** Quest colour keys (`QUEST_COLORS`) as shown in tooltips / labels. */
@@ -414,7 +441,7 @@ export const en = {
 		notStarted: 'This week hasn’t started yet',
 		loggedOver: (hours: string, days: number) =>
 			`${hours} logged over ${days} ${plural(days, 'day', 'days')}`,
-		questVsOther: 'Quest work vs other',
+		questVsOther: 'Quest work vs Other',
 		ofLogged: (hours: string) => `of ${hours} logged`,
 		noTimeLogged: 'No time logged',
 		points: (signed: string) => `${signed} pts`,
@@ -422,13 +449,13 @@ export const en = {
 		vsLastDays: (range: string) => `vs last ${range}`,
 		perDay: 'Quest hours · per day',
 		dayAria: (day: string, hm: string) => `${day}: ${hm} quest work`,
-		dayAriaOther: (hm: string) => `, other ${hm}`,
+		dayAriaOther: (hm: string) => `, Other ${hm}`,
 		noQuestWork: 'No quest work',
 		thisQuarter: 'This quarter',
 		questWork: 'quest work',
 		quarterTarget: (hours: string, weeks: string) => ` / ${hours} target (${weeks})`,
 		weeks: (n: string, count: number) => `${n} ${plural(count, 'week', 'weeks')}`,
-		otherWork: 'other work',
+		otherWork: 'Other',
 		closed: 'Closed',
 		weeklyHours: 'Weekly hours:',
 		quarterVsTarget: (name: string) => `${name}: quarter hours vs. target`,
@@ -436,9 +463,18 @@ export const en = {
 		noQuests: 'No quests yet.',
 		closedSr: '(closed)',
 		split: (quest: string, pct: number | null, other: string) =>
-			`Quest work ${quest} (${pct}%), other ${other}`,
+			`Quest work ${quest} (${pct}%), Other ${other}`,
 		noTimeThisWeek: 'No time logged this week',
 		questWorkLegend: 'Quest work',
+		/** A week without logged time: one sentence + (this week) one action. */
+		empty: {
+			title: 'Nothing logged yet',
+			text: 'Once you finish a focus, your week shows up here.',
+			action: 'Start focus',
+			pastTitle: 'Nothing logged',
+			pastText: 'No time was logged in this week.',
+			futureText: 'Its review fills in as you log time.'
+		},
 		/** Personal headline under the title (vocative only). */
 		yourWeek: (name: string | null) => (name ? `Your week, ${name}.` : 'Your week.'),
 		/** One-sentence summary after `yourWeek` (`#lib/review.ts` → `weekSummary`). */
@@ -871,8 +907,8 @@ export const en = {
 	},
 	/** Streaks (Home, account menu, Review, Settings). Durations come from `goal.duration`. */
 	streak: {
-		/** "12-day streak" (chip, account menu). */
-		count: (n: number) => `${n}-day streak`,
+		/** "12 days in a row" (chip, account menu). */
+		count: (n: number) => `${n} ${plural(n, 'day', 'days')} in a row`,
 		/** Visually hidden after the chip when today already counts. */
 		todayDone: 'today counts',
 		/** Hint under the chip while today hasn't counted yet (`remaining`: "20 min"). */
@@ -881,7 +917,7 @@ export const en = {
 		rest: 'Rest day — your streak is safe',
 		/** Shown on Home on the day a milestone is reached; name in the vocative only. */
 		milestone: (n: number, name: string | null) =>
-			`${n}-day streak — nice${name ? `, ${name}` : ''}!`,
+			`${n} days in a row — nice${name ? `, ${name}` : ''}!`,
 		none: 'No streak yet',
 		/** Account menu: "Longest: 20 days". */
 		longestShort: (n: number) => `Longest: ${n} ${plural(n, 'day', 'days')}`,
