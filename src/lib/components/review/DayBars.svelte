@@ -168,7 +168,8 @@
 		font-size: var(--fs-xs);
 	}
 	.longest :global(svg) {
-		color: var(--accent-text);
+		color: var(--streak);
+		fill: currentColor;
 	}
 	.bars {
 		flex: 1;
@@ -234,7 +235,10 @@
 		color: var(--text-faint);
 	}
 	.mark[data-mark='done'] {
-		color: var(--accent-text);
+		color: var(--streak);
+	}
+	.mark[data-mark='done'] :global(svg) {
+		fill: currentColor;
 	}
 	.mark .pip {
 		width: 5px;
@@ -254,8 +258,9 @@
 	.col[data-state='today'] .weekday {
 		color: var(--accent-text);
 	}
+	/* Today: the label is the "today" marker (accent text); the bar stays neutral, lighter. */
 	.col[data-state='today'] .bar {
-		background: var(--accent);
+		background: var(--progress-fill);
 	}
 	.col[data-state='today'] .bar.stub {
 		background: var(--bar-muted);
@@ -264,7 +269,7 @@
 		background: color-mix(in srgb, var(--bar-muted) 70%, var(--text-muted));
 	}
 	.col[data-state='today'] .hit:hover .bar:not(.stub) {
-		background: var(--accent-hover);
+		background: var(--text);
 	}
 
 	/* ── tooltip ─────────────────────────────────────────── */

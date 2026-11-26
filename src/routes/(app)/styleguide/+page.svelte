@@ -33,7 +33,7 @@
 		'--running-border'
 	];
 	const states = ['--control-on', '--selected-bg', '--selected-border', '--focus-ring'];
-	const semantic = ['--danger', '--success', '--overdue', '--backdrop'];
+	const semantic = ['--danger', '--success', '--overdue', '--streak', '--backdrop'];
 	let sheetOpen = $state(false);
 	let sampleChoice = $state('60');
 	let sampleSegment = $state('25');
@@ -340,7 +340,8 @@
 	}
 	.stat {
 		font-size: var(--fs-stat);
-		color: var(--accent-text);
+		font-weight: var(--fw-figure);
+		color: var(--text);
 		line-height: 1;
 	}
 	.stat span {
@@ -348,7 +349,7 @@
 	}
 	.timer {
 		font-size: var(--fs-2xl);
-		font-weight: var(--fw-medium);
+		font-weight: var(--fw-figure);
 		letter-spacing: -0.03em;
 		line-height: 1;
 	}

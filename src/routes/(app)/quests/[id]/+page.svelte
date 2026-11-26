@@ -137,9 +137,6 @@
 		justify-items: start;
 		min-width: 0;
 	}
-	.quest-name {
-		letter-spacing: -0.02em;
-	}
 	.desc {
 		max-width: 60ch;
 	}

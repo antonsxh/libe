@@ -1,3 +1,5 @@
+import { slide } from 'svelte/transition';
+
 /**
  * Motion helpers for JS-driven animation. Durations and easings live in `tokens.css`
  * (`--dur-*`, `--ease-*`); JS reads them from there instead of repeating numbers, and every
@@ -138,11 +140,67 @@ export function tickIn(_node: Element) {
 	};
 }
 
+/**
+ * Svelte transition: a one-off pop with a slight spring overshoot (Home's "All done" check).
+ * Svelte runs intros only for blocks created after hydration, so it never plays on first paint.
+ */
+export function pop(_node: Element) {
+	return {
+		duration: motionMs('--dur-celebrate'),
+		easing: motionEasing('--ease-spring'),
+		css: (t: number) => `opacity: ${Math.min(1, t * 3)}; transform: scale(${0.3 + 0.7 * t})`
+	};
+}
+
 /** Svelte transition: fade + slight shrink (cards that give way to something else). */
 export function fadeScale(_node: Element) {
 	return {
 		duration: motionMs('--dur-pop'),
 		easing: motionEasing('--ease-out'),
 		css: (t: number) => `opacity: ${t}; transform: scale(${0.97 + 0.03 * t})`
+	};
+}
+
+/**
+ * Svelte transition: a list row that was just added slides open (height) and fades in —
+ * Home's Today list and Overdue group. Local transitions never run on the list's first paint.
+ */
+export function rowIn(node: Element, { enabled = true }: { enabled?: boolean } = {}) {
+	return slide(node, {
+		duration: enabled ? motionMs('--dur-row') : 0,
+		easing: motionEasing('--ease-out')
+	});
+}
+
+/**
+ * FLIP for a keyed list whose rows move when their state changes (a checked-off task settles
+ * into the done group): `measure` before the DOM update (`$effect.pre`), `play` after it
+ * (`$effect`); rows that moved glide from their old place. Rows are the elements with the
+ * `key` data attribute. An update that added a row is skipped (the new row's `rowIn` already
+ * moves the rows below it); nothing under reduced motion.
+ */
+export function listFlip(key: string) {
+	const attr = `data-${key}`;
+	let before = new Map<string, number>();
+	const rows = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>(`[${attr}]`)];
+	return {
+		measure(root: HTMLElement | undefined) {
+			before = new Map();
+			if (!root) return;
+			for (const el of rows(root))
+				before.set(el.getAttribute(attr)!, el.getBoundingClientRect().top);
+		},
+		play(root: HTMLElement | undefined) {
+			const duration = motionMs('--dur-row');
+			if (!root || duration === 0 || before.size === 0) return;
+			const now = rows(root);
+			if (now.some((el) => !before.has(el.getAttribute(attr)!))) return;
+			const easing = motionEase('--ease-out');
+			for (const el of now) {
+				const dy = before.get(el.getAttribute(attr)!)! - el.getBoundingClientRect().top;
+				if (Math.abs(dy) < 1) continue;
+				el.animate([{ translate: `0 ${dy}px` }, { translate: '0 0' }], { duration, easing });
+			}
+		}
 	};
 }

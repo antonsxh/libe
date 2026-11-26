@@ -29,7 +29,8 @@ test('create a quest: server validation keeps the input, then every field is sto
 	console.allow(/status of 400/);
 	const name = `Create quest ${uid()}`;
 	await gotoLive(page, '/quests');
-	await page.getByRole('button', { name: 'New quest' }).first().click();
+	// One way to create (O4a): a strict locator — a second "New quest" button fails here.
+	await page.getByRole('button', { name: 'New quest' }).click();
 	const dialog = page.getByRole('dialog', { name: 'New quest' });
 
 	await dialog.getByLabel('Name').fill(name);
@@ -73,7 +74,7 @@ test('create with only name and colour: the folded options submit their defaults
 }) => {
 	const name = `Quick quest ${uid()}`;
 	await gotoLive(page, '/quests');
-	await page.getByRole('button', { name: 'New quest' }).first().click();
+	await page.getByRole('button', { name: 'New quest' }).click();
 	const dialog = page.getByRole('dialog', { name: 'New quest' });
 	await expect(dialog.getByLabel('Weekly budget')).toBeHidden();
 	await dialog.getByLabel('Name').fill(name);

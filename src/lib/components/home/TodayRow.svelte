@@ -21,6 +21,7 @@
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { timerLabelText } from '#lib/timer.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
+	import { rowIn } from '#lib/motion.ts';
 
 	/**
 	 * One row of Home's "Today" list (quest work and Other alike): a round check in the quest
@@ -74,6 +75,7 @@
 </script>
 
 <li
+	in:rowIn
 	class="task"
 	class:done
 	class:struck={done}

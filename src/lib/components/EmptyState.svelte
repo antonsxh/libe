@@ -64,7 +64,7 @@
 		place-items: center;
 		width: var(--symbol-lg);
 		height: var(--symbol-lg);
-		color: var(--accent-text);
+		color: var(--text-muted); /* decoration: the accent stays for the one action below */
 	}
 	.title {
 		font-size: var(--fs-xl);

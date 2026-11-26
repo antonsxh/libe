@@ -365,6 +365,26 @@ export function formatSignedHours(hours: number, locale = 'en-US'): string {
 	return `${r > 0 ? '+' : '−'}${formatDecimal(Math.abs(r), locale)}${unit}`;
 }
 
+/** One segment of the "Quest work vs Other" bar: a quest's minutes, or Other (`quest` null). */
+export interface SplitSegment {
+	key: string;
+	/** Quest colour key (`other` → slate). */
+	color: string;
+	min: number;
+}
+
+/**
+ * The "Quest work vs Other" bar in quest colours: one segment per quest with time this week
+ * (the rows' order: most first), then Other in slate. Empty segments are dropped.
+ */
+export function splitSegments(rows: readonly QuestWeekRow[], otherMin: number): SplitSegment[] {
+	const segments: SplitSegment[] = rows
+		.filter((r) => r.weekMin > 0)
+		.map((r) => ({ key: r.quest.id, color: r.quest.color, min: r.weekMin }));
+	if (otherMin > 0) segments.push({ key: 'other', color: 'slate', min: otherMin });
+	return segments;
+}
+
 /** Whole percent of `part / whole` (null when `whole` is 0). */
 export function percent(part: number, whole: number): number | null {
 	return whole > 0 ? Math.round((part / whole) * 100) : null;

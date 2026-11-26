@@ -87,6 +87,11 @@ export const load = (async ({ url, locals }) => {
 		/** Quests matching `?q=` — the add row's picker (plus Other). */
 		visibleQuests: filter ? quests_.filter((quest) => filter.has(quest.id)) : quests_,
 		questFilter: filter ? [...filter] : null,
+		/** Today's tasks, unfiltered — the "All done" rule (`isAllDone`) ignores `?q=` / `?hideDone=`. */
+		dayCounts: {
+			total: questTasksAll.length + otherTasksAll.length,
+			open: [...questTasksAll, ...otherTasksAll].filter((t) => !t.doneAt).length
+		},
 		/** Today's two stored lists (open first); the page merges them into one (`mergeDayLists`). */
 		questTasks: withDone(questSplit),
 		otherTasks: withDone(otherSplit),

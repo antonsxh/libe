@@ -46,6 +46,11 @@ export function dayHref(
 	return `?${p.toString()}`;
 }
 
+/** Plan showing `day` (its week, and the day selected in the phone day view). */
+export function planDayHref(day: ISODay): string {
+	return `/plan${dayHref('', day, startOfWeek(day))}`;
+}
+
 /** Direction of a change from `from` to `to`: 1 = later, -1 = earlier, 0 = same/unknown. */
 export function dayDirection(from: ISODay | null | undefined, to: ISODay): -1 | 0 | 1 {
 	if (!from || from === to) return 0;

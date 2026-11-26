@@ -115,6 +115,9 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 - **Home is one list** (O3a, `components/home/`): header (greeting, large date, one meta line:
   logged today · this week (not on phones) · `StreakStatus`), `NextUpCard`, the
   `OverdueGroup` (overdue tasks as rows above Today: 3 + "Show N more", "All to today"),
+  — or, once today had tasks and none (nor any overdue task) is open, the **All done** card
+  (`AllDoneCard`: a `--success` check that pops once, "N tasks · X logged · daily goal reached",
+  "Plan tomorrow ›"; rule `isAllDone` in `#lib/next-up.ts` on the load's unfiltered `dayCounts`),
   `TodayList` — quest work and Other in **one** inset grouped list (`mergeDayLists`,
   `#lib/ordering.ts`: open quest work, open Other, then the done ones; the two stored lists keep
   their own `sort_order`, ↑/↓ never cross them) of `TodayRow`s (actions in the row's ⋯) and
@@ -276,7 +279,12 @@ timer.serverNow)` so today moves live with the timer.
 - The look is **"Apple + Linear"** (`docs/ROADMAP.md` → "R4 — what exists"): a black ground,
   elevation through lightness (each raised layer a step lighter, not shadows), few and soft
   borders ("structure is felt, not seen"), a nav that recedes, near-white text, one restrained
-  blue accent, the **Geist** font, and Apple's system colours for quests. `--accent` is for
+  blue accent, the **Geist** font, and Apple's system colours for quests. **The accent is only
+  for the primary action and the "now"**: the one filled button, the running timer, the now
+  line, "today" markers, focus rings — and, as Apple's tint, interactive text (links, active
+  tab/filter, selection ticks, drop lines). Never decoration: numbers are `--text`, charts and
+  non-"now" progress use quest colours or `--progress-fill`, deltas are muted (no green/red),
+  the streak flame is `--streak` (Apple orange, the one reward colour). `--accent` is for
   fills, lines, rings and dots; wherever the accent is a **text or icon colour** use
   `--accent-text` (the accent itself is too dark for text on black). Visual changes are first
   rendered as variants on the real pages and picked by the owner, then applied.
@@ -305,14 +313,19 @@ timer.serverNow)` so today moves live with the timer.
   `SegmentedControl` (radio group) — tokens `--grouped-*`, `--segmented-*` (inside a dialog
   set `--grouped-bg: var(--grouped-bg-raised)` and the raised separator, like `QuestForm`).
   Look at `/styleguide` in the running app before building new UI.
+- **Titles and figures**: every page title is the global `h1` — the large bold title
+  (`--fs-title-lg`, phones `--fs-title`, `--fw-bold`, `--tracking-title`); don't restyle it per
+  page. Big numbers (KPIs, totals, the Focus clock) use `--fw-figure` and `.tabular`.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
   Below 720px the nav is a floating capsule at the bottom (icons with a small label under each —
   `t.nav` names, "Me" under the account avatar, the active tab in `--accent-text` on a sliding
   pill — no Focus tab; `TAB_ITEMS` / `activeTab` in `#lib/nav.ts`); the top
   bar keeps brand + search. `main` pads for capsule and mini-player (`--tabbar-*`, `--player-h`).
 - **Mobile UX principles** (phones ≤ 720px, the iPhone home-screen PWA):
-  - _Hierarchy_: one clear primary action per phone screen (filled accent `Button`); everything
-    else secondary/ghost. Home's "Next up" card (above the lists, desktop too) is the
+  - _Hierarchy_: at most **one** filled accent button per screen and per dialog, on every
+    width (Settings has none; Quests creates only from its header); everything else
+    secondary/ghost. The running Focus screen has two round stopwatch buttons — Complete grey,
+    Pause/Resume (or Start) filled. Home's "Next up" card (above the lists, desktop too) is the
     primary "what now?" while no timer runs; with a timer, the mini-player is the "now" (the
     top-bar timer chip is hidden on phones).
   - _Thumb zone_: primary actions low on the screen — dialogs are bottom sheets whose
@@ -321,8 +334,10 @@ timer.serverNow)` so today moves live with the timer.
     `Dialog`'s `onclosed` (fires after the exit animation), not an effect on `open`.
   - _Micro-interactions_: short and subtle, only via the motion tokens (`--dur-*`, `--ease-*`,
     `--press-*` in `tokens.css`; JS through `#lib/motion.ts`: `motionMs`, `rise`, `tickIn`,
-    `fadeScale`). Touch press feedback is global (`scale`/`filter`, so components keep their
-    `transform`s). Everything stops under `prefers-reduced-motion` (global rule + `motionMs` → 0).
+    `fadeScale`, `pop`, `rowIn` (rows that appear), `listFlip` (rows that move); sheets use
+    `--ease-sheet`). Never animate the first paint (Svelte's local intros already skip it).
+    Touch press feedback is global (`scale`/`filter`, so components keep their `transform`s).
+    Everything stops under `prefers-reduced-motion` (global rule + `motionMs` → 0).
     Animate on the tap, but the data still comes from the server (no faked state).
   - _Never overload data_: on phones show less, details on demand; don't add numbers/charts —
     fold or drop them (Home's week total is hidden on phones; the streak hint is a tooltip).

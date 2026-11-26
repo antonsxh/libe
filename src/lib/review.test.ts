@@ -9,6 +9,7 @@ import {
 	quarterOf,
 	quarterWeeks,
 	reviewRange,
+	splitSegments,
 	weekSummary,
 	weekSummaryText,
 	type ReviewQuest,
@@ -361,5 +362,33 @@ describe('weekSummary', () => {
 				de
 			)
 		).toBe('12,5 h erfasst – 2,1 h mehr als letzte Woche.');
+	});
+});
+
+describe('splitSegments', () => {
+	const quest = (id: string, color: string): ReviewQuest => ({
+		id,
+		name: id,
+		icon: '✨',
+		color,
+		weeklyBudgetH: null,
+		closed: false
+	});
+	test('one segment per quest with time, in row order, then Other in slate', () => {
+		const rows = [
+			{ quest: quest('a', 'red'), weekMin: 120, budgetMin: null },
+			{ quest: quest('b', 'lime'), weekMin: 0, budgetMin: 60 },
+			{ quest: quest('c', 'teal'), weekMin: 30, budgetMin: null }
+		];
+		expect(splitSegments(rows, 45)).toEqual([
+			{ key: 'a', color: 'red', min: 120 },
+			{ key: 'c', color: 'teal', min: 30 },
+			{ key: 'other', color: 'slate', min: 45 }
+		]);
+	});
+	test('no Other segment without Other time; nothing at all for an empty week', () => {
+		const rows = [{ quest: quest('a', 'red'), weekMin: 10, budgetMin: null }];
+		expect(splitSegments(rows, 0)).toEqual([{ key: 'a', color: 'red', min: 10 }]);
+		expect(splitSegments([], 0)).toEqual([]);
 	});
 });

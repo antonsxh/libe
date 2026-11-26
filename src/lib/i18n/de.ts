@@ -158,9 +158,20 @@ export const de: Messages = {
 			start: 'Fokus starten',
 			startAria: (title) => `Fokus starten: ${title}`,
 			emptyTitle: 'Für heute nichts geplant',
-			allDoneTitle: 'Für heute alles erledigt',
+			todayDoneTitle: 'Die Liste für heute ist erledigt',
+			overdueLeft: (n) =>
+				n === 1
+					? 'Eine überfällige Aufgabe ist noch offen.'
+					: `${n} überfällige Aufgaben sind noch offen.`,
 			emptyHint: 'Füge unten eine Aufgabe hinzu oder hol dir eine aus dem Backlog.',
 			addTask: 'Aufgabe hinzufügen'
+		},
+		allDone: {
+			title: 'Alles erledigt',
+			tasks: (n) => (n === 1 ? '1 Aufgabe' : `${n} Aufgaben`),
+			logged: (duration) => `${duration} erfasst`,
+			goalReached: 'Tagesziel erreicht',
+			planTomorrow: 'Morgen planen'
 		},
 		blockFailed:
 			'Der Zeitblock konnte nicht gespeichert werden – der Beginn muss vor dem Ende liegen, beides zwischen 00:00 und 24:00.',

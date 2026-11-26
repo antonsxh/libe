@@ -454,8 +454,10 @@
 	.streak :global(svg) {
 		flex: none;
 	}
+	/* A lit flame is the one reward colour (Apple Fitness orange), filled. */
 	.streak :global(svg.lit) {
-		color: var(--accent-text);
+		color: var(--streak);
+		fill: currentColor;
 	}
 	.person {
 		color: var(--text);

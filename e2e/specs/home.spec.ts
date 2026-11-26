@@ -418,6 +418,79 @@ test.describe('Next up on desktop', () => {
 	});
 });
 
+test.describe('All done', () => {
+	/** Open tasks of today and earlier (seed, leftovers): done for the test, reopened afterwards. */
+	let parked: string[] = [];
+	test.beforeEach(async ({ api, sql }) => {
+		await discardTimer(api);
+		const day = await today(sql);
+		parked = (
+			await sql`update tasks set done_at = now() where done_at is null and day <= ${day} returning id`
+		).map((r) => r.id as string);
+	});
+	test.afterEach(async ({ sql }) => {
+		if (parked.length > 0) await sql`update tasks set done_at = null where id in ${sql(parked)}`;
+		parked = [];
+	});
+
+	test('checking off the last open task turns Next up into "All done" until a task is open again @mobile', async ({
+		page,
+		sql
+	}) => {
+		const id = uid();
+		const day = await today(sql);
+		const last = await createTask(sql, { title: `Last one ${id}`, day, durationMin: 25 });
+		const late = await createTask(sql, { title: `Late ${id}`, day: addDays(day, -1) });
+		const allDone = page.getByTestId('all-done');
+		const next = page.getByTestId('next-up');
+		const list = todayList(page);
+		const toggle = async (row: Locator, name: 'Mark as done' | 'Mark as not done') => {
+			const done = actionDone(page, 'toggle');
+			await row.getByRole('button', { name }).click();
+			await done;
+		};
+
+		await gotoLive(page, '/');
+		await expect(next).toContainText(last.title);
+
+		// Today's list done, but an overdue task is still open: not "All done" yet.
+		await toggle(cardOf(list, last.title), 'Mark as done');
+		await expect(next).toContainText('One overdue task is still open.');
+		await expect(allDone).toHaveCount(0);
+
+		// The overdue one too → All done with the day's facts (every task planned today).
+		await toggle(
+			page.getByTestId('overdue').locator('li', { hasText: late.title }),
+			'Mark as done'
+		);
+		await expect(allDone).toBeVisible();
+		await expect(next).toHaveCount(0);
+		const [{ n }] = await sql`select count(*)::int as n from tasks where day = ${day}`;
+		await expect(allDone.getByTestId('all-done-facts')).toContainText(
+			n === 1 ? '1 task' : `${n} tasks`
+		);
+		await reloadLive(page);
+		await expect(allDone).toBeVisible();
+
+		// A new task opens the day again; checking it off brings the card back; reopening a
+		// done task takes it away.
+		await addTask(page, `Another ${id}`, 'Other', 'Enter');
+		await expect(allDone).toHaveCount(0);
+		await expect(next).toContainText(`Another ${id}`);
+		await toggle(cardOf(list, `Another ${id}`), 'Mark as done');
+		await expect(allDone).toBeVisible();
+		await toggle(cardOf(list, last.title), 'Mark as not done');
+		await expect(allDone).toHaveCount(0);
+		await expect(next).toContainText(last.title);
+
+		// Done again: "Plan tomorrow" opens Plan on tomorrow.
+		await toggle(cardOf(list, last.title), 'Mark as done');
+		await allDone.getByRole('link', { name: 'Plan tomorrow' }).click();
+		const tomorrow = addDays(day, 1);
+		await expect(page).toHaveURL(`/plan?week=${mondayOf(tomorrow)}&day=${tomorrow}`);
+	});
+});
+
 test.describe('without any open quest', () => {
 	/** Open quests closed for the test (the seed's and leftovers), reopened afterwards. */
 	let closed: string[] = [];

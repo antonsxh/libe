@@ -95,7 +95,7 @@ test('a dialog opens as a bottom sheet: dragging it down dismisses without savin
 	const count = async () => (await sql`select 1 from quests where name = ${name}`).length;
 
 	await gotoLive(page, '/quests');
-	await page.getByRole('button', { name: 'New quest' }).first().tap();
+	await page.getByRole('button', { name: 'New quest' }).tap();
 	const sheet = page.getByRole('dialog', { name: 'New quest' });
 	await expect(sheet).toBeVisible();
 	await sheet.getByLabel('Name').fill(name);
@@ -104,7 +104,7 @@ test('a dialog opens as a bottom sheet: dragging it down dismisses without savin
 	await expect(sheet).toBeHidden();
 	expect(await count()).toBe(0);
 
-	await page.getByRole('button', { name: 'New quest' }).first().tap();
+	await page.getByRole('button', { name: 'New quest' }).tap();
 	await expect(sheet).toBeVisible();
 	await expect(sheet.getByLabel('Name')).toHaveValue(''); // a fresh form
 	await sheet.getByLabel('Name').fill(name);

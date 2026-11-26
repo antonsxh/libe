@@ -121,7 +121,9 @@
 		{/if}
 		<span class="spacer"></span>
 		<Button variant="secondary" type="button" onclick={close}>{t.common.cancel}</Button>
-		<Button type="submit" form="block-form">{isEdit ? t.common.save : t.home.block.add}</Button>
+		<Button variant="primary" type="submit" form="block-form">
+			{isEdit ? t.common.save : t.home.block.add}
+		</Button>
 	</div>
 </Dialog>
 

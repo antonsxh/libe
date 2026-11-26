@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { dayDirection, dayHref, resolveDay, stepDay } from './day-view.ts';
+import { dayDirection, dayHref, planDayHref, resolveDay, stepDay } from './day-view.ts';
 
 const MON = '2026-11-16';
 const SUN = '2026-11-22';
@@ -70,5 +70,12 @@ describe('dayDirection', () => {
 		expect(dayDirection(SUN, MON)).toBe(-1);
 		expect(dayDirection(MON, MON)).toBe(0);
 		expect(dayDirection(null, MON)).toBe(0);
+	});
+});
+
+describe('planDayHref', () => {
+	test('Plan on that day and its week (a Sunday → Monday crosses into the next week)', () => {
+		expect(planDayHref('2026-11-19')).toBe('/plan?week=2026-11-16&day=2026-11-19');
+		expect(planDayHref('2026-11-23')).toBe('/plan?week=2026-11-23&day=2026-11-23');
 	});
 });

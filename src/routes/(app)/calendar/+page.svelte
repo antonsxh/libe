@@ -298,7 +298,7 @@
 	.totals strong {
 		color: var(--text);
 		font-size: var(--fs-xl);
-		font-weight: var(--fw-medium);
+		font-weight: var(--fw-figure);
 		letter-spacing: -0.01em;
 		margin-right: var(--space-1);
 	}
@@ -312,7 +312,7 @@
 	.bar-fill {
 		height: 100%;
 		border-radius: var(--radius-pill);
-		background: var(--accent);
+		background: var(--progress-fill);
 		transition: width var(--dur) var(--ease);
 	}
 

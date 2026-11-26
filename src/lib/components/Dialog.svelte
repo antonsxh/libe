@@ -197,7 +197,7 @@
 	dialog.dialog[open] {
 		display: flex;
 		flex-direction: column;
-		animation: dialog-in var(--dur) var(--ease-out);
+		animation: dialog-in var(--dur-sheet) var(--ease-sheet);
 	}
 	dialog.dialog::backdrop {
 		background: var(--backdrop);
@@ -215,7 +215,7 @@
 	@keyframes dialog-in {
 		from {
 			opacity: 0;
-			scale: 0.98;
+			scale: 0.96;
 		}
 	}
 	@keyframes dialog-out {
@@ -269,7 +269,11 @@
 			max-height: calc(var(--vvh, 100dvh) - var(--safe-top) - var(--sheet-gap-top));
 			border-width: 1px 0 0;
 			border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-			box-shadow: var(--shadow-pop);
+			/* The second shadow is the sheet's own surface continued below the screen edge: the
+			   spring's overshoot lifts the sheet a few pixels without opening a gap. */
+			box-shadow:
+				var(--shadow-pop),
+				0 var(--sheet-underlap) 0 0 var(--surface);
 			transform: translateY(var(--drag, 0px));
 			transition: transform var(--dur-sheet) var(--ease-out);
 		}
@@ -277,7 +281,7 @@
 			transition: none;
 		}
 		dialog.dialog[open] {
-			animation: sheet-in var(--dur-sheet) var(--ease-out);
+			animation: sheet-in var(--dur-sheet) var(--ease-sheet);
 		}
 		dialog.dialog[open]::backdrop {
 			animation: fade-in var(--dur-sheet) var(--ease-out);

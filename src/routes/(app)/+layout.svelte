@@ -56,8 +56,8 @@
 		gap: var(--space-3);
 		margin: calc(-1 * var(--space-10)) 0 var(--space-6);
 		padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
-		background: var(--accent-soft);
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+		background: var(--surface);
+		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
 		color: var(--text);
 		font-size: var(--fs-sm);

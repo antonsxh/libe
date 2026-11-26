@@ -76,10 +76,6 @@
 				onedit={startEdit}
 			/>
 		{/each}
-		<button type="button" class="new-tile" onclick={startCreate}>
-			<Plus size={20} />
-			<span>{t.quests.newQuest}</span>
-		</button>
 	</div>
 
 	{#if closedQuests.length > 0}
@@ -117,32 +113,13 @@
 	}
 	.summary .big {
 		font-size: var(--fs-xl);
-		font-weight: var(--fw-semibold);
+		font-weight: var(--fw-figure);
 	}
 
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 		gap: var(--space-4);
-	}
-
-	.new-tile {
-		display: grid;
-		place-content: center;
-		justify-items: center;
-		gap: var(--space-3);
-		min-height: 190px;
-		background: transparent;
-		border: 1px dashed var(--border-dashed);
-		border-radius: var(--radius-lg);
-		color: var(--text-muted);
-		transition:
-			border-color var(--dur) var(--ease),
-			color var(--dur) var(--ease);
-	}
-	.new-tile:hover {
-		border-color: var(--border-strong);
-		color: var(--text);
 	}
 
 	.closed-section {
