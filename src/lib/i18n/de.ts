@@ -72,7 +72,7 @@ export const de: Messages = {
 		search: 'Suchen …',
 		account: 'Konto und Geräte',
 		accountOf: (name) => `Konto und Geräte (${name})`,
-		withProgress: (account, progress) => `${account}, ${progress}`,
+		withProgress: (label, progress) => `${label}, ${progress}`,
 		signedInAs: 'Angemeldet als',
 		thisDevice: 'Dieses Gerät',
 		thisDeviceIs: (device) => `Dieses Gerät: ${device}`,
@@ -457,6 +457,23 @@ export const de: Messages = {
 			pastText: 'In dieser Woche wurde keine Zeit erfasst.',
 			futureText: 'Der Rückblick füllt sich, sobald du Zeit erfasst.'
 		},
+		phone: {
+			view: 'Anzeigen',
+			week: 'Woche',
+			quarter: 'Quartal',
+			ofTarget: (hours) => `von ${hours}`,
+			perDay: 'pro Tag',
+			perWeek: 'pro Woche',
+			perWeekChart: 'Quest-Stunden · pro Woche',
+			weekAria: (monday, hm) => `Woche ab ${monday}: ${hm} Quest-Arbeit`,
+			vsQuarter: (label) => `ggü. ${label}`,
+			vsQuarterSoFar: (label) => `ggü. gleichem Stand in ${label}`,
+			quarterEmpty: {
+				text: 'Sobald du einen Fokus beendest, siehst du hier dein Quartal.',
+				pastText: 'In diesem Quartal wurde keine Zeit erfasst.',
+				futureTitle: 'Dieses Quartal hat noch nicht begonnen'
+			}
+		},
 		yourWeek: (name) => (name ? `Deine Woche, ${name}.` : 'Deine Woche.'),
 		summary: {
 			future: 'Sie hat noch nicht begonnen.',
@@ -489,7 +506,7 @@ export const de: Messages = {
 		useAvatarEmoji: (emoji) => `${emoji} als Avatar verwenden`,
 		dailyGoal: 'Tagesziel',
 		dailyGoalDesc:
-			'Wie viel Zeit du jeden Tag erfassen möchtest. Ein Ring um deinen Avatar füllt sich dabei.',
+			'Wie viel Zeit du jeden Tag erfassen möchtest. Ein Ring an „Start“ in der Navigation füllt sich dabei.',
 		goal: 'Ziel',
 		goalOff: 'Kein Tagesziel',
 		goalCustom: 'Eigenes …',
@@ -887,7 +904,8 @@ export const de: Messages = {
 	},
 	goal: {
 		duration,
-		progress: (logged, goal) => `${logged} von ${goal} heute`
+		progress: (logged, goal) => `${logged} von ${goal} heute`,
+		progressDone: (logged, goal) => `${logged} von ${goal} heute, Tagesziel erreicht`
 	},
 	streak: {
 		count: (n) => `${n} ${plural(n, 'Tag', 'Tage')} in Folge`,

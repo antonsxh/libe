@@ -1,7 +1,8 @@
 /**
  * Profile (display name, avatar colour and emoji, daily goal — global in the `settings` row):
- * Settings → Profile / Daily goal persist and drive the nav avatar (emoji, goal ring and its
- * accessible progress, live with the timer), the account menu, Home's greeting and stat, the
+ * Settings → Profile / Daily goal persist and drive the nav avatar (emoji), the goal ring at
+ * Home in the nav and its accessible progress (live with the timer, "reached" once the goal
+ * is met; the avatar has no ring), the account menu, Home's greeting and stat, the
  * Focus and Review texts; server-side validation; `/setup`'s optional "Your name" only fills
  * an empty name and is never shown on the public page; the one-time welcome after pairing.
  *
@@ -58,21 +59,32 @@ async function loggedToday(sql: Sql): Promise<number> {
 			and (s.started_at at time zone 'Europe/Berlin')::date = ${await today(sql)}::date`;
 	return r.min;
 }
-/** "2 h 10 min" — the avatar's progress wording (whole minutes, rounded down). */
+/** "2 h 10 min" — the goal ring's progress wording (whole minutes, rounded down). */
 function hm(min: number): string {
 	const m = Math.floor(min);
 	const [h, r] = [Math.floor(m / 60), m % 60];
 	return h === 0 ? `${r} min` : r === 0 ? `${h} h` : `${h} h ${r} min`;
 }
-/** Accessible name of the avatar with a goal; `logged` may be fractional (±1 min tolerated). */
-const progressName = (logged: number, goal: string) =>
-	new RegExp(`^Account and devices, (${hm(logged)}|${hm(logged + 1)}) of ${goal} today$`);
+/**
+ * Accessible name of Home in the nav with a goal (its ring); `logged` may be fractional (±1 min
+ * tolerated). Overdue tasks left by other specs may add ", N overdue" after "Home".
+ */
+const progressName = (logged: number, goal: string, reached = false) =>
+	new RegExp(
+		`^Home(, \\d+ overdue)?, (${hm(logged)}|${hm(logged + 1)}) of ${goal} today${reached ? ', daily goal reached' : ''}$`
+	);
+const NO_GOAL_NAME = /^Home(, \d+ overdue)?$/;
 
 /** The nav avatar: the account menu's button (desktop/iPad) or the tab bar's link to Settings (iPhone). */
 const avatar = (page: Page) =>
 	page
 		.getByRole('button', { name: /^Account and devices/ })
 		.or(page.getByRole('link', { name: /^Account and devices/ }));
+/** Home in the nav (top bar on desktop/iPad, tab bar on iPhone) — the daily goal's ring lives here. */
+const homeLink = (page: Page) =>
+	page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /^Home/ });
+/** The goal ring that is shown (desktop: before the word; iPhone: around the tab's icon). */
+const homeRing = (page: Page) => homeLink(page).locator('[data-testid="goal-ring"]:visible');
 /** What the avatar itself shows (initials/emoji) — the iPhone tab also carries its "Me" label. */
 const avatarFace = (page: Page) => avatar(page).locator('.avatar');
 /** iPhone: the tab bar avatar links to Settings — there is no account menu. */
@@ -239,7 +251,7 @@ test('/setup never overwrites an existing name and never shows it', async ({ sql
 	await sql`update devices set revoked_at = now() where name in ${sql(devices)}`;
 });
 
-test('emoji avatar and daily goal: the nav ring reports today, live with the timer, without double counting @mobile', async ({
+test('emoji avatar and daily goal: the ring at Home reports today, live with the timer, without double counting @mobile', async ({
 	page,
 	sql,
 	api
@@ -263,10 +275,12 @@ test('emoji avatar and daily goal: the nav ring reports today, live with the tim
 
 	await reloadLive(page);
 	await expect(avatarFace(page)).toHaveText('🦊');
-	const named = (logged: number) =>
-		new RegExp(`^Account and devices \\(Anton\\), (${hm(logged)}|${hm(logged + 1)}) of 1 h today$`);
-	await expect(avatar(page)).toHaveAccessibleName(named(base));
-	const ring = avatar(page).locator('svg.ring');
+	// The avatar only names the person now; the progress (and its ring) moved to Home.
+	await expect(avatar(page)).toHaveAccessibleName('Account and devices (Anton)');
+	await expect(avatar(page).locator('[data-testid="goal-ring"]')).toHaveCount(0);
+	const named = (logged: number) => progressName(logged, '1 h', Math.floor(logged) >= 60);
+	await expect(homeLink(page)).toHaveAccessibleName(named(base));
+	const ring = homeRing(page);
 	await expect(ring).toBeInViewport();
 	await expect(ring).toHaveAttribute(
 		'data-progress',
@@ -279,13 +293,45 @@ test('emoji avatar and daily goal: the nav ring reports today, live with the tim
 	await timerCmd(api, { action: 'start', taskId: task.id, mode: 'focus', plannedMin: 120 });
 	await sql`update sessions set started_at = started_at - interval '10 minutes' where state = 'running'`;
 	await timerCmd(api, { action: 'pause' });
-	await expect(avatar(page)).toHaveAccessibleName(named(base + 10));
+	await expect(homeLink(page)).toHaveAccessibleName(named(base + 10));
 	await timerCmd(api, { action: 'complete' });
 	await expect.poll(() => loggedToday(sql)).toBeGreaterThanOrEqual(base + 10);
 	await expect(page.locator('html[data-timer=live]')).toBeAttached();
-	await expect(avatar(page)).toHaveAccessibleName(named(base + 10));
+	await expect(homeLink(page)).toHaveAccessibleName(named(base + 10));
 	await reloadLive(page);
-	await expect(avatar(page)).toHaveAccessibleName(named(base + 10));
+	await expect(homeLink(page)).toHaveAccessibleName(named(base + 10));
+});
+
+test('the ring at Home turns to "reached" live while the timer runs past the goal @mobile', async ({
+	page,
+	sql,
+	api
+}) => {
+	const task = await createTask(sql, { title: `Reach ${uid()}`, day: await today(sql) });
+	const base = await loggedToday(sql);
+	// The next quarter hour above today's minutes: at most 15 minutes still to go.
+	const goal = (Math.floor(base / 15) + 1) * 15;
+	const remaining = goal - base;
+	await setProfile(sql, null, 'amber', { goalMin: goal });
+	await gotoLive(page, '/plan');
+
+	const target = hm(goal);
+	await expect(homeLink(page)).toHaveAccessibleName(progressName(base, target));
+	await expect(homeRing(page)).toHaveAttribute('data-done', 'false');
+
+	// A running timer shifted just past the goal (pushed by a pause): reached, without a reload.
+	await timerCmd(api, { action: 'start', taskId: task.id, mode: 'focus', plannedMin: 60 });
+	await sql`update sessions set started_at = started_at - make_interval(secs => ${Math.ceil((remaining + 1) * 60)})
+		where state = 'running'`;
+	await timerCmd(api, { action: 'pause' });
+	await expect(homeLink(page)).toHaveAccessibleName(progressName(goal + 1, target, true));
+	await expect(homeRing(page)).toHaveAttribute('data-done', 'true');
+	await expect(homeRing(page)).toHaveAttribute('data-progress', '100');
+
+	// Discarding the session takes it back: the server never counted the running time.
+	await discardTimer(api);
+	await expect(homeLink(page)).toHaveAccessibleName(progressName(base, target));
+	await expect(homeRing(page)).toHaveAttribute('data-done', 'false');
 });
 
 test('daily goal: 16 h passes, 16 h 15 min is rejected, "No daily goal" removes the ring; emoji is validated', async ({
@@ -297,7 +343,7 @@ test('daily goal: 16 h passes, 16 h 15 min is rejected, "No daily goal" removes 
 	await setProfile(sql, null, 'amber', { goalMin: 120 });
 	await gotoLive(page, '/settings#goal');
 	const base = await loggedToday(sql);
-	await expect(avatar(page)).toHaveAccessibleName(progressName(base, '2 h'));
+	await expect(homeLink(page)).toHaveAccessibleName(progressName(base, '2 h', base >= 120));
 
 	const saveGoal = async (hours: string, minutes: string) => {
 		await page.getByLabel('Goal', { exact: true }).selectOption({ label: 'Custom…' });
@@ -315,7 +361,7 @@ test('daily goal: 16 h passes, 16 h 15 min is rejected, "No daily goal" removes 
 
 	await saveGoal('16', '0');
 	await expect.poll(async () => (await storedExtras(sql))?.daily_goal_min).toBe(960);
-	await expect(avatar(page)).toHaveAccessibleName(progressName(base, '16 h'));
+	await expect(homeLink(page)).toHaveAccessibleName(progressName(base, '16 h'));
 
 	await page.getByLabel('Goal', { exact: true }).selectOption({ label: 'No daily goal' });
 	let done = actionDone(page, 'goal');
@@ -323,7 +369,8 @@ test('daily goal: 16 h passes, 16 h 15 min is rejected, "No daily goal" removes 
 	await done;
 	await expect.poll(async () => (await storedExtras(sql))?.daily_goal_min).toBeNull();
 	await expect(avatar(page)).toHaveAccessibleName('Account and devices');
-	await expect(avatar(page).locator('svg.ring')).toHaveCount(0);
+	await expect(homeLink(page)).toHaveAccessibleName(NO_GOAL_NAME);
+	await expect(page.locator('[data-testid="goal-ring"]')).toHaveCount(0);
 
 	await chooseEmojiStyle(page);
 	await page.getByLabel('Avatar emoji').fill('ab');

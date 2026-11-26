@@ -188,3 +188,89 @@ test('weeks without data show one sentence instead of zeros; a week with only Ot
 	await expect(page.getByTestId('kpi-share')).toHaveText('0');
 	await expect(page.getByTestId('split-other')).toHaveText('0.8h');
 });
+
+/** `formatSignedHours`: `+2.1h`, `−0.4h`, `±0h`. */
+const signedHours = (min: number) => {
+	const r = Math.round((min / 60) * 10) / 10;
+	return r === 0 ? '±0h' : `${r > 0 ? '+' : '−'}${Math.abs(r)}h`;
+};
+
+test('phone: Week | Quarter lives in the URL (reload, Back) and shows the quarter’s numbers @mobile-only', async ({
+	page,
+	sql,
+	viewport
+}) => {
+	test.skip(viewport!.width > 720, 'Week | Quarter is the phone layout');
+	const id = uid();
+	const day = await today(sql);
+	const monday = mondayOf(day);
+	const quest = await createQuest(sql, { name: `Phone review ${id}`, budgetH: 3 });
+	const qt = await createTask(sql, { title: `Phone quest ${id}`, questId: quest.id });
+	const ot = await createTask(sql, { title: `Phone other ${id}` });
+	await createSession(sql, { taskId: qt.id, day: monday, start: '06:10', minutes: 50 });
+	await createSession(sql, { taskId: ot.id, day: monday, start: '05:30', minutes: 20 });
+
+	const week = await minutes(sql, monday, addDays(monday, 6));
+	const daysElapsed = Math.round((Date.parse(day) - Date.parse(monday)) / 86_400_000) + 1;
+	const [q] = await sql`
+		select to_char(date_trunc('quarter', ${monday}::date), 'YYYY-MM-DD') as start,
+			to_char(date_trunc('quarter', ${monday}::date) + interval '3 months - 1 day', 'YYYY-MM-DD') as end,
+			to_char(date_trunc('quarter', ${monday}::date) - interval '3 months', 'YYYY-MM-DD') as "prevStart",
+			(date_trunc('quarter', ${monday}::date)::date
+				- (date_trunc('quarter', ${monday}::date) - interval '3 months')::date) as "prevLen",
+			(${day}::date - date_trunc('quarter', ${monday}::date)::date + 1) as elapsed,
+			((date_trunc('quarter', ${monday}::date) + interval '3 months')::date
+				- date_trunc('quarter', ${monday}::date)::date) as len`;
+	q.elapsed = Math.min(q.elapsed, q.len); // a week whose Monday lies in a finished quarter
+	const quarter = await minutes(sql, q.start, q.end);
+	// The previous quarter's first `elapsed` days (the whole of it if it is shorter).
+	const prevDays = q.elapsed >= q.len ? q.prevLen : Math.min(q.elapsed, q.prevLen);
+	const previous = await minutes(sql, q.prevStart, addDays(q.prevStart, prevDays - 1));
+	const isQuest = (r: Minutes) => r.questId !== null;
+
+	// Week (the default): one summary card, the quest list with Other as a row.
+	await gotoLive(page, '/review');
+	await expect(page.getByRole('radio', { name: 'Week' })).toBeChecked();
+	await expect(page.getByTestId('kpi-quest')).toBeHidden(); // the desktop KPI cards
+	await expect(page.getByTestId('sum-quest')).toHaveText(hours(sum(week, isQuest)));
+	await expect(page.getByTestId('sum-avg')).toHaveText(hours(sum(week) / daysElapsed));
+	const weekList = page.getByTestId('week-list');
+	const weekRow = weekList.locator(`[data-testid="list-row"][data-quest="${quest.id}"]`);
+	await expect(weekRow.getByTestId('list-value')).toHaveText(
+		`${hours(sum(week, (r) => r.questId === quest.id))} / 3h`
+	);
+	await expect(
+		weekList.locator('[data-testid="list-row"][data-quest="other"]').getByTestId('list-value')
+	).toHaveText(hours(sum(week, (r) => r.questId === null)));
+
+	// Quarter: a history entry with `?view=quarter`, kept by a reload.
+	await page.locator('label', { has: page.getByRole('radio', { name: 'Quarter' }) }).click();
+	await expect(page).toHaveURL(/\/review\?view=quarter$/);
+	await reloadLive(page);
+	await expect(page.getByRole('radio', { name: 'Quarter' })).toBeChecked();
+	await expect(page.getByTestId('week-summary')).toBeHidden();
+	await expect(page.getByRole('link', { name: 'Previous week' })).toBeHidden();
+	const quarterQuest = sum(quarter, isQuest);
+	await expect(page.getByTestId('q-sum-quest')).toHaveText(hours(quarterQuest));
+	await expect(page.getByTestId('q-sum-week')).toHaveText(hours(sum(quarter) / (q.elapsed / 7)));
+	await expect(page.getByTestId('q-sum-delta')).toHaveText(
+		signedHours(quarterQuest - sum(previous, isQuest))
+	);
+	const quarterList = page.getByTestId('quarter-list');
+	await expect(
+		quarterList
+			.locator(`[data-testid="list-row"][data-quest="${quest.id}"]`)
+			.getByTestId('list-value')
+	).toHaveText(
+		new RegExp(`^${hours(sum(quarter, (r) => r.questId === quest.id)).replace('.', '\\.')} / `)
+	);
+	await expect(
+		quarterList.locator('[data-testid="list-row"][data-quest="other"]').getByTestId('list-value')
+	).toHaveText(hours(sum(quarter, (r) => r.questId === null)));
+
+	// Back returns to the week.
+	await page.goBack();
+	await expect(page).toHaveURL(/\/review$/);
+	await expect(page.getByRole('radio', { name: 'Week' })).toBeChecked();
+	await expect(page.getByTestId('sum-quest')).toBeVisible();
+});

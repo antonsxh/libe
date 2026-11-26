@@ -76,7 +76,7 @@ export interface RequestSettings {
 
 /**
  * What every authenticated request needs (`hooks.server.ts`): the language choice, the
- * profile (nav avatar, greeting), the daily goal (avatar ring) and the streak rest days —
+ * profile (nav avatar, greeting), the daily goal (the ring at Home in the nav) and the streak rest days —
  * one query, so they cost no extra round trip.
  */
 export async function getRequestSettings(q: Queryable = db): Promise<RequestSettings> {

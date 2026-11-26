@@ -352,6 +352,17 @@
 		color: var(--text-muted);
 	}
 
+	/* Phones: compact (the summary card above carries the numbers). */
+	@media (max-width: 720px) {
+		.chart {
+			gap: var(--space-3);
+			border-radius: var(--radius-lg);
+		}
+		.hit {
+			grid-template-rows: auto minmax(var(--chart-h-compact), 1fr) auto auto;
+			gap: var(--space-1);
+		}
+	}
 	@media (max-width: 640px) {
 		.chart {
 			padding: var(--space-4);

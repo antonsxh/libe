@@ -44,7 +44,7 @@
 
 	/**
 	 * Minutes logged today: the root layout's server number (completed sessions) plus the
-	 * active session's running time — the same value as the avatar's goal ring.
+	 * active session's running time — the same value as the nav's goal ring at Home.
 	 */
 	const todayMin = $derived(
 		data.todayLog

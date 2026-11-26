@@ -5,10 +5,14 @@ import {
 	comparisonLabel,
 	daysElapsedInWeek,
 	formatSignedHours,
+	parseReviewView,
 	percent,
+	quarterComparisonLabel,
 	quarterOf,
+	quarterWeekTotals,
 	quarterWeeks,
 	reviewRange,
+	reviewViewHref,
 	splitSegments,
 	weekSummary,
 	weekSummaryText,
@@ -290,10 +294,80 @@ describe('quarter', () => {
 		expect(quarterWeeks(q, '2026-10-05', '2026-11-18').at(-1)).toBe('2026-11-16');
 	});
 
-	test('reviewRange covers the previous week, the shown week and its quarter', () => {
-		expect(reviewRange('2026-11-16')).toEqual({ from: '2026-10-01', to: '2027-01-01' });
-		expect(reviewRange('2026-10-05')).toEqual({ from: '2026-09-28', to: '2027-01-01' });
-		expect(reviewRange('2026-12-28')).toEqual({ from: '2026-10-01', to: '2027-01-04' });
+	test('reviewRange covers the previous quarter, the shown week and its quarter', () => {
+		expect(reviewRange('2026-11-16')).toEqual({ from: '2026-07-01', to: '2027-01-01' });
+		expect(reviewRange('2026-10-05')).toEqual({ from: '2026-07-01', to: '2027-01-01' });
+		expect(reviewRange('2026-12-28')).toEqual({ from: '2026-07-01', to: '2027-01-04' });
+		expect(reviewRange('2027-01-04')).toEqual({ from: '2026-10-01', to: '2027-04-01' });
+	});
+
+	test('the quarter compares with the same span of the previous quarter', () => {
+		const rows = [
+			s('q1', '2026-07-01T10:00', 60), // Q3 day 1 → compared
+			s(null, '2026-08-18T10:00', 30), // Q3 day 49 → compared (other)
+			s('q2', '2026-08-19T10:00', 45), // Q3 day 50 → after the span
+			s('q1', '2026-10-02T10:00', 100) // Q4
+		];
+		const { quarter } = buildReview(rows, QUESTS, opts);
+		expect(quarter.elapsedDays).toBe(49);
+		expect(quarter.previous).toEqual({
+			label: 'Q3 2026',
+			days: 49,
+			partial: true,
+			questMin: 60,
+			totalMin: 90
+		});
+		const t = i18n('en');
+		expect(quarterComparisonLabel(quarter.previous!, t)).toBe('vs this point in Q3 2026');
+	});
+
+	test('a finished quarter compares with the whole previous quarter (lengths differ)', () => {
+		// Q1 2027 (90 days) after Q4 2026 (92 days): the last two days of Q4 count too.
+		const rows = [s('q1', '2026-12-31T10:00', 40), s('q1', '2027-02-01T10:00', 20)];
+		const { quarter } = buildReview(rows, QUESTS, {
+			monday: '2027-03-29',
+			today: '2027-05-01',
+			timeZone: TZ
+		});
+		expect(quarter.label).toBe('Q1 2027');
+		expect(quarter.previous).toMatchObject({ days: 92, partial: false, questMin: 40 });
+		expect(quarterComparisonLabel(quarter.previous!, i18n('de'))).toBe('ggü. Q4 2026');
+	});
+
+	test('a future quarter has no comparison', () => {
+		const { quarter } = buildReview([], QUESTS, { ...opts, monday: '2027-01-04' });
+		expect(quarter.elapsedDays).toBe(0);
+		expect(quarter.previous).toBeNull();
+	});
+
+	test('quarterWeekTotals sums the quests per week', () => {
+		const rows = [
+			s('q1', '2026-10-01T10:00', 30),
+			s('q2', '2026-10-02T10:00', 15),
+			s('q2', '2026-11-17T10:00', 60),
+			s(null, '2026-11-17T12:00', 99) // Other is not quest work
+		];
+		const { quarter } = buildReview(rows, QUESTS, opts);
+		expect(quarterWeekTotals(quarter)).toEqual([45, 0, 0, 0, 0, 0, 0, 60]);
+	});
+});
+
+describe('phone view (?view=)', () => {
+	test('parseReviewView: only "quarter" switches', () => {
+		expect(parseReviewView('quarter')).toBe('quarter');
+		expect(parseReviewView('week')).toBe('week');
+		expect(parseReviewView('Quarter')).toBe('week');
+		expect(parseReviewView(null)).toBe('week');
+		expect(parseReviewView(undefined)).toBe('week');
+	});
+
+	test('reviewViewHref keeps the week and drops view for the week', () => {
+		expect(reviewViewHref('', 'quarter')).toBe('/review?view=quarter');
+		expect(reviewViewHref('?week=2026-11-09', 'quarter')).toBe(
+			'/review?week=2026-11-09&view=quarter'
+		);
+		expect(reviewViewHref('?week=2026-11-09&view=quarter', 'week')).toBe('/review?week=2026-11-09');
+		expect(reviewViewHref('?view=quarter', 'week')).toBe('/review');
 	});
 });
 

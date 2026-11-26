@@ -1365,7 +1365,7 @@ quest to pick. The overhaul runs in small milestones, each shippable on its own:
 | O3a | Less at once, part 1: Home as one list (variant A) — overdue rows, one "Today" list, one add row, Backlog and Daily plan as rows/sheets                     | ✅ done |
 | O3b | Slimmer quest dialog ("More options"), empty states (one symbol, one sentence, one action), phone tab labels, wording                                       | ✅ done |
 | O4a | Hierarchy and feedback, part 1: one primary per screen (round Focus buttons), accent discipline + orange streak, "All done" card, large bold titles, motion | ✅ done |
-| O4b | Hierarchy and feedback, part 2: Review on phones (Week/Quarter, one summary), the daily-goal progress in the navigation                                     | planned |
+| O4b | Hierarchy and feedback, part 2: Review on phones (Week/Quarter, one summary), the daily-goal progress in the navigation                                     | ✅ done |
 | R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                              | planned |
 
 Owner decisions:
@@ -1939,3 +1939,69 @@ navigation) and 6 (Review on phones) are O4b.
   `quests.spec.ts` / `mobile-polish.spec.ts`: "New quest" is a strict locator now (a second
   button fails). Focus' Pause/Resume/Complete keep their accessible names
   (`focus.spec.ts` unchanged).
+
+## O4b — what exists
+
+"Hierarchy and feedback", part two: points 4 and 6 of the O4 mock-up ("Hierarchie und
+Feedback"), as the owner picked them — the ring at Home (phone **B**, desktop **B1**) and
+Review on phones.
+
+- **Daily-goal ring at Home** (`GoalRing.svelte`, rendered by `AppNav`): today's logged time
+  vs the daily goal — the same number as before (`todayLog` + the running session via
+  `liveLoggedMin` / `runningSpan`, never counted on the server) — moved from the avatar to the
+  Home item. Desktop/tablet: a 16 px ring (`--goal-ring-sm`) before the word "Home"; phones:
+  a 28 px ring (`--goal-ring-tab`) around the Home tab's icon, which shrinks to 17 px inside
+  it. The tab ring keeps the icon's 22 px layout box and bleeds past it, so Home's label lines
+  up with the other tabs. Accent fill on a neutral track (`--goal-track` = 15 % of `--text`,
+  the mock-up's), `--success` once reached — with a check inside the small ring, or a small
+  check badge on the tab ring's lower right (45°, clear of the label; the overdue dot keeps the
+  upper right). No goal → no ring. The fill's transition stops under reduced motion (the
+  global rule). Home's accessible name carries the progress after the overdue count: "Home,
+  2 h of 3 h today" / "Home, 3 h 5 min of 3 h today, daily goal reached" (German „Start, … von
+  … heute, Tagesziel erreicht“; `t.goal.progressDone`).
+- **The avatar has no ring** anymore (nav avatar, account menu, the phone's "Me" tab):
+  `Avatar`'s `ring` prop and `--avatar-ring-*` / `--goal-done-glow` are gone; its accessible
+  name is just "Account and devices (Name)". Settings' goal text says "A ring at Home in the
+  navigation fills up as you go." `/styleguide` shows `GoalRing` (small and tab, 0 % … reached).
+- **Review on phones** (≤ 720px; wider screens keep O4a's grid and ignore `?view=`):
+  - A `SegmentedControl` **Week | Quarter** under the title (a GET form, so it works without
+    JS; with JS a change is a `goto` — a history entry, Back returns). The choice is
+    `?view=quarter` (no `view` = the week; `parseReviewView`, `reviewViewHref`), read by the
+    server, kept with `?week=`. The headline under the title is hidden on phones (the summary
+    card says it).
+  - **Week**: the week nav, one `SummaryCard` with three figures side by side — quest hours
+    (+ "of 19h" with a budget), per day (all logged time ÷ elapsed days, like the desktop
+    KPI) and the change in quest hours vs last week (`formatSignedHours`, the desktop's
+    comparison label) — then the day bars, compact (`--chart-h-compact`), then a grouped
+    `QuestList`: one row per quest (hours / budget, a thin bar in the quest colour only with a
+    budget — `--chart-thin-h`; a row opens the quest; closed quests dimmed) and **Other** as
+    the last row. The desktop's "Quest work vs Other" and "Hours by quest" cards and the
+    quarter cards are not shown on phones.
+  - **Quarter**: the quarter's range instead of the week nav, a `SummaryCard` with quest hours
+    (of the quarter budget), per week (logged ÷ elapsed weeks) and the change vs the previous
+    quarter, `QuarterBars` (quest hours per week, every week of the quarter — later ones as
+    stubs, the shown week lighter; values as `sr-only` text) and the `QuestList` with quarter
+    hours. Sparklines are dropped on phones.
+  - **Previous-quarter comparison** (`ReviewQuarter.previous`, `#lib/review.ts`): the
+    previous quarter's first `elapsedDays` days, the whole of it once the shown quarter is
+    over (quarters differ in length); label "vs Q3 2026" / "vs this point in Q3 2026"
+    (`quarterComparisonLabel`). `reviewRange` now loads from the previous quarter's start.
+  - Empty: a week without time keeps O3b's `EmptyState`; a quarter without time gets the same
+    kind (future: "This quarter hasn’t started yet"; past: "Nothing logged"; current: "Nothing
+    logged yet" + **Start focus**).
+  - One tree for both layouts: CSS hides `desk-only` / `phone-only` parts, so SSR needs no
+    viewport guess; phone-only parts have their own test ids.
+- **Decisions**: the check on the phone is a badge, not a replacement for the Home icon; the
+  third quarter figure is the change vs the previous quarter (mirrors the week); per-week
+  bars count quest hours like the day bars; the Other row has a slate dot so the names line
+  up; the headline is hidden on phones; the title stays "Weekly review".
+- **Tests**: unit (`review.test.ts`) — previous-quarter span (partial, finished, future),
+  `reviewRange`, `quarterWeekTotals`, `parseReviewView`, `reviewViewHref`,
+  `quarterComparisonLabel` (EN/DE). e2e `profile.spec.ts` (`@mobile`): the ring assertions
+  moved from the avatar to Home (accessible name and `data-progress`, live with the timer,
+  without double counting; the avatar has no ring); new: the ring turns "reached"
+  (`data-done`, name) live while a timer runs past the goal and back after a discard; "No
+  daily goal" leaves Home's name without progress and no ring anywhere. `review.spec.ts`
+  (`@mobile-only`, iPhone): the summary and list match SQL aggregates; Quarter sets
+  `?view=quarter`, survives a reload, shows the quarter's numbers (incl. the change vs the
+  same span of the previous quarter) and hides the week; Back returns to the week.

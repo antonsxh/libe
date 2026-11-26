@@ -16,6 +16,7 @@
 	import { NAV_ITEMS, TAB_ITEMS, activeTab, isActive } from '#lib/nav.ts';
 	import { fadeScale } from '#lib/motion.ts';
 	import Avatar from './Avatar.svelte';
+	import GoalRing from './GoalRing.svelte';
 	import Logo from './Logo.svelte';
 	import Menu from './Menu.svelte';
 	import CommandPalette from './palette/CommandPalette.svelte';
@@ -49,8 +50,9 @@
 	const displayName = $derived(profile?.displayName ?? null);
 
 	/**
-	 * Daily-goal ring: today's minutes from the layout data (server, completed sessions) plus
-	 * the active session's running time from the timer snapshot — moves live while it runs.
+	 * Daily-goal ring at Home (nav item + tab): today's minutes from the layout data (server,
+	 * completed sessions) plus the active session's running time from the timer snapshot —
+	 * moves live while it runs. No goal → no ring.
 	 */
 	const goal = $derived.by(() => {
 		const goalMin = page.data.dailyGoalMin ?? null;
@@ -70,12 +72,16 @@
 		const { h, m } = splitMinutes(min);
 		return t.goal.duration(h, m);
 	};
-	const accountLabel = $derived.by(() => {
-		const base = displayName ? t.nav.accountOf(displayName) : t.nav.account;
-		if (!goal) return base;
+	const accountLabel = $derived(displayName ? t.nav.accountOf(displayName) : t.nav.account);
+	/** Home's accessible name: overdue tasks and today's goal progress (the ring) when there are. */
+	const homeLabel = $derived.by(() => {
+		const base = overdue > 0 ? t.overdue.navLabel(t.nav.home, overdue) : t.nav.home;
+		if (!goal) return overdue > 0 ? base : undefined;
+		const logged = duration(goal.loggedMin);
+		const target = duration(goal.goalMin);
 		return t.nav.withProgress(
 			base,
-			t.goal.progress(duration(goal.loggedMin), duration(goal.goalMin))
+			goal.done ? t.goal.progressDone(logged, target) : t.goal.progress(logged, target)
 		);
 	});
 
@@ -166,13 +172,21 @@
 				class:active
 				class:wide-only={item.key === 'focus'}
 				aria-current={active ? 'page' : undefined}
-				aria-label={item.key === 'home' && overdue > 0
-					? t.overdue.navLabel(t.nav.home, overdue)
-					: undefined}
+				aria-label={item.key === 'home' ? homeLabel : undefined}
 			>
 				<span class="tab-icon" aria-hidden="true">
-					<Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
+					{#if item.key === 'home' && goal}
+						<GoalRing progress={goal} size="tab">
+							<Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
+						</GoalRing>
+					{:else}
+						<Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
+					{/if}
 				</span>
+				{#if item.key === 'home' && goal}
+					<!-- Desktop/tablet: a small ring before the word (phones: around the icon). -->
+					<span class="nav-ring"><GoalRing progress={goal} /></span>
+				{/if}
 				<span class="tab-label">{t.nav[item.key]}</span>
 				{#if item.key === 'home' && overdue > 0}
 					<span class="overdue-dot" aria-hidden="true" transition:fadeScale></span>
@@ -191,7 +205,6 @@
 					color={profile?.avatarColor}
 					emoji={profile?.avatarEmoji}
 					size="sm"
-					ring={goal}
 				/>
 				<span class="tab-label" aria-hidden="true">{t.nav.me}</span>
 			</a>
@@ -243,7 +256,6 @@
 						name={displayName}
 						color={profile?.avatarColor}
 						emoji={profile?.avatarEmoji}
-						ring={goal}
 					/>{/snippet}
 				{#snippet children(close)}{@render accountMenu(close)}{/snippet}
 			</Menu>
@@ -324,6 +336,10 @@
 
 	.tab-icon {
 		display: none;
+	}
+	.nav-ring {
+		display: inline-flex;
+		margin-right: var(--space-2);
 	}
 
 	.right {
@@ -529,6 +545,7 @@
 		/* The mini-player above the tab bar shows the timer (MiniPlayer.svelte). */
 		.chip,
 		.top-account,
+		.nav-ring,
 		nav a.wide-only {
 			display: none;
 		}
@@ -605,7 +622,7 @@
 			place-items: center;
 			transition: scale var(--dur-press) var(--ease-out);
 		}
-		.tab-icon :global(svg) {
+		.tab-icon > :global(svg) {
 			width: var(--tab-icon);
 			height: var(--tab-icon);
 			transition: stroke-width var(--dur-pop) var(--ease-out);
