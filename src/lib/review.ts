@@ -9,7 +9,8 @@
  * The quarter section shows the calendar quarter of the shown week's **Monday**; a week that
  * spans two quarters therefore belongs to the quarter it starts in. Quarter totals count days
  * inside the quarter only, and the sparkline's weekly buckets are clipped to the quarter, so
- * they always sum to the quarter total.
+ * they always sum to the quarter total. The quarter compares with the previous quarter's first
+ * `elapsedDays` days (all of it once the shown quarter is over), like the week does.
  */
 import {
 	addDays,
@@ -109,6 +110,17 @@ export interface QuarterInfo {
 	rangeLabel: string;
 }
 
+/** The previous quarter's first {@link days} days (the shown quarter's elapsed span). */
+export interface QuarterComparison {
+	/** `Q3 2026` */
+	label: string;
+	days: number;
+	/** Fewer days than the whole previous quarter (the shown one is still running). */
+	partial: boolean;
+	questMin: number;
+	totalMin: number;
+}
+
 export interface ReviewQuarter extends QuarterInfo {
 	/** Mondays of the quarter's weeks so far (first week may start before `start`). */
 	weeks: ISODay[];
@@ -124,6 +136,8 @@ export interface ReviewQuarter extends QuarterInfo {
 	budgetMin: number;
 	/** Open quests and quests with time this quarter, open first (in input order). */
 	quests: QuarterQuestRow[];
+	/** Same span of the previous quarter; null for a future quarter. */
+	previous: QuarterComparison | null;
 }
 
 export interface Review {
@@ -172,16 +186,15 @@ export function quarterWeeks(quarter: QuarterInfo, monday: ISODay, today: ISODay
 }
 
 /**
- * Day range `[from, to)` the server must load sessions for: the previous week (comparison),
- * the shown week and the shown week's quarter.
+ * Day range `[from, to)` the server must load sessions for: the previous quarter
+ * (comparison; it also holds the previous week), the shown week and the shown week's quarter.
  */
 export function reviewRange(monday: ISODay): { from: ISODay; to: ISODay } {
 	const q = quarterOf(monday);
-	const prev = addDays(monday, -7);
 	const weekEnd = addDays(monday, 7);
 	const quarterEnd = addDays(q.end, 1);
 	return {
-		from: prev < q.start ? prev : q.start,
+		from: startOfQuarter(addDays(q.start, -1)),
 		to: weekEnd > quarterEnd ? weekEnd : quarterEnd
 	};
 }
@@ -210,10 +223,19 @@ export function buildReview(
 	const firstWeek = weeks[0];
 	const daysElapsed = daysElapsedInWeek(monday, today);
 	const compareDays = daysElapsed;
+	const elapsedDays = elapsedIn(quarter.start, quarter.end, today);
+	const prevQuarter = quarterOf(addDays(quarter.start, -1));
+	// A finished quarter compares with the whole previous one (quarters differ in length).
+	const prevQuarterLen = daysBetween(prevQuarter.start, prevQuarter.end) + 1;
+	const prevQuarterDays =
+		elapsedDays > daysBetween(quarter.start, quarter.end)
+			? prevQuarterLen
+			: Math.min(elapsedDays, prevQuarterLen);
 
 	// Per day of the shown week: quest id → minutes ('' = other).
 	const weekDays = Array.from({ length: 7 }, () => new Map<string, number>());
 	const prev = { questMin: 0, totalMin: 0 };
+	const prevQ = { questMin: 0, totalMin: 0 };
 	const quarterAcc = new Map<string, { total: number; weekly: number[] }>();
 	let quarterQuest = 0;
 	let quarterOther = 0;
@@ -234,6 +256,12 @@ export function buildReview(
 		if (inPrev >= 0 && inPrev < compareDays) {
 			prev.totalMin += mins;
 			if (row.questId) prev.questMin += mins;
+		}
+
+		const inPrevQuarter = daysBetween(prevQuarter.start, day);
+		if (inPrevQuarter >= 0 && inPrevQuarter < prevQuarterDays) {
+			prevQ.totalMin += mins;
+			if (row.questId) prevQ.questMin += mins;
 		}
 
 		if (day >= quarter.start && day <= quarter.end) {
@@ -323,7 +351,6 @@ export function buildReview(
 	};
 
 	/* ── quarter ───────────────────────────────────────────────────────── */
-	const elapsedDays = elapsedIn(quarter.start, quarter.end, today);
 	const weeksElapsed = elapsedDays / 7;
 	const quarterRows: QuarterQuestRow[] = quests
 		.filter((q) => !q.closed || (quarterAcc.get(q.id)?.total ?? 0) > 0)
@@ -350,7 +377,17 @@ export function buildReview(
 			questMin: quarterQuest,
 			otherMin: quarterOther,
 			budgetMin: quarterRows.reduce((s, r) => s + (r.budgetMin ?? 0), 0),
-			quests: quarterRows
+			quests: quarterRows,
+			previous:
+				elapsedDays > 0
+					? {
+							label: prevQuarter.label,
+							days: prevQuarterDays,
+							partial: prevQuarterDays < prevQuarterLen,
+							questMin: prevQ.questMin,
+							totalMin: prevQ.totalMin
+						}
+					: null
 		}
 	};
 }
@@ -444,4 +481,40 @@ export function weekSummaryText(summary: WeekSummary, t: I18n): string {
 	if (delta === 0) return s.same(total, c.partial);
 	const text = formatHours(delta, t.intl);
 	return c.deltaMin > 0 ? s.more(total, text, c.partial) : s.less(total, text, c.partial);
+}
+
+/* ── phone view (Week | Quarter) ───────────────────────────────────────── */
+
+/** What Review shows on phones (`?view=`): the week (default) or the quarter. */
+export type ReviewView = 'week' | 'quarter';
+
+/** `?view=` → the phone view; anything but `quarter` is the week. */
+export function parseReviewView(param: string | null | undefined): ReviewView {
+	return param === 'quarter' ? 'quarter' : 'week';
+}
+
+/**
+ * The same Review URL with another phone view: `?view=quarter`, or no `view` for the week.
+ * Other params (`?week=`) stay.
+ */
+export function reviewViewHref(search: string, view: ReviewView): string {
+	const p = new URLSearchParams(search);
+	if (view === 'quarter') p.set('view', 'quarter');
+	else p.delete('view');
+	const qs = p.toString();
+	return qs ? `/review?${qs}` : '/review';
+}
+
+/** Quest minutes per quarter week (`ReviewQuarter.weeks`), summed over the quests. */
+export function quarterWeekTotals(quarter: Pick<ReviewQuarter, 'weeks' | 'quests'>): number[] {
+	const totals: number[] = Array(quarter.weeks.length).fill(0);
+	for (const r of quarter.quests) r.weeklyMin.forEach((m, i) => (totals[i] += m));
+	return totals;
+}
+
+/** "vs Q3" / "vs this point in Q3" — the quarter's comparison label. */
+export function quarterComparisonLabel(prev: QuarterComparison, t: I18n): string {
+	return prev.partial
+		? t.review.phone.vsQuarterSoFar(prev.label)
+		: t.review.phone.vsQuarter(prev.label);
 }

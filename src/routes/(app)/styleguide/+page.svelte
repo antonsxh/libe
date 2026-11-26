@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { ChartColumn, Check, Filter, Pause, Play, Plus } from '@lucide/svelte';
+	import { ChartColumn, Check, Filter, House, Pause, Play, Plus } from '@lucide/svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Button from '#lib/components/Button.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
+	import GoalRing from '#lib/components/GoalRing.svelte';
 	import GroupedList from '#lib/components/GroupedList.svelte';
 	import GroupedRow from '#lib/components/GroupedRow.svelte';
 	import SegmentedControl from '#lib/components/SegmentedControl.svelte';
@@ -198,13 +199,17 @@
 		<Avatar name="Anton" color="teal" emoji="🦊" />
 		<Avatar name={null} color="blue" emoji="🐙" size="lg" />
 	</div>
-	<p class="muted caption">Daily-goal ring: 0 %, 35 %, 80 %, reached</p>
+	<p class="muted caption">
+		Daily-goal ring (<code>GoalRing</code>, at Home in the nav): 0 %, 35 %, 80 %, reached — small
+		(desktop, before the word) and around the tab bar's icon (phones)
+	</p>
 	<div class="row">
-		<Avatar name="Anton Schmidt" color="amber" ring={{ fraction: 0, done: false }} />
-		<Avatar name="Anton Schmidt" color="amber" ring={{ fraction: 0.35, done: false }} />
-		<Avatar name="Anton" color="teal" emoji="🦊" ring={{ fraction: 0.8, done: false }} />
-		<Avatar name="Anton" color="teal" emoji="🦊" ring={{ fraction: 1, done: true }} />
-		<Avatar name="Anton" color="teal" size="lg" ring={{ fraction: 0.6, done: false }} />
+		<GoalRing progress={{ fraction: 0, done: false }} />
+		<GoalRing progress={{ fraction: 0.35, done: false }} />
+		<GoalRing progress={{ fraction: 0.8, done: false }} />
+		<GoalRing progress={{ fraction: 1, done: true }} />
+		<GoalRing progress={{ fraction: 0.6, done: false }} size="tab"><House size={22} /></GoalRing>
+		<GoalRing progress={{ fraction: 1, done: true }} size="tab"><House size={22} /></GoalRing>
 	</div>
 </section>
 

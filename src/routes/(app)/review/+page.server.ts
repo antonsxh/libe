@@ -1,5 +1,6 @@
 import { isISODay, startOfWeek, todayISO, weekRangeLabel } from '#lib/dates.ts';
 import { weeklyReview } from '#lib/server/review.ts';
+import { parseReviewView } from '#lib/review.ts';
 import { intlLocale } from '#lib/i18n/index.ts';
 import type { PageServerLoad } from './$types';
 
@@ -11,6 +12,8 @@ export const load = (async ({ url, locals }) => {
 	const weekMonday = isISODay(weekParam) ? startOfWeek(weekParam) : startOfWeek(today);
 
 	return {
+		// `?view=quarter` — phones show the quarter instead of the week (wider screens show both).
+		view: parseReviewView(url.searchParams.get('view')),
 		weekMonday,
 		today,
 		isCurrentWeek: weekMonday === startOfWeek(today),

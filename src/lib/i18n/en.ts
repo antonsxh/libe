@@ -71,8 +71,8 @@ export const en = {
 		search: 'Search or jump…',
 		account: 'Account and devices',
 		accountOf: (name: string) => `Account and devices (${name})`,
-		/** Avatar button with a daily goal: `account` label + `goal.progress`. */
-		withProgress: (account: string, progress: string) => `${account}, ${progress}`,
+		/** Home with a daily goal (its ring): the item's label + `goal.progress` / `progressDone`. */
+		withProgress: (label: string, progress: string) => `${label}, ${progress}`,
 		signedInAs: 'Signed in as',
 		thisDevice: 'This device',
 		thisDeviceIs: (device: string) => `This device: ${device}`,
@@ -486,6 +486,25 @@ export const en = {
 			pastText: 'No time was logged in this week.',
 			futureText: 'Its review fills in as you log time.'
 		},
+		/** Phones: Week | Quarter (`?view=`), one summary card, a list of quests. */
+		phone: {
+			view: 'Show',
+			week: 'Week',
+			quarter: 'Quarter',
+			/** Second line under the quest hours: "of 19h". */
+			ofTarget: (hours: string) => `of ${hours}`,
+			perDay: 'per day',
+			perWeek: 'per week',
+			perWeekChart: 'Quest hours · per week',
+			weekAria: (monday: string, hm: string) => `Week of ${monday}: ${hm} quest work`,
+			vsQuarter: (label: string) => `vs ${label}`,
+			vsQuarterSoFar: (label: string) => `vs this point in ${label}`,
+			quarterEmpty: {
+				text: 'Once you finish a focus, your quarter shows up here.',
+				pastText: 'No time was logged in this quarter.',
+				futureTitle: 'This quarter hasn’t started yet'
+			}
+		},
 		/** Personal headline under the title (vocative only). */
 		yourWeek: (name: string | null) => (name ? `Your week, ${name}.` : 'Your week.'),
 		/** One-sentence summary after `yourWeek` (`#lib/review.ts` → `weekSummary`). */
@@ -520,7 +539,7 @@ export const en = {
 		useAvatarEmoji: (emoji: string) => `Use ${emoji} as avatar`,
 		dailyGoal: 'Daily goal',
 		dailyGoalDesc:
-			'How much time you want to log each day. A ring around your avatar fills up as you go.',
+			'How much time you want to log each day. A ring at Home in the navigation fills up as you go.',
 		goal: 'Goal',
 		goalOff: 'No daily goal',
 		goalCustom: 'Custom…',
@@ -910,11 +929,13 @@ export const en = {
 		pushNotSubscribed: 'Notifications are not turned on for this device.',
 		pushSendFailed: 'The push service did not accept the notification.'
 	},
-	/** Daily goal (avatar ring, Home, Settings). */
+	/** Daily goal (the ring at Home in the nav, Home, Settings). */
 	goal: {
 		duration,
-		/** Accessible progress of the avatar ring: "2 h 10 min of 4 h today". */
-		progress: (logged: string, goal: string) => `${logged} of ${goal} today`
+		/** Accessible progress of the ring at Home: "2 h 10 min of 4 h today". */
+		progress: (logged: string, goal: string) => `${logged} of ${goal} today`,
+		/** … once the goal is reached: "4 h 5 min of 4 h today, daily goal reached". */
+		progressDone: (logged: string, goal: string) => `${logged} of ${goal} today, daily goal reached`
 	},
 	/** Streaks (Home, account menu, Review, Settings). Durations come from `goal.duration`. */
 	streak: {

@@ -12,39 +12,17 @@
 		/** A single emoji shown instead of the initials. */
 		emoji?: string | null;
 		size?: 'sm' | 'md' | 'lg';
-		/**
-		 * Daily-goal ring around the circle: `fraction` 0‥1 of the goal, `done` = reached.
-		 * Omitted/null → no ring. Decorative like the avatar — the control names the progress.
-		 */
-		ring?: { fraction: number; done: boolean } | null;
 	};
-	let { name, color = null, emoji = null, size = 'md', ring = null }: Props = $props();
+	let { name, color = null, emoji = null, size = 'md' }: Props = $props();
 	const t = useI18n();
 
 	const letters = $derived(emoji ? null : initials(name, t.intl));
 	const tinted = $derived(Boolean(emoji) || letters !== null);
 	const ICON = { sm: 14, md: 18, lg: 28 } as const;
-	/** Filled share in percent of the ring (`pathLength` 100 makes the dash a percentage). */
-	const pct = $derived(ring ? Math.round(Math.min(1, Math.max(0, ring.fraction)) * 1000) / 10 : 0);
 </script>
 
-<!-- Decorative: the surrounding control/text names the person (and the goal progress). -->
-<span class="wrap {size}" class:ringed={ring !== null} aria-hidden="true">
-	{#if ring}
-		<svg class="ring" class:done={ring.done} data-progress={pct}>
-			<circle class="track" cx="50%" cy="50%" r="45%" pathLength="100" />
-			{#if pct > 0}
-				<circle
-					class="fill"
-					cx="50%"
-					cy="50%"
-					r="45%"
-					pathLength="100"
-					stroke-dasharray={`${pct} 100`}
-				/>
-			{/if}
-		</svg>
-	{/if}
+<!-- Decorative: the surrounding control/text names the person. -->
+<span class="wrap {size}" aria-hidden="true">
 	<span
 		class="avatar"
 		class:named={tinted}
@@ -65,37 +43,6 @@
 		display: inline-grid;
 		place-items: center;
 	}
-	/* The ring sits outside the circle: the wrapper grows by gap + stroke on each side. */
-	.ringed {
-		padding: calc(var(--avatar-ring-gap) + var(--avatar-ring-stroke));
-	}
-	.ring {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		transform: rotate(-90deg);
-		overflow: visible;
-		fill: none;
-	}
-	/* Centred on the padding band, in CSS px at every avatar size. */
-	.ring circle {
-		r: calc(50% - var(--avatar-ring-stroke) / 2);
-		stroke-width: var(--avatar-ring-stroke);
-	}
-	.track {
-		stroke: var(--goal-track);
-	}
-	.fill {
-		stroke: var(--goal-ring);
-		stroke-linecap: round;
-		transition: stroke-dasharray var(--dur-slow) var(--ease);
-	}
-	.done .fill {
-		stroke: var(--goal-done);
-		filter: drop-shadow(var(--goal-done-glow));
-	}
-
 	.avatar {
 		display: grid;
 		place-items: center;

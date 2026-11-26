@@ -8,7 +8,7 @@
  * - "Logged today" has exactly Home's definition: completed sessions attributed to the day of
  *   their `started_at` in the server timezone (`server/stats.ts` → `todayLog()`). The server
  *   number never contains the active session; clients add its running time from the timer
- *   snapshot (`runningSpan`, `liveLoggedMin`) so the avatar ring and Home move live.
+ *   snapshot (`runningSpan`, `liveLoggedMin`) so the goal ring at Home (nav) and Home move live.
  */
 import type { ISODay } from '#lib/dates.ts';
 import type { Parsed } from '#lib/profile.ts';

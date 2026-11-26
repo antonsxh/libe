@@ -150,11 +150,16 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   root layout data `profile` / `dailyGoalMin` (null on public pages — never render the
   owner's name there). Pure rules in `#lib/profile.ts` (`normalizeDisplayName`,
   `parseAvatarEmoji`, `initials`, `greetingPart`) and `#lib/daily-goal.ts`; show people with
-  `Avatar.svelte` (emoji, initials or a neutral icon; optional goal `ring`), pick colours with
+  `Avatar.svelte` (emoji, initials or a neutral icon — no ring), pick colours with
   `ColorSwatches.svelte`, single emojis with `EmojiPicker.svelte`. Edit links: `PROFILE_HREF`
   (`/settings#profile`), `GOAL_HREF` (`/settings#goal`). Use the name only as a vocative
   ("Nice work, Anton"), never in the genitive.
-- **Logged today** (Home's stat, the avatar's goal ring) comes from the root layout data
+- **Daily-goal ring** lives at **Home** in the nav, once (`AppNav` + `GoalRing.svelte`): a
+  ≈16 px ring before the word "Home" (desktop/tablet) and around the Home tab's icon (phones);
+  accent while it fills, `--success` with a check once reached, none without a goal. Home's
+  accessible name carries the progress (`t.nav.withProgress` + `t.goal.progress` /
+  `progressDone`, after the overdue count). The avatar has no ring.
+- **Logged today** (Home's stat, the goal ring at Home) comes from the root layout data
   `todayLog` (`server/stats.ts` → `todayLog()`: completed sessions only, one indexed query);
   add the active session on the client with `liveLoggedMin` + `runningSpan` (timer snapshot)
   — never count it on the server too. The root layout `load`
@@ -168,6 +173,13 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 timer.serverNow)` so today moves live with the timer.
 - Week navigation (‹ range › + "This week", `?week=`) is the shared `WeekNav.svelte`
   (Calendar, Review); extra controls go in its children snippet. Week links drop `?day=`.
+- **Review on phones** (≤ 720px): a `SegmentedControl` **Week | Quarter** under the title, the
+  choice in `?view=quarter` (server-read, `parseReviewView` / `reviewViewHref` in
+  `#lib/review.ts`; switching is a history entry). Each view: one `SummaryCard` (three
+  figures), compact bars (`DayBars` / `QuarterBars`), a grouped `QuestList` with Other as a
+  row; the week nav only in the week view. Wider screens keep the grid and ignore `?view=`.
+  One tree for both — CSS hides `desk-only` / `phone-only` parts, so phone-only elements get
+  their own test ids (`sum-*`, `q-sum-*`, `list-row` inside `week-list` / `quarter-list`).
 - **Phone day view** (Plan, Calendar ≤ 720px): `DayStrip.svelte` (Mon–Sun, sliding pill, one
   dot per day) + `DaySwipe.svelte` (swipe ±1 day, slide-in) show one day of the week. The day
   is `?day=` — client-only (the server never reads it, so a day change re-runs no `load`);

@@ -153,8 +153,6 @@
 	--avatar-sm: 28px; /* profile avatar (Avatar.svelte) */
 	--avatar-md: 40px; /* nav */
 	--avatar-lg: 64px; /* settings preview */
-	--avatar-ring-stroke: 2.5px; /* daily-goal ring around the avatar */
-	--avatar-ring-gap: 2px; /* space between avatar and ring */
 	--fs-avatar-emoji-lg: 2rem; /* emoji in the large avatar */
 	--emoji-pick-max: 44px; /* widest emoji suggestion tile (EmojiPicker) */
 
@@ -210,17 +208,25 @@
 
 	/* ── Charts (review) ───────────────────────────────────── */
 	--chart-h: 220px; /* plot height of the per-day bars */
+	--chart-h-compact: 120px; /* phones: Review's per-day and per-week bars */
 	--chart-bar-w: 30px; /* per-day bar width */
 	--chart-radius: 3px; /* bars, tracks */
 	--chart-track-h: 6px; /* horizontal hour bars */
+	--chart-thin-h: 4px; /* phones: Review's quest list progress bars */
 	--chart-stack-h: 36px; /* quest vs other stacked bar */
 	--chart-seg-gap: 2px; /* gap between its segments (one per quest, then Other) */
 
-	/* ── Daily goal (avatar ring) ──────────────────────────── */
+	/* ── Daily goal (the ring at Home: nav item + tab bar, GoalRing.svelte) ── */
 	--goal-ring: var(--accent);
-	--goal-track: color-mix(in srgb, var(--accent) 16%, transparent);
+	--goal-track: color-mix(in srgb, var(--text) 15%, transparent);
 	--goal-done: var(--success);
-	--goal-done-glow: 0 0 3px color-mix(in srgb, var(--success) 70%, transparent);
+	--goal-ring-sm: 16px; /* desktop nav: before the word "Home" */
+	--goal-ring-sm-stroke: 2px;
+	--goal-ring-tab: 28px; /* phone tab bar: around the Home icon (bleeds past its box) */
+	--goal-ring-tab-stroke: 2px;
+	--goal-ring-tab-icon: 17px; /* the Home icon inside the ring */
+	--goal-badge: 11px; /* the check badge on the tab ring once the goal is reached … */
+	--goal-badge-offset: 9px; /* … centred on the ring's lower right (45°) */
 
 	/* ── Apple-style primitives (GroupedList, SegmentedControl, the /welcome flow) ── */
 	--grouped-bg: var(--surface); /* inset grouped list on the page ground */

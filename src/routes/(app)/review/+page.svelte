@@ -1,17 +1,26 @@
 <script lang="ts">
 	import { ChartColumn, Play } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import EmptyState from '#lib/components/EmptyState.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
+	import SegmentedControl from '#lib/components/SegmentedControl.svelte';
 	import WeekNav from '#lib/components/WeekNav.svelte';
 	import DayBars from '#lib/components/review/DayBars.svelte';
+	import QuarterBars from '#lib/components/review/QuarterBars.svelte';
 	import QuarterSummary from '#lib/components/review/QuarterSummary.svelte';
 	import QuestHours from '#lib/components/review/QuestHours.svelte';
+	import QuestList from '#lib/components/review/QuestList.svelte';
 	import QuestVsOther from '#lib/components/review/QuestVsOther.svelte';
-	import { formatHours } from '#lib/dates.ts';
+	import SummaryCard from '#lib/components/review/SummaryCard.svelte';
+	import { dayRangeLabel, formatHours } from '#lib/dates.ts';
 	import {
 		comparisonLabel,
 		formatSignedHours,
+		parseReviewView,
 		percent,
+		quarterComparisonLabel,
+		reviewViewHref,
 		weekSummary,
 		weekSummaryText,
 		type ReviewQuest
@@ -95,134 +104,295 @@
 	});
 	const signedPts = (n: number) =>
 		t.review.points(n === 0 ? '±0' : `${n > 0 ? '+' : '−'}${Math.abs(n)}`);
+
+	/* ── Phones: Week | Quarter (`?view=`), one summary card, a list of quests ── */
+	const quarter = $derived(data.review.quarter);
+	const viewOptions = $derived([
+		{ value: 'week', label: t.review.phone.week },
+		{ value: 'quarter', label: t.review.phone.quarter }
+	]);
+	/** The segmented control navigates (a history entry, so Back returns to the other view). */
+	function switchView(e: Event) {
+		const input = e.target as HTMLInputElement;
+		if (input.name !== 'view') return;
+		goto(reviewViewHref(page.url.search, parseReviewView(input.value)), { reset: false });
+	}
+	const weekFigures = $derived([
+		{
+			value: hours(week.questMin / 60),
+			label: t.review.questHours,
+			sub: week.budgetMin > 0 ? t.review.phone.ofTarget(hours(week.budgetMin / 60)) : undefined,
+			testid: 'sum-quest'
+		},
+		{ value: hours(week.dailyAvgMin / 60), label: t.review.phone.perDay, testid: 'sum-avg' },
+		{
+			value: deltas ? formatSignedHours(deltas.quest, t.intl) : '—',
+			label: vs || t.review.vsLastWeek,
+			testid: 'sum-delta'
+		}
+	]);
+	const quarterHasStarted = $derived(quarter.elapsedDays > 0);
+	const quarterFigures = $derived([
+		{
+			value: hours(quarter.questMin / 60),
+			label: t.review.questHours,
+			sub:
+				quarter.budgetMin > 0 ? t.review.phone.ofTarget(hours(quarter.budgetMin / 60)) : undefined,
+			testid: 'q-sum-quest'
+		},
+		{
+			value: hours(
+				quarter.weeksElapsed > 0
+					? (quarter.questMin + quarter.otherMin) / 60 / quarter.weeksElapsed
+					: 0
+			),
+			label: t.review.phone.perWeek,
+			testid: 'q-sum-week'
+		},
+		{
+			value: quarter.previous
+				? formatSignedHours((quarter.questMin - quarter.previous.questMin) / 60, t.intl)
+				: '—',
+			label: quarter.previous ? quarterComparisonLabel(quarter.previous, t) : '',
+			testid: 'q-sum-delta'
+		}
+	]);
+	const weekRows = $derived(
+		week.quests.map((r) => ({
+			id: r.quest.id,
+			name: r.quest.name,
+			color: r.quest.color,
+			closed: r.quest.closed,
+			min: r.weekMin,
+			budgetMin: r.budgetMin
+		}))
+	);
+	const quarterRows = $derived(
+		quarter.quests.map((r) => ({
+			id: r.quest.id,
+			name: r.quest.name,
+			color: r.quest.color,
+			closed: r.quest.closed,
+			min: r.quarterMin,
+			budgetMin: r.budgetMin
+		}))
+	);
 </script>
 
 <svelte:head><title>{t.review.title} · libe</title></svelte:head>
 
-<PageHeader title={t.review.title} subtitle={headline}>
-	{#snippet actions()}
-		<WeekNav
-			monday={data.weekMonday}
-			rangeLabel={data.rangeLabel}
-			isCurrentWeek={data.isCurrentWeek}
-		/>
-	{/snippet}
-</PageHeader>
+<!--
+	Phones (≤ 720px) show one period at a time — Week or Quarter (`?view=`), each as one summary
+	card, its bars and a grouped list of quests with Other as a row. Wider screens keep the grid
+	(KPI cards, charts, quarter cards) and ignore `?view=`. Both share one tree: CSS hides the
+	other layout's parts (`desk-only` / `phone-only`), so SSR needs no viewport guess.
+-->
+<div class="review-page" data-view={data.view}>
+	<PageHeader title={t.review.title} subtitle={headline}>
+		{#snippet actions()}
+			<div class="head-controls">
+				<form class="view-switch" method="GET" action="/review" onchange={switchView}>
+					{#if !data.isCurrentWeek}<input type="hidden" name="week" value={data.weekMonday} />{/if}
+					<SegmentedControl
+						name="view"
+						label={t.review.phone.view}
+						options={viewOptions}
+						value={data.view}
+					/>
+					<noscript><button type="submit">{t.review.phone.view}</button></noscript>
+				</form>
+				<div class="week-slot">
+					<WeekNav
+						monday={data.weekMonday}
+						rangeLabel={data.rangeLabel}
+						isCurrentWeek={data.isCurrentWeek}
+					/>
+				</div>
+				{#if data.view === 'quarter'}
+					<p class="quarter-range muted tabular" data-testid="quarter-range">
+						{quarter.label} · {dayRangeLabel(quarter.start, quarter.end, t.intl)}
+					</p>
+				{/if}
+			</div>
+		{/snippet}
+	</PageHeader>
 
-{#if empty}
-	{#if emptyKind === 'current'}
-		<EmptyState
-			icon={ChartColumn}
-			title={t.review.empty.title}
-			text={t.review.empty.text}
-			action={t.review.empty.action}
-			actionIcon={Play}
-			href="/focus"
-			testid="review-empty"
-		/>
-	{:else}
-		<EmptyState
-			icon={ChartColumn}
-			title={emptyKind === 'future' ? t.review.notStarted : t.review.empty.pastTitle}
-			text={emptyKind === 'future' ? t.review.empty.futureText : t.review.empty.pastText}
-			testid="review-empty"
-		/>
-	{/if}
-	{#if quarterHasTime}
-		<div class="review">
-			<QuarterSummary quarter={data.review.quarter} />
+	{#if empty}
+		<div class="week-part">
+			{#if emptyKind === 'current'}
+				<EmptyState
+					icon={ChartColumn}
+					title={t.review.empty.title}
+					text={t.review.empty.text}
+					action={t.review.empty.action}
+					actionIcon={Play}
+					href="/focus"
+					testid="review-empty"
+				/>
+			{:else}
+				<EmptyState
+					icon={ChartColumn}
+					title={emptyKind === 'future' ? t.review.notStarted : t.review.empty.pastTitle}
+					text={emptyKind === 'future' ? t.review.empty.futureText : t.review.empty.pastText}
+					testid="review-empty"
+				/>
+			{/if}
 		</div>
-	{/if}
-{:else}
-	<div class="review">
-		<section class="kpis" aria-label={t.review.keyFigures}>
-			<article class="card kpi">
-				<header class="kpi-head">
-					<h2 class="label">{t.review.questHours}</h2>
-					{#if deltas}
-						<span class="delta tabular" data-testid="delta-quest">
-							{formatSignedHours(deltas.quest, t.intl)}
-							{vs}
+		{#if quarterHasTime}
+			<div class="review desk-only">
+				<QuarterSummary quarter={data.review.quarter} />
+			</div>
+		{/if}
+	{:else}
+		<div class="review week-part">
+			<section class="kpis desk-only" aria-label={t.review.keyFigures}>
+				<article class="card kpi">
+					<header class="kpi-head">
+						<h2 class="label">{t.review.questHours}</h2>
+						{#if deltas}
+							<span class="delta tabular" data-testid="delta-quest">
+								{formatSignedHours(deltas.quest, t.intl)}
+								{vs}
+							</span>
+						{/if}
+					</header>
+					<p class="figure">
+						<span class="num tabular" data-testid="kpi-quest">
+							{hours(week.questMin / 60)}
 						</span>
-					{/if}
-				</header>
-				<p class="figure">
-					<span class="num tabular" data-testid="kpi-quest">
-						{hours(week.questMin / 60)}
-					</span>
-					{#if week.budgetMin > 0}
-						<span class="unit tabular" data-testid="kpi-budget">
-							/ {hours(week.budgetMin / 60)}
-						</span>
-					{/if}
-				</p>
-				<p class="sub tabular" data-testid="kpi-target">
-					{targetPct === null ? t.review.noBudget : t.common.pctOfTarget(targetPct)}
-				</p>
-			</article>
+						{#if week.budgetMin > 0}
+							<span class="unit tabular" data-testid="kpi-budget">
+								/ {hours(week.budgetMin / 60)}
+							</span>
+						{/if}
+					</p>
+					<p class="sub tabular" data-testid="kpi-target">
+						{targetPct === null ? t.review.noBudget : t.common.pctOfTarget(targetPct)}
+					</p>
+				</article>
 
-			<article class="card kpi">
-				<header class="kpi-head">
-					<h2 class="label">{t.review.dailyAverage}</h2>
-					{#if deltas}
-						<span class="delta tabular">
-							{formatSignedHours(deltas.avg, t.intl)}
-							{vs}
-						</span>
-					{/if}
-				</header>
-				<p class="figure">
-					<span class="num tabular" data-testid="kpi-avg">{hours(week.dailyAvgMin / 60)}</span>
-				</p>
-				<p class="sub tabular">
-					{#if week.daysElapsed === 0}
-						{t.review.notStarted}
-					{:else}
-						{t.review.loggedOver(hours(week.totalMin / 60), week.daysElapsed)}
-					{/if}
-				</p>
-			</article>
+				<article class="card kpi">
+					<header class="kpi-head">
+						<h2 class="label">{t.review.dailyAverage}</h2>
+						{#if deltas}
+							<span class="delta tabular">
+								{formatSignedHours(deltas.avg, t.intl)}
+								{vs}
+							</span>
+						{/if}
+					</header>
+					<p class="figure">
+						<span class="num tabular" data-testid="kpi-avg">{hours(week.dailyAvgMin / 60)}</span>
+					</p>
+					<p class="sub tabular">
+						{#if week.daysElapsed === 0}
+							{t.review.notStarted}
+						{:else}
+							{t.review.loggedOver(hours(week.totalMin / 60), week.daysElapsed)}
+						{/if}
+					</p>
+				</article>
 
-			<article class="card kpi">
-				<header class="kpi-head">
-					<h2 class="label">{t.review.questVsOther}</h2>
-					{#if deltas && deltas.share !== null}
-						<span class="delta tabular">
-							{signedPts(deltas.share)}
-							{vs}
-						</span>
-					{/if}
-				</header>
-				<p class="figure">
-					{#if sharePct === null}
-						<span class="num faint" data-testid="kpi-share">—</span>
-					{:else}
-						<span class="num tabular" data-testid="kpi-share">{sharePct}</span>
-						<span class="unit">%</span>
-					{/if}
-				</p>
-				<p class="sub tabular">
-					{week.totalMin > 0 ? t.review.ofLogged(hours(week.totalMin / 60)) : t.review.noTimeLogged}
-				</p>
-			</article>
-		</section>
+				<article class="card kpi">
+					<header class="kpi-head">
+						<h2 class="label">{t.review.questVsOther}</h2>
+						{#if deltas && deltas.share !== null}
+							<span class="delta tabular">
+								{signedPts(deltas.share)}
+								{vs}
+							</span>
+						{/if}
+					</header>
+					<p class="figure">
+						{#if sharePct === null}
+							<span class="num faint" data-testid="kpi-share">—</span>
+						{:else}
+							<span class="num tabular" data-testid="kpi-share">{sharePct}</span>
+							<span class="unit">%</span>
+						{/if}
+					</p>
+					<p class="sub tabular">
+						{week.totalMin > 0
+							? t.review.ofLogged(hours(week.totalMin / 60))
+							: t.review.noTimeLogged}
+					</p>
+				</article>
+			</section>
+			<div class="phone-only">
+				<SummaryCard figures={weekFigures} label={t.review.keyFigures} testid="week-summary" />
+			</div>
 
-		<div class="charts">
-			<DayBars
-				days={week.days}
-				quests={questsById}
-				{marks}
-				longest={streak ? streak.longest : null}
-			/>
-			<div class="side">
-				<QuestHours rows={week.quests} />
-				<QuestVsOther questMin={week.questMin} otherMin={week.otherMin} rows={week.quests} />
+			<div class="charts">
+				<DayBars
+					days={week.days}
+					quests={questsById}
+					{marks}
+					longest={streak ? streak.longest : null}
+				/>
+				<div class="side desk-only">
+					<QuestHours rows={week.quests} />
+					<QuestVsOther questMin={week.questMin} otherMin={week.otherMin} rows={week.quests} />
+				</div>
+				<div class="phone-only">
+					<QuestList
+						rows={weekRows}
+						otherMin={week.otherMin}
+						label={t.review.hoursByQuest}
+						testid="week-list"
+					/>
+				</div>
+			</div>
+
+			<div class="desk-only">
+				<QuarterSummary quarter={data.review.quarter} />
 			</div>
 		</div>
+	{/if}
 
-		<QuarterSummary quarter={data.review.quarter} />
-	</div>
-{/if}
+	<!-- Phones, Quarter: the same structure with the quarter's numbers. -->
+	{#if data.view === 'quarter'}
+		<div class="review phone-only quarter-part">
+			{#if quarterHasTime}
+				<SummaryCard
+					figures={quarterFigures}
+					label={t.review.keyFigures}
+					testid="quarter-summary"
+				/>
+				<QuarterBars {quarter} />
+				<QuestList
+					rows={quarterRows}
+					otherMin={quarter.otherMin}
+					label={t.review.hoursByQuest}
+					testid="quarter-list"
+				/>
+			{:else if !quarterHasStarted}
+				<EmptyState
+					icon={ChartColumn}
+					title={t.review.phone.quarterEmpty.futureTitle}
+					text={t.review.empty.futureText}
+					testid="review-empty-quarter"
+				/>
+			{:else if data.today > quarter.end}
+				<EmptyState
+					icon={ChartColumn}
+					title={t.review.empty.pastTitle}
+					text={t.review.phone.quarterEmpty.pastText}
+					testid="review-empty-quarter"
+				/>
+			{:else}
+				<EmptyState
+					icon={ChartColumn}
+					title={t.review.empty.title}
+					text={t.review.phone.quarterEmpty.text}
+					action={t.review.empty.action}
+					actionIcon={Play}
+					href="/focus"
+					testid="review-empty-quarter"
+				/>
+			{/if}
+		</div>
+	{/if}
+</div>
 
 <style>
 	.review {
@@ -300,21 +470,57 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 	}
-	/* Phones: three compact key figures instead of three screen-high cards. */
+
+	/* ── Phone / desktop parts ───────────────────────────── */
+	.phone-only,
+	.view-switch,
+	.quarter-range {
+		display: none;
+	}
+	.head-controls {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
 	@media (max-width: 720px) {
-		.kpis {
-			grid-template-columns: minmax(0, 1fr);
+		.desk-only {
+			display: none;
 		}
-		.kpi {
-			gap: var(--space-1);
-			padding: var(--space-4) var(--space-5);
-			border-radius: var(--radius-lg);
+		.phone-only {
+			display: block;
 		}
-		.num {
-			font-size: var(--fs-2xl-phone);
+		.review.phone-only {
+			display: grid;
 		}
-		.sub {
+		[data-view='quarter'] .week-part,
+		[data-view='quarter'] .week-slot {
+			display: none;
+		}
+		/* The summary card carries the week's numbers; the headline would repeat them. */
+		.review-page :global(.page-header .titles > p) {
+			display: none;
+		}
+		.review-page :global(.page-header > .actions) {
+			width: 100%;
+		}
+		.head-controls {
+			display: grid;
+			width: 100%;
+			gap: var(--space-4);
+		}
+		.view-switch {
+			display: block;
+		}
+		.view-switch :global(.segmented) {
+			display: grid;
+			width: 100%;
+		}
+		.quarter-range {
+			display: block;
 			font-size: var(--fs-sm);
+		}
+		.review-page .review {
+			gap: var(--space-4);
 		}
 	}
 	@media (max-width: 900px) {
