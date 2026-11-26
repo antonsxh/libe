@@ -158,7 +158,7 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
 - **Settings** (AB1, `routes/(app)/settings`, pieces in `components/settings/`): phones
   (≤ 720px) show one large title and inset grouped sections like iOS Settings — the profile
   row, "Your day" (Daily goal, Rest days), "Focus" (Pomodoro, the Auto-start switch), "This
-  device" (Notifications switch, Language), "Devices" (rows + "Pair a device"), and "Desktop
+  device" (Notifications switch, Appearance, Language), "Devices" (rows + "Pair a device"), and "Desktop
   app" only inside the app; rows show the current value and open a `Dialog` sheet with the
   editor. Wider screens show macOS System Settings: a sidebar (profile on top, then the
   sections with their tiles, the selected one on `--sidebar-active-bg`) and the section's
@@ -390,12 +390,20 @@ timer.serverNow)` so today moves live with the timer.
   `multiple` is a checklist (checkboxes, every checked row ticked), an option's `detail` is a
   muted value before the tick, `optionRow` (a snippet) renders a row's content in place of the
   label (a title over a detail line; the tick stays) — tokens `--grouped-*`, `--segmented-*` (inside a dialog
-  set `--grouped-bg: var(--grouped-bg-raised)` and the raised separator, like `QuestForm`).
+  set `--grouped-bg: var(--grouped-bg-raised)` and the raised separator, like `QuestForm`; dialogs and sheets paint `--dialog-bg` — the grouped grey in light, so their lists are white rows like iOS).
   Look at `/styleguide` in the running app before building new UI.
 - **Titles and figures**: every page title is the global `h1` — the large bold title
   (`--fs-title-lg`, phones `--fs-title`, `--fw-bold`, `--tracking-title`); don't restyle it per
   page. Big numbers (KPIs, totals, the Focus clock) use `--fw-figure` and `.tabular`.
-- Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
+- Dark **and** light theme (R3, iOS grey): dark is the default; every light value lives only in
+  `tokens.css` — one `[data-theme='light']` block and an identical `[data-theme='auto']` block under
+  `prefers-color-scheme: light` (contrast.test enforces they stay equal). A new colour therefore
+  always needs a light value in **both** blocks; run `bun scripts/contrast.ts` (it checks both
+  themes). The theme is a **per-device** choice (`libe_theme` cookie, `#lib/theme.ts`: `parseTheme`
+  in `hooks.server.ts` renders `data-theme` on `<html>` + the `theme-color`/`color-scheme` metas;
+  after a Settings save the client switches at once with `applyTheme`). Missing/invalid cookie =
+  dark. App icons, the PWA manifest and the Tauri shell stay dark.
+  Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
   Below 720px the nav is a floating capsule at the bottom (icons with a small label under each —
   `t.nav` names, "Me" under the account avatar, the active tab in `--accent-text` on a sliding
   pill — no Focus tab; `TAB_ITEMS` / `activeTab` in `#lib/nav.ts`); the top

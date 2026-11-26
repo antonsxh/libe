@@ -1,11 +1,16 @@
 /*
  * libe design tokens — "Apple + Linear": a black ground, elevation through lightness (each
  * raised layer a step lighter), few and soft borders, near-white text, one restrained blue
- * accent and Apple's system colours for quests. Dark-only theme. Every colour/size used in
+ * accent and Apple's system colours for quests. The dark palette below is the default (bare
+ * `:root`); the light theme (R3) overrides individual tokens at the end of this file — dark
+ * stays authoritative for everything else, so components never know which theme they render
+ * in. Which theme applies is a per-device choice (`libe_theme` cookie → `data-theme` on
+ * `<html>`, see `src/lib/theme.ts`): `light` selects the explicit light block, `auto` applies
+ * it under `prefers-color-scheme: light`, anything else stays dark. Every colour/size used in
  * components comes from here: no colour literals elsewhere, and components use role names
- * (`--control-on`, `--backdrop`, `--selected-bg`, `--accent-text`), not raw palette entries, so
- * a new look or a light theme only changes this file. `bun scripts/contrast.ts` reports
- * contrast and quest-colour spacing (tested in `bun run test`).
+ * (`--control-on`, `--backdrop`, `--selected-bg`, `--accent-text`), not raw palette entries.
+ * `bun scripts/contrast.ts` reports contrast and quest-colour spacing for **both** themes
+ * (tested in `bun run test`) — after changing colours, check light and dark.
  */
 :root {
 	color-scheme: dark;
@@ -250,6 +255,7 @@
 	--grouped-radius: var(--radius-lg);
 	--grouped-row-h: 44px; /* min. row height (= --hit-min) */
 	--grouped-inset: var(--space-4); /* row padding and separator inset */
+	--dialog-bg: var(--surface); /* dialogs and bottom sheets (light: the grouped grey) */
 	--grouped-bg-raised: var(--surface-2); /* … inside a dialog / sheet (one step lighter) */
 	--grouped-separator-raised: var(--border-strong);
 	--segmented-bg: color-mix(in srgb, var(--text) 7%, transparent); /* the control's track */
@@ -296,6 +302,7 @@
 	--tile-focus: var(--quest-red); /* Pomodoro, the Focus section */
 	--tile-notifications: var(--quest-red);
 	--tile-language: var(--quest-blue);
+	--tile-appearance: var(--bar-muted); /* Appearance (R3); a darker grey in light, see below */
 	--tile-devices: var(--success); /* Devices, this device */
 	--tile-neutral: var(--bar-muted); /* Auto-start, other devices, the desktop app */
 	--tile-sm: 22px; /* the sidebar's tiles (rows use --row-icon) */
@@ -320,4 +327,165 @@
 	--fs-detail-tile: 1.75rem; /* 28  the emoji in it */
 	--track-raised: var(--border-strong); /* a bar's empty track on a --surface card */
 	--focus-setup-w: 480px; /* the Focus setup's column on wide screens */
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Light theme (R3) — variant "A, iOS grey" (owner-approved): a light grey ground,
+ * white cards and inset grouped lists like Apple's own apps. Only tokens that need
+ * a different value in light are listed; everything else inherits from `:root`.
+ * The same overrides appear twice — for an explicit Light and for Automatic under
+ * a light OS setting. `scripts/contrast.test.ts` asserts both blocks are identical,
+ * `bun scripts/contrast.ts` checks the merged light palette exactly like the dark one
+ * (the darker quest colours, `--accent-text` … are what makes white-on-colour and
+ * text on white pass there). Keep CSS comments free of braces (the block parser).
+ * ════════════════════════════════════════════════════════════════════════════ */
+:root[data-theme='light'] {
+	color-scheme: light;
+
+	/* Surfaces: light ground, white raised layers (elevation = whiteness here). */
+	--bg: #f2f2f7;
+	--bg-nav: #f2f2f7;
+	--surface: #ffffff;
+	--surface-2: #e9e9ee;
+	--surface-hover: #f7f7fa;
+	--track: #e5e5ea;
+	--bar-muted: #c7c7cc;
+
+	/* Lines */
+	--border: #e5e5ea;
+	--border-strong: #d1d1d6;
+	--border-dashed: #d1d1d6;
+
+	/* Text (Apple's system greys) */
+	--text: #1d1d1f;
+	--text-2: #424245;
+	--text-muted: #636366;
+	--text-faint: #7c7c80;
+
+	/* Accent: fills keep Apple blue with white ink; as text it drops for AA on white. */
+	--accent: #0071e3;
+	--accent-hover: #0062c4;
+	--accent-ink: #ffffff;
+	--accent-text: #0066cc;
+	--focus-ring: #0071e3;
+
+	/* Status colours and the now line — darkened for the light ground. */
+	--danger: #c40012;
+	--success: #18752f;
+	--success-ink: #ffffff;
+	--streak: #c95a00;
+	--now-line: #e8261c;
+
+	/* Quest colours (owner-approved): darker so rows stay legible on white. */
+	--quest-red: #e3261c;
+	--quest-orange: #c95a00;
+	--quest-amber: #9c7500;
+	--quest-lime: #6f8a00;
+	--quest-green: #1e8a3c;
+	--quest-teal: #00817c;
+	--quest-blue: #7048e8;
+	--quest-purple: #a23fcf;
+	--quest-pink: #d02a7d;
+	--quest-olive: #8a6a4a;
+	--quest-slate: #6e6e73;
+
+	/* Shadows: black shows up far stronger on light — keep them soft. */
+	--shadow-color: 0 0 0;
+	--shadow-pop: 0 12px 32px rgb(var(--shadow-color) / 0.12), 0 0 0 1px var(--border);
+	--shadow-float:
+		0 10px 30px rgb(var(--shadow-color) / 0.16), 0 2px 8px rgb(var(--shadow-color) / 0.1);
+	--backdrop: rgb(var(--shadow-color) / 0.3);
+
+	/* Controls */
+	--segmented-bg: color-mix(in srgb, var(--text) 7%, transparent);
+	--segmented-thumb: #ffffff;
+	--segmented-shadow: 0 1px 3px rgb(var(--shadow-color) / 0.15);
+	--switch-knob-shadow: 0 2px 4px rgb(var(--shadow-color) / 0.2);
+	--round-btn-bg: color-mix(in srgb, var(--text) 8%, var(--bg));
+	--round-btn-bg-hover: color-mix(in srgb, var(--text) 12%, var(--bg));
+	--event-tint: 18%;
+	--switch-on: #34c759;
+	--switch-off: #e3e3e8;
+
+	/* Grouped lists and the Appearance tile (white ink on #c7c7cc would be too weak). */
+	--grouped-bg-raised: #ffffff;
+	--dialog-bg: var(--bg); /* sheets like iOS: grey ground, white rows */
+	--tile-appearance: var(--text-muted);
+}
+
+/* Automatic: follow the OS — the same overrides in a light OS appearance. */
+@media (prefers-color-scheme: light) {
+	:root[data-theme='auto'] {
+		color-scheme: light;
+
+		/* Surfaces: light ground, white raised layers (elevation = whiteness here). */
+		--bg: #f2f2f7;
+		--bg-nav: #f2f2f7;
+		--surface: #ffffff;
+		--surface-2: #e9e9ee;
+		--surface-hover: #f7f7fa;
+		--track: #e5e5ea;
+		--bar-muted: #c7c7cc;
+
+		/* Lines */
+		--border: #e5e5ea;
+		--border-strong: #d1d1d6;
+		--border-dashed: #d1d1d6;
+
+		/* Text (Apple's system greys) */
+		--text: #1d1d1f;
+		--text-2: #424245;
+		--text-muted: #636366;
+		--text-faint: #7c7c80;
+
+		/* Accent: fills keep Apple blue with white ink; as text it drops for AA on white. */
+		--accent: #0071e3;
+		--accent-hover: #0062c4;
+		--accent-ink: #ffffff;
+		--accent-text: #0066cc;
+		--focus-ring: #0071e3;
+
+		/* Status colours and the now line — darkened for the light ground. */
+		--danger: #c40012;
+		--success: #18752f;
+		--success-ink: #ffffff;
+		--streak: #c95a00;
+		--now-line: #e8261c;
+
+		/* Quest colours (owner-approved): darker so rows stay legible on white. */
+		--quest-red: #e3261c;
+		--quest-orange: #c95a00;
+		--quest-amber: #9c7500;
+		--quest-lime: #6f8a00;
+		--quest-green: #1e8a3c;
+		--quest-teal: #00817c;
+		--quest-blue: #7048e8;
+		--quest-purple: #a23fcf;
+		--quest-pink: #d02a7d;
+		--quest-olive: #8a6a4a;
+		--quest-slate: #6e6e73;
+
+		/* Shadows: black shows up far stronger on light — keep them soft. */
+		--shadow-color: 0 0 0;
+		--shadow-pop: 0 12px 32px rgb(var(--shadow-color) / 0.12), 0 0 0 1px var(--border);
+		--shadow-float:
+			0 10px 30px rgb(var(--shadow-color) / 0.16), 0 2px 8px rgb(var(--shadow-color) / 0.1);
+		--backdrop: rgb(var(--shadow-color) / 0.3);
+
+		/* Controls */
+		--segmented-bg: color-mix(in srgb, var(--text) 7%, transparent);
+		--segmented-thumb: #ffffff;
+		--segmented-shadow: 0 1px 3px rgb(var(--shadow-color) / 0.15);
+		--switch-knob-shadow: 0 2px 4px rgb(var(--shadow-color) / 0.2);
+		--round-btn-bg: color-mix(in srgb, var(--text) 8%, var(--bg));
+		--round-btn-bg-hover: color-mix(in srgb, var(--text) 12%, var(--bg));
+		--event-tint: 18%;
+		--switch-on: #34c759;
+		--switch-off: #e3e3e8;
+
+		/* Grouped lists and the Appearance tile (white ink on #c7c7cc would be too weak). */
+		--grouped-bg-raised: #ffffff;
+		--dialog-bg: var(--bg); /* sheets like iOS: grey ground, white rows */
+		--tile-appearance: var(--text-muted);
+	}
 }

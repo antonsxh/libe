@@ -6,6 +6,7 @@ import {
 	contrastRatio,
 	deltaE,
 	hueDistance,
+	lightOverrides,
 	oklch,
 	over,
 	paletteFindings,
@@ -13,10 +14,13 @@ import {
 	questColors,
 	readTokens,
 	resolveColor,
+	themeTokens,
 	toHex
 } from './contrast.ts';
 
-const tokens = readTokens(readFileSync(TOKENS_PATH, 'utf8'));
+const css = readFileSync(TOKENS_PATH, 'utf8');
+const tokens = readTokens(css);
+const themes = themeTokens(css);
 
 describe('colour maths', () => {
 	test('WCAG contrast: black/white is 21, a colour with itself 1', () => {
@@ -69,16 +73,47 @@ describe('colour maths', () => {
 const KNOWN_GAPS: string[] = [];
 
 describe('tokens.css', () => {
-	test('every palette check passes, except the documented known gaps', () => {
-		const failing = paletteFindings(tokens)
-			.filter((f) => !f.ok)
-			.map((f) => f.id);
-		expect(failing).toEqual(KNOWN_GAPS);
+	test('defines a dark and a light theme', () => {
+		expect(themes.map((t) => t.name)).toEqual(['dark', 'light']);
+	});
+
+	test('every palette check passes in both themes, except the documented known gaps', () => {
+		for (const theme of themes) {
+			const failing = paletteFindings(theme.tokens)
+				.filter((f) => !f.ok)
+				.map((f) => f.id);
+			expect(failing, `theme ${theme.name}`).toEqual(KNOWN_GAPS);
+		}
+	});
+
+	test('the light theme overrides --bg and keeps a token per light value', () => {
+		const light = lightOverrides(css);
+		expect(light).not.toBeNull();
+		expect(light!.explicit.get('--bg')).toBe('#f2f2f7');
+		// Everything the checks read exists in both merged palettes.
+		for (const theme of themes) {
+			expect(theme.tokens.get('--surface'), theme.name).toBeTruthy();
+			expect(theme.tokens.get('--accent'), theme.name).toBeTruthy();
+		}
+	});
+
+	test('the explicit and the automatic light block are identical, the latter media-guarded', () => {
+		const light = lightOverrides(css)!;
+		expect([...light.automatic.entries()]).toEqual([...light.explicit.entries()]);
+		expect(light.explicit.size).toBeGreaterThan(20);
+		// The `auto` block only exists inside the light media query — never for a dark OS.
+		const media = css.indexOf('@media (prefers-color-scheme: light)');
+		expect(media).toBeGreaterThan(0);
+		expect(css.indexOf(`:root[data-theme='auto']`)).toBeGreaterThan(media);
+		expect(css.split(`:root[data-theme='auto']`).length - 1).toBe(1);
 	});
 
 	test('every QUEST_COLORS key has a --quest-<key> token, and no extra ones', () => {
 		const keys = [...questColors(tokens).keys()].sort();
 		expect(keys).toEqual([...QUEST_COLORS].sort());
+		for (const theme of themes) {
+			expect([...questColors(theme.tokens).keys()].sort(), theme.name).toEqual(keys);
+		}
 	});
 
 	test('"other" stays neutral', () => {

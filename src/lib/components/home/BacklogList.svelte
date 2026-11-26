@@ -102,7 +102,7 @@
 		padding: 0;
 		overflow: hidden;
 		border-radius: var(--grouped-radius);
-		background: var(--surface-2);
+		background: var(--grouped-bg-raised); /* in a sheet: one step up (white in light) */
 	}
 	.group > li {
 		position: relative;

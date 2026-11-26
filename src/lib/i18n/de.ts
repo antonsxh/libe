@@ -555,11 +555,15 @@ export const de: Messages = {
 		language: 'Sprache',
 		languageDesc:
 			'Gilt für libe auf all deinen Geräten. „Systemstandard“ folgt den Spracheinstellungen des jeweiligen Browsers.',
+		appearance: 'Erscheinungsbild',
+		appearanceDesc:
+			'Nur für dieses Gerät. „Automatisch“ folgt der Systemeinstellung (Hell oder Dunkel).',
 		sections: {
 			profile: 'Profil',
 			goal: 'Tagesziel und Serie',
 			focus: 'Fokus',
 			notifications: 'Benachrichtigungen',
+			appearance: 'Erscheinungsbild',
 			language: 'Sprache',
 			devices: 'Geräte',
 			desktop: 'Desktop-App'
@@ -583,6 +587,7 @@ export const de: Messages = {
 		saving: 'Wird gespeichert …',
 		saved: 'Gespeichert',
 		languageOptions: { auto: 'Systemstandard', en: 'English', de: 'Deutsch' },
+		appearanceOptions: { auto: 'Automatisch', light: 'Hell', dark: 'Dunkel' },
 		pair: {
 			title: 'Neues Gerät koppeln',
 			isPaired: ' ist gekoppelt.',
@@ -896,6 +901,7 @@ export const de: Messages = {
 		pairCodeWrong: 'Falscher Code. Prüfe den Code auf deinem anderen Gerät und versuche es erneut.',
 		// Einstellungen
 		languageInvalid: 'Wähle eine der Sprachen.',
+		themeInvalid: 'Wähle ein Erscheinungsbild.',
 		profileNameTooLong: `Der Name darf höchstens ${DISPLAY_NAME_MAX} Zeichen lang sein.`,
 		profileColorInvalid: 'Wähle eine der Farben.',
 		profileEmojiInvalid: 'Verwende genau ein Emoji.',

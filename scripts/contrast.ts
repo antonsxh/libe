@@ -2,9 +2,12 @@
  * Palette checks for `src/lib/styles/tokens.css` — WCAG 2 contrast of the text/UI tokens on
  * their surfaces, and that quest colours stay apart from each other and from the accent
  * (perceptual distance and hue, so a quest colour never reads as "the accent, a bit off").
+ * Both themes are checked: the dark `:root` and the light one (R3 — the light block merged
+ * over the dark tokens).
  *
  *   bun scripts/contrast.ts              # report on tokens.css; exits 1 if a check fails
- *   bun scripts/contrast.ts other.css    # the same for another token file (palette drafts)
+ *   bun scripts/contrast.ts other.css    # the same for another token file (palette drafts;
+ *                                        #   a file without light blocks is checked as dark only)
  *
  * Pure helpers (parsing, colour maths) are exported for `contrast.test.ts`, which runs the
  * same checks in `bun run test`. Only what the tokens use is understood: hex colours,
@@ -29,6 +32,71 @@ export function readTokens(css: string): Map<string, string> {
 		tokens.set(m[1], m[2].replace(/\s+/g, ' ').trim());
 	}
 	return tokens;
+}
+
+/** Declarations of a selector's style block, matched by brace depth (comments are skipped). */
+function styleBlock(css: string, selector: string): string | null {
+	const start = css.indexOf(selector);
+	if (start < 0) return null;
+	const open = css.indexOf('{', start);
+	if (open < 0) return null;
+	let depth = 0;
+	for (let i = open; i < css.length; i++) {
+		if (css.startsWith('/*', i)) {
+			const end = css.indexOf('*/', i);
+			if (end < 0) return null;
+			i = end + 1;
+			continue;
+		}
+		if (css[i] === '{') depth++;
+		else if (css[i] === '}') {
+			if (--depth === 0) return css.slice(open + 1, i);
+		}
+	}
+	return null;
+}
+
+function declarations(body: string): Map<string, string> {
+	const out = new Map<string, string>();
+	for (const m of body.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+		out.set(m[1], m[2].replace(/\s+/g, ' ').trim());
+	}
+	return out;
+}
+
+/**
+ * The `--name: value` overrides of the two light theme blocks (R3): the explicit
+ * `:root[data-theme='light']` and the automatic `:root[data-theme='auto']` inside
+ * `@media (prefers-color-scheme: light)`. Null when the file has no light blocks
+ * (palette drafts only define the default theme).
+ */
+export function lightOverrides(
+	css: string
+): { explicit: Map<string, string>; automatic: Map<string, string> } | null {
+	const body = (sel: string) => styleBlock(css, sel);
+	const light = body(`:root[data-theme='light']`);
+	const auto = body(`:root[data-theme='auto']`);
+	if (light === null || auto === null) return null;
+	return { explicit: declarations(light), automatic: declarations(auto) };
+}
+
+export type ThemeTokens = { name: 'dark' | 'light'; tokens: Map<string, string> };
+
+/**
+ * The token sets of both themes: dark is the bare `:root`, light the same map with the
+ * light overrides merged on top (exactly how the browser cascades them). Files without
+ * light blocks yield the dark theme only.
+ */
+export function themeTokens(css: string): ThemeTokens[] {
+	const dark = readTokens(css);
+	const overrides = lightOverrides(css);
+	if (!overrides) return [{ name: 'dark', tokens: dark }];
+	const light = new Map(dark);
+	for (const [name, value] of overrides.explicit) light.set(name, value);
+	return [
+		{ name: 'dark', tokens: dark },
+		{ name: 'light', tokens: light }
+	];
 }
 
 export function parseHex(hex: string): Rgba {
@@ -285,10 +353,16 @@ export function paletteFindings(tokens: Map<string, string>): Finding[] {
 
 if (import.meta.main) {
 	const path = process.argv[2] ?? TOKENS_PATH;
-	const findings = paletteFindings(readTokens(readFileSync(path, 'utf8')));
+	const themes = themeTokens(readFileSync(path, 'utf8'));
 	console.log(`Palette checks for ${path}:`);
-	for (const f of findings) console.log(`  ${f.ok ? 'ok  ' : 'FAIL'} ${f.line}`);
-	const failed = findings.filter((f) => !f.ok).length;
+	let failed = 0;
+	for (const { name, tokens } of themes) {
+		console.log(`\n${name} theme`);
+		for (const f of paletteFindings(tokens)) {
+			console.log(`  ${f.ok ? 'ok  ' : 'FAIL'} ${f.line}`);
+			if (!f.ok) failed++;
+		}
+	}
 	console.log(failed ? `\n${failed} failed` : '\nall ok');
 	process.exit(failed ? 1 : 0);
 }

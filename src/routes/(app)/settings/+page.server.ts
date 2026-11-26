@@ -18,9 +18,10 @@ import { normalizeDisplayName, parseAvatarColor, parseAvatarEmoji } from '#lib/p
 import { parseDailyGoal } from '#lib/daily-goal.ts';
 import { parseRestDays } from '#lib/streak.ts';
 import { i18n, isLanguageSetting } from '#lib/i18n/index.ts';
+import { THEME_COOKIE, THEME_MAX_AGE_S, isTheme, parseTheme } from '#lib/theme.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load = (async ({ locals, url }) => ({
+export const load = (async ({ cookies, locals, url }) => ({
 	devices: await listDevices(),
 	currentId: locals.device!.id,
 	now: Date.now(),
@@ -29,7 +30,9 @@ export const load = (async ({ locals, url }) => ({
 	/** Shown next to the desktop app's update track. */
 	serverVersion: SERVER_VERSION,
 	/** Stored UI language choice (`auto` | `en` | `de`); `locale` (layout) is the effective one. */
-	language: await getLanguageSetting()
+	language: await getLanguageSetting(),
+	/** This device's appearance (R3) — the `libe_theme` cookie the hooks render from. */
+	theme: parseTheme(cookies.get(THEME_COOKIE))
 })) satisfies PageServerLoad;
 
 export const actions = {
@@ -148,6 +151,28 @@ export const actions = {
 			});
 		await saveLanguageSetting(language);
 		return { intent: 'language' as const, saved: true };
+	},
+
+	/**
+	 * Appearance (R3): `auto` | `light` | `dark` for **this device only** — a cookie the hooks
+	 * render `data-theme` and the theme metas from. `httpOnly: false` (the client may read it),
+	 * `Secure` follows the request protocol like the device cookie (`server/auth.ts`).
+	 */
+	appearance: async ({ request, locals, cookies, url }) => {
+		const theme = (await request.formData()).get('theme');
+		if (!isTheme(theme))
+			return fail(400, {
+				intent: 'appearance' as const,
+				error: i18n(locals.locale).errors.themeInvalid
+			});
+		cookies.set(THEME_COOKIE, theme, {
+			path: '/',
+			httpOnly: false,
+			maxAge: THEME_MAX_AGE_S,
+			sameSite: 'lax',
+			secure: url.protocol === 'https:'
+		});
+		return { intent: 'appearance' as const, saved: true, theme };
 	},
 
 	/** Pomodoro settings (same dialog as the Focus screen's gear). */
