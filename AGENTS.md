@@ -104,13 +104,26 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `questColorVar(key)` → `var(--quest-<key>)`. Tasks of kind `other` use `slate`.
 - Keep components small; shared ones in `src/lib/components/`, feature-specific ones in
   `src/lib/components/<feature>/`. Use `type Props = {...}; let {...}: Props = $props()`.
-  Task-list pieces used by Home and Plan live in `components/tasks/` (`DayTaskCard`,
-  `TaskAddForm`, `QuestPicker`, `QuestFilter`); their shared form actions (toggle, ↑/↓,
-  backlog, delete, `addTaskAction` factory) in `src/lib/server/task-actions.ts`. Add rows have
-  one **Add** button: Enter/Add append at the bottom, Shift+Enter adds at the top (no visible
-  Top/Bottom). No add row may need a quest that can't exist: Home without open quests shows
-  `FirstQuestCard` (creates one in a dialog via the shared `createQuestAction`,
-  `server/quest-actions.ts`) instead of the quest work row; backlog rows offer "Other".
+  Task-list pieces live in `components/tasks/` (`DayTaskCard` — Plan's board cards,
+  `TaskAddForm`, `QuestPicker`, `QuestFilter`, `OverdueList`); their shared form actions
+  (toggle, ↑/↓, backlog, delete, `overdueTo`, `addTaskAction` factory) in
+  `src/lib/server/task-actions.ts`. Add rows have one **Add** button: Enter/Add append at the
+  bottom, Shift+Enter adds at the top (no visible Top/Bottom). No add row may need a quest that
+  can't exist: every picker offers "Other" (`otherOption`; without open quests it is the only
+  choice), and Home without open quests also shows `FirstQuestCard` (creates one in a dialog
+  via the shared `createQuestAction`, `server/quest-actions.ts`).
+- **Home is one list** (O3a, `components/home/`): header (greeting, large date, one meta line:
+  logged today · this week (not on phones) · `StreakStatus`), `NextUpCard`, the
+  `OverdueGroup` (overdue tasks as rows above Today: 3 + "Show N more", "All to today"),
+  `TodayList` — quest work and Other in **one** inset grouped list (`mergeDayLists`,
+  `#lib/ordering.ts`: open quest work, open Other, then the done ones; the two stored lists keep
+  their own `sort_order`, ↑/↓ never cross them) of `TodayRow`s (actions in the row's ⋯) and
+  **one** add row (`TaskAddForm row`, action `add`: a quest or Other). The side column (wider
+  than 1000px) holds the Backlog row (`GroupedNavRow` → sheet with `BacklogList`) and
+  `DayPlanCard` (the `DayTimeline` around now, `nowWindow`, "Whole day" in place); narrower,
+  both are rows under the list and the daily plan opens as a sheet (whole day, `dayWindow`).
+  `?backlog=1` (`BACKLOG_HREF`, `#lib/nav.ts`; the palette's target for a backlog task) opens
+  the Backlog sheet and is dropped from the URL again.
 - **Command palette** (⌘K / Ctrl+K, the nav search button): `components/palette/CommandPalette.svelte`
   (rendered by `AppNav`); pages/actions are filtered on the client, quests/tasks come from
   `GET /api/search?q=` (`server/search.ts`, escaped `ILIKE`); pure matching/ranking/targets/↑↓
@@ -188,7 +201,7 @@ timer.serverNow)` so today moves live with the timer.
   `rescheduleOverdue` in `server/tasks.ts`. The planned day only changes through explicit
   actions (shared `overdueTo` action, `POST /api/overdue` for the palette, `toBacklog`,
   `toggle`, `deleteTask`) — never auto-rollover. Rows: `components/tasks/OverdueList.svelte`
-  (Home's `OverdueCard`, Plan's rail group); nav dot from root layout `overdueCount`; colour
+  (Home's `OverdueGroup` with `grouped`, Plan's rail group); nav dot from root layout `overdueCount`; colour
   only via `--overdue` (dots/markers). The root layout refreshes all data once the server's
   day ends (`dayEndsAt`, `nextDayStart`).
 - **Durations as text** (planned or logged: task cards, backlogs, Next up, Calendar totals,
@@ -283,7 +296,7 @@ timer.serverNow)` so today moves live with the timer.
   bar keeps brand + search. `main` pads for capsule and mini-player (`--tabbar-*`, `--player-h`).
 - **Mobile UX principles** (phones ≤ 720px, the iPhone home-screen PWA):
   - _Hierarchy_: one clear primary action per phone screen (filled accent `Button`); everything
-    else secondary/ghost. Home's "Next up" card (top of the task column, desktop too) is the
+    else secondary/ghost. Home's "Next up" card (above the lists, desktop too) is the
     primary "what now?" while no timer runs; with a timer, the mini-player is the "now" (the
     top-bar timer chip is hidden on phones).
   - _Thumb zone_: primary actions low on the screen — dialogs are bottom sheets whose
@@ -296,7 +309,7 @@ timer.serverNow)` so today moves live with the timer.
     `transform`s). Everything stops under `prefers-reduced-motion` (global rule + `motionMs` → 0).
     Animate on the tap, but the data still comes from the server (no faked state).
   - _Never overload data_: on phones show less, details on demand; don't add numbers/charts —
-    fold or drop them (Home's week bar and streak hint are hidden on phones).
+    fold or drop them (Home's week total is hidden on phones; the streak hint is a tooltip).
 - The mark's geometry and colour roles live once in `#lib/logo.ts` (used by `Logo.svelte`).
   Every static icon (`static/favicon.svg`/`.ico`/PNGs, `static/icons/`, `assets/icon.svg`,
   `src-tauri/icons/`) is generated from it and `tokens.css` by `bun scripts/icons.ts`

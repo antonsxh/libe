@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { layoutBlocks, nextHalfHourMinutes, parseClock, validateBlockSpan } from './timeline.ts';
+import {
+	dayWindow,
+	layoutBlocks,
+	nextHalfHourMinutes,
+	nowWindow,
+	parseClock,
+	planSummary,
+	validateBlockSpan
+} from './timeline.ts';
 
 describe('layoutBlocks', () => {
 	const b = (id: string, startMin: number, endMin: number) => ({ id, startMin, endMin });
@@ -114,5 +122,62 @@ describe('validateBlockSpan', () => {
 		expect(validateBlockSpan(540, -15).ok).toBe(false);
 		expect(validateBlockSpan(1380, 90).ok).toBe(false); // ends 25:30
 		expect(validateBlockSpan(540.5, 30).ok).toBe(false);
+	});
+});
+
+describe('dayWindow', () => {
+	test('06:00–24:00, earlier when a block starts before 6', () => {
+		expect(dayWindow([])).toEqual({ startHour: 6, endHour: 24 });
+		expect(dayWindow([{ startMin: 600, endMin: 660 }])).toEqual({ startHour: 6, endHour: 24 });
+		expect(dayWindow([{ startMin: 330, endMin: 400 }])).toEqual({ startHour: 5, endHour: 24 });
+		expect(dayWindow([{ startMin: 0, endMin: 30 }])).toEqual({ startHour: 0, endHour: 24 });
+	});
+});
+
+describe('nowWindow', () => {
+	const b = (startMin: number, endMin: number) => ({ startMin, endMin });
+
+	test('one hour back, four ahead, whole hours', () => {
+		expect(nowWindow([], 10 * 60 + 20)).toEqual({ startHour: 9, endHour: 15 });
+		expect(nowWindow([], 10 * 60)).toEqual({ startHour: 9, endHour: 14 });
+	});
+
+	test('stretches to every block still ahead, also one running since before the window', () => {
+		expect(nowWindow([b(20 * 60, 21 * 60 + 30)], 10 * 60)).toEqual({ startHour: 9, endHour: 22 });
+		expect(nowWindow([b(6 * 60, 11 * 60)], 10 * 60)).toEqual({ startHour: 6, endHour: 14 });
+	});
+
+	test('blocks that ended before the window are left to the whole-day view', () => {
+		expect(nowWindow([b(7 * 60, 8 * 60), b(8 * 60, 9 * 60)], 10 * 60)).toEqual({
+			startHour: 9,
+			endHour: 14
+		});
+	});
+
+	test('stays inside the day and keeps at least five hours', () => {
+		expect(nowWindow([], 23 * 60 + 30)).toEqual({ startHour: 19, endHour: 24 });
+		expect(nowWindow([], 20)).toEqual({ startHour: 0, endHour: 5 });
+		expect(nowWindow([b(0, 1440)], 12 * 60)).toEqual({ startHour: 0, endHour: 24 });
+	});
+});
+
+describe('planSummary', () => {
+	const b = (id: string, startMin: number, endMin: number) => ({ id, startMin, endMin });
+
+	test('nothing planned', () => {
+		expect(planSummary([], 600)).toEqual({ kind: 'empty' });
+	});
+
+	test('the running block wins, else the next one by start', () => {
+		const blocks = [b('late', 900, 960), b('soon', 660, 720), b('now', 570, 630)];
+		expect(planSummary(blocks, 600)).toEqual({ kind: 'now', block: blocks[2] });
+		expect(planSummary(blocks, 630)).toEqual({ kind: 'next', block: blocks[1] });
+	});
+
+	test('everything behind: how many blocks there were', () => {
+		expect(planSummary([b('a', 60, 120), b('b', 120, 180)], 600)).toEqual({
+			kind: 'past',
+			count: 2
+		});
 	});
 });

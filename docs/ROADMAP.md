@@ -1360,6 +1360,7 @@ quest to pick. The overhaul runs in small milestones, each shippable on its own:
 | R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                                        | ✅ done |
 | R4  | "Apple + Linear" look (replaces Hain): palette, Geist, Apple system colours for quests, `--accent-text`                                                          | ✅ done |
 | O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | ✅ done |
+| O3a | Less at once, part 1: Home as one list (variant A) — overdue rows, one "Today" list, one add row, Backlog and Daily plan as rows/sheets                          | ✅ done |
 | O3  | Less at once: progressive disclosure, empty states (one sentence + one action), wording, tab labels, a slimmer quest dialog                                      | planned |
 | O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
 | R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
@@ -1463,6 +1464,82 @@ Owner decisions:
   Log-time session list, the plan column's Add button, "Wrong server password.".
 - **Not done here** (later milestones): onboarding (`/welcome`, `onboarded_at`), progressive
   disclosure, label culling, tab labels, celebration, motion tweaks, any token/font/logo change.
+
+## O3a — what exists
+
+Home shows less at once. The owner picked **variant A · "One list"** from mock-ups (like
+Reminders: one grouped list, the quest as a small line under each task, Backlog and the daily
+plan as rows), plus one extra requirement: **overdue tasks stay visible as tasks**.
+
+- **Structure** (top to bottom, phone and desktop): greeting, the date as a large bold title
+  (`--fs-title-lg` 32 px, phones `--fs-title` 28 px), one muted meta line — logged today
+  (`/ goal today`) · this week (not on phones) · the streak ("3-day streak", the milestone line
+  on its day; what today still needs is the tooltip and screen-reader text). Then `NextUpCard`
+  (unchanged, hidden while a timer runs), the **Overdue group**, **Today**, and — without open
+  quests — `FirstQuestCard`. Wider than 1000 px a slim right column (`--home-side` 300 px)
+  holds the **Backlog** row and the **Daily plan** card; narrower, both are rows under the list.
+- **Overdue group** (`components/home/OverdueGroup.svelte`, every width): header "● Overdue · 5"
+  with **All to today** as plain accent text on the right (iOS "Edit" style), then
+  `OverdueList grouped` — rows with a check ring in the quest colour, the title over
+  "● quest · yesterday / since Mon, Nov 23" (age in `--overdue`), **→ Today** and ⋯ (Tomorrow,
+  Backlog, Delete). The first 3 rows (`OVERDUE_PREVIEW`), then a **Show N more** row that
+  unfolds the rest in place (and "Show less"). Absent while nothing is overdue. Replaces the
+  desktop card (`OverdueCard`, removed) and the phone's "N tasks overdue · View" row + sheet.
+- **Today** (`TodayList` + `TodayRow`): quest work and Other in **one** inset grouped list.
+  The data model keeps two stored lists per day (`sort_order` per kind), so the list is merged,
+  not interleaved: `mergeDayLists` (`#lib/ordering.ts`) → open quest work, open Other, done
+  quest work, done Other, each in its own order; ↑/↓ stay inside a task's own list and
+  open/done group (`first`/`last` per run, replaces `groupEdges`). A row: a round check in the
+  quest colour (slate for Other; filled when done, pop/strike animation as before), the title,
+  "● quest name" (or "Other") under it, the logged (quest-colour dot) or planned duration with
+  the word for screen readers, the live timer + pause while it runs (accent-tinted row,
+  progress line), ▶ (start focus), and ⋯: Time-block…, Log time…, Move up / Move down,
+  Move to backlog, Move to tomorrow, Delete. The header: "Today", "N open", the quest filter
+  funnel and the hide-done eye. `?hideDone=1` now hides the done rows of the whole list (it
+  used to hide done Other only); the quest filter still filters quest work only.
+- **One add row** (`TaskAddForm row`, form action `add`, `optionalQuestTarget`): the list's last
+  row reads "+ Add a task…"; while in use (focus, its picker menu open, or a typed title) the
+  quest picker (open quests matching `?q=` + **Other**), the duration and **Add** unfold on a
+  second line. Enter/Add at the bottom, Shift+Enter on top. The picker defaults to the first
+  open quest; without open quests it is just "Other" (O1's guarantee), and `FirstQuestCard`
+  sits under the list. The fold waits for a pointer release, so a click that takes the focus
+  away isn't moved under the pointer. Removed: the actions `addQuest` / `addOther`, the
+  separate "Quest work" / "Other" sections and their add rows.
+- **Backlog**: a `GroupedNavRow` "Backlog 7 ›" (new primitive: icon tile, label, value or
+  count badge, chevron; accessible name "Backlog, 7 tasks") opens a sheet (`Dialog`; bottom
+  sheet on phones) with `BacklogList` — now a grouped list ("● quest" over the title, the
+  planned duration, **→ Today**, delete) and "+ Add to backlog…" as its last row (quest or
+  Other). `?backlog=1` (`BACKLOG_HREF`) opens the sheet and is removed from the URL again
+  (`replaceState`): the command palette sends tasks without a day there (`taskHref`).
+- **Daily plan**: wide screens: `DayPlanCard` — `DayTimeline range="now"`, the window
+  `nowWindow` (`#lib/timeline.ts`): one hour back, four ahead, stretched over every block that
+  hasn't ended before it, inside the day, at least 5 hours (late evening 19–24); a **Whole
+  day** / **Next hours** toggle in place; a hint "Time-block a task from its ⋯ menu." while
+  nothing is planned. Narrower: a row "Daily plan · <summary> ›" (`planSummary`: the running
+  block, else the next one, else "N blocks earlier today", else "Nothing planned") that opens
+  the whole day (`dayWindow`: 06:00, or the first earlier block, until 24:00) as a sheet,
+  scrolled to the now line inside it. Blocks are still created from a row's ⋯ "Time-block…"
+  and edited by clicking them (from the sheet the block dialog takes its place). The
+  timeline no longer scrolls the page on load and only draws blocks inside its window.
+- **Tokens**: `--row-check`, `--row-icon`, `--row-badge-h`, `--fs-title-lg`, `--home-side`.
+  i18n: new keys under `homeList.*` (en/de); dead keys removed (`home.questWork`,
+  `addQuestWork`, `budgetBar`, `timeline`, `openTasks`, `overdue.row`, `view`, `sheetTitle`).
+- **Decisions**: merged rather than interleaved (no data-model change); ↑/↓ moved into the
+  row's ⋯ (the row keeps ▶ and ⋯ only); the week budget bar is gone (Review has the week);
+  the compact timeline follows "what is still planned" rather than every block of the day
+  (earlier blocks are one tap away, "Whole day"); the overdue group is visible on phones too
+  (owner); the streak hint became a tooltip/screen-reader text (one meta line); the Next up
+  card's look is unchanged (its label and copy are O3b's).
+- **Tests**: unit `mergeDayLists`, `dayWindow`, `nowWindow`, `planSummary`, `taskHref`
+  (`/?backlog=1`). e2e `home.spec.ts`: one add row (quest work of two quests and Other;
+  Enter/Add vs. Shift+Enter; merged order after a reload; DB kind/quest), ↑/↓ edges per
+  (list, open/done) run read from each row's ⋯, row ⋯ actions with the Backlog sheet's
+  "→ Today", the Backlog sheet's add + the row's count, hideDone over the whole list + the
+  quest filter, time blocks in the compact timeline, header totals by test id, the phone's
+  daily-plan sheet (summary, block → edit dialog, DB) `@mobile`, no-quest flow through the add
+  row and the sheet `@mobile`, the no-JS add (first open quest). `overdue.spec.ts`: the group's
+  "Show N more", rows above Today on phones `@mobile`. `palette.spec.ts`: a backlog task opens
+  the Backlog sheet. Selectors updated in `mobile`, `streak`.
 
 ## R1a — what exists
 

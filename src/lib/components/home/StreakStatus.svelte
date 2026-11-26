@@ -28,67 +28,56 @@
 	);
 </script>
 
-<!-- Home header: "12-day streak" + what today still needs; the milestone replaces the chip. -->
-<div class="streak" data-testid="streak" data-state={streak.state}>
+<!--
+	The streak as one item of Home's meta line ("3-day streak"); the milestone replaces it on
+	the day it is reached. What today still needs is the tooltip and is read after the count.
+-->
+<span class="streak" data-testid="streak" data-state={streak.state} title={hint ?? undefined}>
 	{#if streak.milestone !== null}
-		<p class="chip milestone" role="status">
-			<Flame size={16} aria-hidden="true" />
+		<span class="item milestone" role="status">
+			<Flame size={13} aria-hidden="true" />
 			<span>{t.streak.milestone(streak.milestone, name)}</span>
-		</p>
+		</span>
 	{:else}
-		<p class="chip" class:lit={streak.state === 'active'} data-testid="streak-chip">
-			<Flame size={16} aria-hidden="true" />
+		<span class="item" class:lit={streak.state === 'active'} data-testid="streak-chip">
+			<Flame size={13} aria-hidden="true" />
 			<span>
 				{streak.state === 'none' ? t.streak.none : t.streak.count(streak.current)}
 			</span>
 			{#if streak.state === 'active'}<span class="sr-only">, {t.streak.todayDone}</span>{/if}
-		</p>
+		</span>
 		{#if hint}
-			<p class="hint tabular" data-testid="streak-hint">{hint}</p>
+			<span class="sr-only" data-testid="streak-hint">{hint}</span>
 		{/if}
 	{/if}
-</div>
+</span>
 
 <style>
 	.streak {
-		display: grid;
-		justify-items: start;
-		gap: 4px;
-		min-width: 0;
-	}
-	.chip {
 		display: inline-flex;
 		align-items: center;
-		gap: var(--space-2);
-		max-width: 100%;
-		padding: var(--space-1) var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-pill);
-		background: var(--surface);
-		color: var(--text-muted);
-		font-size: var(--fs-sm);
+		min-width: 0;
+	}
+	.item {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		min-width: 0;
 		white-space: nowrap;
 	}
-	.chip :global(svg) {
+	.item :global(svg) {
 		flex: none;
 		color: var(--text-faint);
 	}
-	.chip.lit {
-		border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+	.lit,
+	.milestone {
 		color: var(--text);
 	}
-	.chip.lit :global(svg),
-	.chip.milestone :global(svg) {
+	.lit :global(svg),
+	.milestone :global(svg) {
 		color: var(--accent-text);
 	}
-	.chip.milestone {
-		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-		background: var(--accent-soft);
-		color: var(--text);
+	.milestone {
 		white-space: normal;
-	}
-	.hint {
-		color: var(--text-faint);
-		font-size: var(--fs-xs);
 	}
 </style>

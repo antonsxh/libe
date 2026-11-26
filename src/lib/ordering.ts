@@ -76,18 +76,23 @@ export function doneLast<T extends { doneAt: Date | string | null }>(
 	return { open, done };
 }
 
+/** One row of a merged list: the task and its ↑/↓ edges inside its own list and group. */
+export type MergedRow<T> = { task: T; first: boolean; last: boolean };
+
 /**
- * `first`/`last` flags for row `i` of a list rendered as open/done groups: ↑/↓ must
- * never cross the group boundary (see `moveWithinGroup`), so buttons are disabled at
- * the edges of a *group*, not just of the list.
+ * Home's one "Today" list from today's two stored lists (quest work and Other — each its own
+ * `sort_order` space, see `server/tasks.ts`): open quest work, open Other, then done quest
+ * work, done Other. Every list keeps its order. ↑/↓ swap inside the task's own list and
+ * open/done group only (`moveWithinGroup`), so `first`/`last` mark the edges of that
+ * (kind, open/done) run — not of the merged list.
  */
-export function groupEdges<T extends { doneAt: Date | string | null }>(
-	list: readonly T[],
-	i: number
-): { first: boolean; last: boolean } {
-	const done = (t: T) => t.doneAt !== null;
-	return {
-		first: i === 0 || done(list[i - 1]) !== done(list[i]),
-		last: i === list.length - 1 || done(list[i + 1]) !== done(list[i])
-	};
+export function mergeDayLists<T extends { doneAt: Date | string | null }>(
+	questTasks: readonly T[],
+	otherTasks: readonly T[]
+): MergedRow<T>[] {
+	const runs = [doneLast(questTasks), doneLast(otherTasks)];
+	const rows: MergedRow<T>[] = [];
+	for (const run of [runs[0].open, runs[1].open, runs[0].done, runs[1].done])
+		run.forEach((task, i) => rows.push({ task, first: i === 0, last: i === run.length - 1 }));
+	return rows;
 }

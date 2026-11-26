@@ -158,7 +158,6 @@ export const en = {
 		/** After today's hours when a daily goal is set: "2.2h / 4h today". */
 		ofGoalToday: (goal: string) => `/ ${goal} today`,
 		thisWeek: (hours: string) => `${hours} this week`,
-		budgetBar: "Share of this week's quest budget used",
 		/** Phones: the "what now?" card above the lists while no timer runs. */
 		nextUp: {
 			label: 'Next up',
@@ -171,15 +170,11 @@ export const en = {
 		},
 		blockFailed:
 			'That time block could not be saved — start before end, and keep it within 00:00–24:00.',
-		questWork: 'Quest work',
-		addQuestWork: 'Add quest work…',
 		/** Quest work without any open quest: one sentence + one action. */
 		firstQuest: {
 			text: 'Quests are your bigger goals — a language, a side project. Create one to plan work for it here; everything else goes under Other.',
 			action: 'Create your first quest'
 		},
-		timeline: 'Timeline',
-		openTasks: (n: number) => `${n} open ${plural(n, 'task', 'tasks')}`,
 		scheduleToday: 'Schedule for today',
 		dayTimeline: 'Day timeline',
 		editBlockAria: (title: string, from: string, to: string) =>
@@ -207,7 +202,7 @@ export const en = {
 		openBacklogSheet: 'Open the backlog',
 		hasOpenTasks: 'open tasks'
 	},
-	/** Overdue tasks (planned before today, not done): Home's card/sheet, Plan, nav, palette. */
+	/** Overdue tasks (planned before today, not done): Home's Overdue group, Plan, nav, palette. */
 	overdue: {
 		label: 'Overdue',
 		/** Card head: "Overdue · 3". */
@@ -219,10 +214,6 @@ export const en = {
 		showAll: (n: number) => `Show all ${n}`,
 		showLess: 'Show less',
 		todayAria: (title: string) => `Move to today: ${title}`,
-		/** Phones: Home's compact row and its sheet. */
-		row: (n: number) => `${n} ${plural(n, 'task', 'tasks')} overdue`,
-		view: 'View',
-		sheetTitle: 'Overdue tasks',
 		/** The nav's Home item while it shows the dot (screen readers): "Home, 3 overdue". */
 		navLabel: (home: string, n: number) => `${home}, ${n} overdue`,
 		/** Plan: marker on an open card of a past day. */
@@ -904,6 +895,26 @@ export const en = {
 			today: 'not counted yet',
 			future: 'upcoming'
 		}
+	},
+	/** Home as one list (O3a): the "Today" list, the Overdue group, Backlog / Daily plan rows. */
+	homeList: {
+		/** After "Today": "3 open". */
+		open: (n: number) => `${n} open`,
+		/** Overdue group: the row that unfolds the rest in place. */
+		showMore: (n: number) => `Show ${n} more`,
+		/** Backlog row (opens the sheet): "Backlog, 7 tasks". */
+		backlogRow: (n: number) => `Backlog, ${n} ${plural(n, 'task', 'tasks')}`,
+		dailyPlan: 'Daily plan',
+		/** Desktop: the compact timeline's toggle. */
+		wholeDay: 'Whole day',
+		nextHours: 'Next hours',
+		/** The Daily plan row's summary (phones). */
+		planEmpty: 'Nothing planned',
+		planNow: (title: string) => `Now: ${title}`,
+		planNext: (time: string, title: string) => `${time} ${title}`,
+		planPast: (n: number) => `${n} ${plural(n, 'block', 'blocks')} earlier today`,
+		/** Under an empty timeline: where blocks come from. */
+		planHint: 'Time-block a task from its ⋯ menu.'
 	}
 };
 

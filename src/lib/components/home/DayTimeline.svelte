@@ -3,14 +3,10 @@
 	import { browser } from '$app/env';
 	import { formatMinutes, minuteOfDay } from '#lib/dates.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
-	import { layoutBlocks } from '#lib/timeline.ts';
+	import { dayWindow, layoutBlocks, nowWindow } from '#lib/timeline.ts';
 	import type { BlockWithTask } from '#lib/server/blocks.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
-	/** Timeline window: 06:00 until midnight. */
-	const START_HOUR = 6;
-	const END_HOUR = 24;
-	const HOUR_H = 52; // px per hour, matches --tl-hour
 	/** Blocks shorter than this only show their title on one line. */
 	const SHORT_MIN = 45;
 
@@ -18,10 +14,17 @@
 		blocks,
 		/** Minute of the day when the page was rendered (server clock); then updated live. */
 		now: serverNow,
+		/**
+		 * `now`: Home's compact view — an hour back, four ahead, stretched to the blocks still
+		 * planned (`nowWindow`). `day`: 06:00 (or the first block) until midnight, scrolled to the
+		 * now line inside its scrolling container (the daily-plan sheet).
+		 */
+		range = 'day',
 		onedit
 	}: {
 		blocks: BlockWithTask[];
 		now: number;
+		range?: 'now' | 'day';
 		onedit: (block: BlockWithTask) => void;
 	} = $props();
 
@@ -30,7 +33,13 @@
 	let nowMin = $state(untrack(() => serverNow));
 	let cardEl: HTMLDivElement | undefined = $state();
 
-	const nowVisible = $derived(nowMin >= START_HOUR * 60 && nowMin <= END_HOUR * 60);
+	const win = $derived(range === 'now' ? nowWindow(blocks, nowMin) : dayWindow(blocks));
+	const hours = $derived(win.endHour - win.startHour);
+	const nowVisible = $derived(nowMin >= win.startHour * 60 && nowMin <= win.endHour * 60);
+	/** Only blocks inside the window are drawn (and reachable by keyboard / screen readers). */
+	const shown = $derived(
+		placed.filter((p) => p.block.endMin > win.startHour * 60 && p.block.startMin < win.endHour * 60)
+	);
 
 	$effect(() => {
 		if (!browser) return;
@@ -38,34 +47,42 @@
 		return () => clearInterval(id);
 	});
 
-	// Once on load: bring the now line (or the first block) into view.
-	let scrolled = false;
+	// The whole day, once on mount: centre the now line (or the first block) in the scrolling
+	// container around it (the sheet's body), after the sheet has been laid out.
 	$effect(() => {
-		if (!browser || scrolled || !cardEl) return;
-		scrolled = true;
-		const target = cardEl.querySelector('.now') ?? cardEl.querySelector('.block');
-		if (!target) return;
-		// Only when the timeline starts in the first screen (two-column layout). Stacked under
-		// the lists (phones, portrait tablets) it would drag the whole page past the tasks.
-		if (cardEl.getBoundingClientRect().top > window.innerHeight * 0.6) return;
-		const r = target.getBoundingClientRect();
-		if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: 'center' });
+		if (!browser || range !== 'day' || !cardEl) return;
+		const card = cardEl;
+		const frame = requestAnimationFrame(() => {
+			const target = card.querySelector('.now') ?? card.querySelector('.block');
+			let box = card.parentElement;
+			while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement;
+			if (!target || !box || box === document.documentElement) return;
+			const offset = target.getBoundingClientRect().top - box.getBoundingClientRect().top;
+			box.scrollTop += offset - box.clientHeight / 2;
+		});
+		return () => cancelAnimationFrame(frame);
 	});
 </script>
 
-<div class="timeline card" role="group" aria-label={t.home.dayTimeline} bind:this={cardEl}>
-	<div class="grid" style:--tl-hour={`${HOUR_H}px`}>
+<div
+	class="timeline"
+	class:compact={range === 'now'}
+	role="group"
+	aria-label={t.home.dayTimeline}
+	bind:this={cardEl}
+>
+	<div class="grid" style:--hours={hours} style:--from={win.startHour * 60}>
 		<div class="labels" aria-hidden="true">
-			{#each { length: END_HOUR - START_HOUR } as _, i}
-				<span class="hour" style:--h={i}>{START_HOUR + i}:00</span>
+			{#each { length: hours } as _, i}
+				<span class="hour" style:--h={i}>{win.startHour + i}:00</span>
 			{/each}
 		</div>
 		<div class="track">
-			{#each { length: END_HOUR - START_HOUR } as _, i}
+			{#each { length: hours } as _, i}
 				<span class="line" style:--h={i}></span>
 			{/each}
 
-			{#each placed as p (p.block.id)}
+			{#each shown as p (p.block.id)}
 				<button
 					type="button"
 					class="block hatch"
@@ -102,9 +119,12 @@
 
 <style>
 	.timeline {
-		border-radius: var(--radius-xl);
+		--tl-hour: 52px;
 		padding: var(--space-3) var(--space-2) var(--space-3) 0;
 		overflow: hidden;
+	}
+	.timeline.compact {
+		--tl-hour: 40px;
 	}
 	.grid {
 		display: grid;
@@ -114,7 +134,7 @@
 
 	.labels {
 		position: relative;
-		height: calc((var(--tl-hour)) * 18);
+		height: calc(var(--tl-hour) * var(--hours));
 	}
 	.hour {
 		position: absolute;
@@ -128,7 +148,7 @@
 
 	.track {
 		position: relative;
-		height: calc(var(--tl-hour) * 18);
+		height: calc(var(--tl-hour) * var(--hours));
 		background: var(--today-tint);
 		border-radius: var(--radius-lg);
 	}
@@ -142,7 +162,7 @@
 
 	.block {
 		position: absolute;
-		top: calc((var(--s) - 360) * var(--tl-hour) / 60);
+		top: calc((var(--s) - var(--from)) * var(--tl-hour) / 60);
 		height: calc((var(--e) - var(--s)) * var(--tl-hour) / 60 - 2px);
 		left: calc(var(--col) * 100% / var(--cols) + 1px);
 		width: calc(100% / var(--cols) - 3px);
@@ -181,7 +201,7 @@
 		position: absolute;
 		left: -46px;
 		right: 0;
-		top: calc((var(--now) - 360) * var(--tl-hour) / 60);
+		top: calc((var(--now) - var(--from)) * var(--tl-hour) / 60);
 		border-top: 1px solid var(--accent);
 		z-index: 2;
 		pointer-events: none;

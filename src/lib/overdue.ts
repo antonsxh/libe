@@ -10,8 +10,8 @@
 import { addDays, formatDayLabel, isISODay } from '#lib/dates.ts';
 import { isUuid } from '#lib/ids.ts';
 
-/** Rows Home's Overdue card shows before "Show all". */
-export const OVERDUE_PREVIEW = 5;
+/** Rows Home's Overdue group shows before "Show N more". */
+export const OVERDUE_PREVIEW = 3;
 /** Rows Plan's narrow backlog rail shows before "Show all" (its backlog stays in reach). */
 export const OVERDUE_RAIL_PREVIEW = 3;
 /** Most task ids one reschedule request may name (a form never lists more than the card). */

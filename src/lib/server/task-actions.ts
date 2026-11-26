@@ -46,7 +46,7 @@ export async function taskIdFrom(request: Request): Promise<string | null> {
 	return isUuid(raw) ? raw : null;
 }
 
-/** `questId` must be a UUID of an existing quest (Home's quest add rows). */
+/** `questId` must be a UUID of an existing quest. */
 export async function requireQuestTarget(
 	questId: string
 ): Promise<{ ok: true; target: TaskTarget } | { ok: false; error: ErrorCode }> {
@@ -57,7 +57,7 @@ export async function requireQuestTarget(
 		: { ok: false, error: 'questNotFound' };
 }
 
-/** Like {@link requireQuestTarget}, but `'other'`/empty selects kind `other` (Plan picker). */
+/** Like {@link requireQuestTarget}, but `'other'`/empty selects kind `other` (Home's add row, Plan, backlogs). */
 export async function optionalQuestTarget(
 	questId: string
 ): Promise<{ ok: true; target: TaskTarget } | { ok: false; error: ErrorCode }> {

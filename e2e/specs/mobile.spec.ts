@@ -101,11 +101,11 @@ test('touch sizing: inputs ≥ 16px (no iOS zoom), small buttons get ≥ 44px hi
 	await createTask(sql, { title: `Touch size ${uid()}`, day: await today(sql) });
 	await gotoLive(page, '/');
 	const fontSize = await page
-		.getByPlaceholder('Add quest work…')
+		.getByPlaceholder('Add a task…')
 		.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
 	expect(fontSize).toBeGreaterThanOrEqual(16);
 	const hit = await page
-		.locator('li.task button[aria-label="Move up"]')
+		.locator('li.task button[aria-label^="Actions for"]')
 		.first()
 		.evaluate((el) => {
 			const after = getComputedStyle(el, '::after');

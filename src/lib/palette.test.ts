@@ -117,10 +117,10 @@ describe('rankQuests', () => {
 
 describe('taskHref', () => {
 	const today = '2026-11-20'; // a Friday
-	test('today and backlog → Home', () => {
+	test('today → Home, backlog → Home with the Backlog sheet', () => {
 		expect(taskHref({ day: today, kind: 'quest' }, today)).toBe('/');
-		expect(taskHref({ day: null, kind: 'quest' }, today)).toBe('/');
-		expect(taskHref({ day: null, kind: 'other' }, today)).toBe('/');
+		expect(taskHref({ day: null, kind: 'quest' }, today)).toBe('/?backlog=1');
+		expect(taskHref({ day: null, kind: 'other' }, today)).toBe('/?backlog=1');
 	});
 
 	test('another day → that week on the Plan board, Other zone expanded for other tasks', () => {
