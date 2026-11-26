@@ -1,6 +1,6 @@
 [package]
 name = "libe"
-version = "0.2.0"
+version = "0.2.1-nightly.20261127.69"
 description = "libe desktop app — a thin client for a self-hosted libe server"
 edition = "2021"
 rust-version = "1.80"
