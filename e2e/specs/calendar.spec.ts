@@ -4,7 +4,7 @@
  * the live entry, the now line, the plan overlay.
  */
 import type { Locator, Page } from '@playwright/test';
-import { test, expect, gotoLive, discardTimer, timerCmd } from '../support/fixtures.ts';
+import { test, expect, gotoLive, discardTimer, reloadLive, timerCmd } from '../support/fixtures.ts';
 import {
 	addDays,
 	createQuest,
@@ -140,9 +140,12 @@ test('click an empty slot to log time there (rounded down to 15 min, 30 min long
 	const monday = await emptyPastWeek(sql);
 	const thu = addDays(monday, 3);
 	const task = await createTask(sql, { title: `Slot task ${id}` });
+	// One session elsewhere in the week, so it shows its grid (an empty week shows its empty state).
+	const other = await createTask(sql, { title: `Slot neighbour ${id}` });
+	await createSession(sql, { taskId: other.id, day: monday, start: '10:00', minutes: 30 });
 	await gotoLive(page, `/calendar?week=${monday}`);
 
-	// Empty week → grid starts at 6:00; 50 px per hour below a 10 px pad. 13:22 → 13:15.
+	// No session before 6:00 → grid starts at 6:00; 50 px per hour below a 10 px pad. 13:22 → 13:15.
 	const y = 10 + ((13 * 60 + 22 - 6 * 60) / 60) * 50;
 	await col(page, thu)
 		.getByRole('button', { name: /^Log time on/ })
@@ -163,6 +166,43 @@ test('click an empty slot to log time there (rounded down to 15 min, 30 min long
 		from sessions where task_id = ${task.id}`;
 	expect(row).toMatchObject({ source: 'manual', start: `${thu} 13:15`, secs: 1800 });
 	expect(await place(segments(page, row.id))).toMatchObject({ day: thu, t: 795, b: 825 });
+});
+
+test('an empty week shows one sentence and "Log time", which logs a session and brings the grid back', async ({
+	page,
+	sql
+}) => {
+	const id = uid();
+	const monday = await emptyPastWeek(sql);
+	const task = await createTask(sql, { title: `Empty week task ${id}` });
+	await gotoLive(page, `/calendar?week=${monday}`);
+
+	const empty = page.getByTestId('calendar-empty');
+	await expect(empty).toContainText('This week is empty');
+	await expect(page.locator('.cal')).toHaveCount(0);
+	// The week nav stays, so other weeks are one click away.
+	await expect(page.getByRole('link', { name: 'Previous week' })).toBeVisible();
+
+	// A past week: "Log time" proposes its Monday, 09:00–09:30.
+	await empty.getByRole('button', { name: 'Log time' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Log time' });
+	await expect(dialog.getByLabel('Start date')).toHaveValue(monday);
+	await expect(dialog.getByLabel('Start time')).toHaveValue('09:00');
+	await expect(dialog.getByLabel('End time')).toHaveValue('09:30');
+	await dialog.getByPlaceholder('Search tasks…').fill(id);
+	await dialog.getByRole('radiogroup', { name: 'Task' }).getByText(task.title).click();
+	await dialog.getByRole('button', { name: 'Log time' }).click();
+	await expect(dialog).toBeHidden();
+
+	const [row] = await sql`
+		select id, to_char(started_at at time zone 'Europe/Berlin', 'YYYY-MM-DD HH24:MI') as start,
+			extract(epoch from ended_at - started_at)::int as secs
+		from sessions where task_id = ${task.id}`;
+	expect(row).toMatchObject({ start: `${monday} 09:00`, secs: 1800 });
+	await reloadLive(page);
+	await expect(page.getByTestId('calendar-empty')).toHaveCount(0);
+	expect(await place(segments(page, row.id))).toMatchObject({ day: monday, t: 540, b: 570 });
+	await expect(page.getByTestId('week-total')).toHaveText('30 min');
 });
 
 test('the running session is drawn live and follows pause over SSE; the now line is only in this week', async ({

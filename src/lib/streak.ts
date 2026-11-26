@@ -278,6 +278,28 @@ export function pageStreak(
 	return liveStreak(rolled, todayMin);
 }
 
+/**
+ * The hint under Home's streak chip — only while it helps: `keep` while a running streak still
+ * needs time today, `rest` on a rest day that carries it, `start` once today has some time but
+ * not enough to start a streak. Nothing while there is no streak and nothing logged today
+ * ("Log 25 min today to start one" on every quiet day is noise) and once today counts.
+ */
+export type StreakHint = 'keep' | 'rest' | 'start';
+
+export function streakHint(streak: Streak): StreakHint | null {
+	if (streak.milestone !== null) return null;
+	switch (streak.state) {
+		case 'pending':
+			return 'keep';
+		case 'rest':
+			return 'rest';
+		case 'none':
+			return streak.todayMin > 0 ? 'start' : null;
+		default:
+			return null;
+	}
+}
+
 // ─── Milestones ─────────────────────────────────────────────────────────────
 
 export const STREAK_MILESTONES = [7, 30, 100, 365] as const;

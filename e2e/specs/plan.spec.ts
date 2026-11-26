@@ -33,6 +33,9 @@ async function nextMonday(sql: Sql): Promise<string> {
 
 test('week navigation: ‹ › and Today; ?week= takes any day of a week', async ({ page, sql }) => {
 	const monday = mondayOf(await today(sql));
+	// A task in every visited week: a week without any shows its empty state, not columns.
+	for (const day of [addDays(monday, -7), addDays(monday, 7), '2026-12-29'])
+		await createTask(sql, { title: `Week nav ${uid()}`, day });
 	const days = async () =>
 		page
 			.locator('.col[data-day]')
@@ -121,6 +124,7 @@ test('"Other" from the picker creates an other task in the day\'s Other zone; it
 	const id = uid();
 	const monday = await nextMonday(sql);
 	const wed = addDays(monday, 2);
+	await createTask(sql, { title: `Not empty ${id}`, day: monday }); // shows the week's columns
 	await gotoLive(page, `/plan?week=${monday}`);
 	const col = column(page, wed);
 
@@ -317,4 +321,45 @@ test.describe('narrow board', () => {
 		await done;
 		expect(await board.evaluate((el) => el.scrollLeft)).toBe(target);
 	});
+});
+
+test('a week with nothing planned shows "Nothing planned"; "Add a task" opens the week at its add row', async ({
+	page,
+	sql
+}) => {
+	const id = uid();
+	// A far future week without any task (other tests only use the next few weeks).
+	let monday = '';
+	for (let attempt = 0; attempt < 50 && !monday; attempt++) {
+		const candidate = addDays(
+			mondayOf(await today(sql)),
+			7 * (60 + Math.floor(Math.random() * 400))
+		);
+		const [{ n }] =
+			await sql`select count(*)::int as n from tasks where day between ${candidate} and ${addDays(candidate, 6)}`;
+		if (n === 0) monday = candidate;
+	}
+	expect(monday).not.toBe('');
+	await gotoLive(page, `/plan?week=${monday}`);
+
+	const empty = page.getByTestId('plan-empty');
+	await expect(empty).toContainText('Nothing planned');
+	await expect(page.locator('.col[data-day]')).toHaveCount(0);
+	await expect(rail(page)).toBeVisible(); // the backlog stays
+	await expect(page.getByRole('link', { name: 'Next week' })).toBeVisible();
+
+	// Another week: its Monday's add row gets the focus.
+	await empty.getByRole('button', { name: 'Add a task' }).click();
+	const input = column(page, monday).locator('form.add input[name=title]');
+	await expect(input).toBeFocused();
+	await input.fill(`First of the week ${id}`);
+	const done = actionDone(page, 'add');
+	await input.press('Enter');
+	await done;
+	expect((await sql`select day from tasks where title = ${`First of the week ${id}`}`)[0].day).toBe(
+		monday
+	);
+	await reloadLive(page);
+	await expect(page.getByTestId('plan-empty')).toHaveCount(0);
+	await expect(card(column(page, monday), `First of the week ${id}`)).toBeVisible();
 });

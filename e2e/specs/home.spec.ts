@@ -290,7 +290,7 @@ test('hideDone and the quest filter live in the URL and survive mutations', asyn
 	await expect(cardOf(list, `QA task ${id}`)).toHaveCount(0);
 
 	// The funnel adds quest B to the filter; the eye shows done tasks again.
-	await page.getByRole('button', { name: 'Filter quest work by quest' }).click();
+	await page.getByRole('button', { name: 'Filter tasks by quest' }).click();
 	await page.getByRole('dialog', { name: 'Quest filter' }).getByLabel(qb.name).check();
 	await expect(list).toContainText(`QB task ${id}`);
 	expect(new URL(page.url()).searchParams.get('q')?.split(',').sort()).toEqual(

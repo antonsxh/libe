@@ -149,8 +149,8 @@
 
 	<!--
 		Desktop/tablet: the section links in the top bar. Phones (≤ 720px): a floating capsule at
-		the bottom — icons only (labels stay for screen readers), Focus left out (mini-player,
-		Next up, ▶, palette), the account avatar as the last slot, one pill sliding to the active slot.
+		the bottom — icons with a small label under each, Focus left out (mini-player, Next up, ▶,
+		palette), the account avatar ("Me") as the last slot, one pill sliding to the active slot.
 	-->
 	<nav aria-label={t.nav.main} style:--tabs={TAB_ITEMS.length + 1}>
 		{#if tab >= 0}
@@ -193,6 +193,7 @@
 					size="sm"
 					ring={goal}
 				/>
+				<span class="tab-label" aria-hidden="true">{t.nav.me}</span>
 			</a>
 		</span>
 	</nav>
@@ -583,6 +584,8 @@
 			position: relative; /* above the pill */
 			display: grid;
 			place-items: center;
+			align-content: center;
+			gap: var(--tab-label-gap);
 			min-width: 0;
 			padding: 0;
 			border-radius: var(--radius-pill);
@@ -594,7 +597,6 @@
 		}
 		nav a.active {
 			background: transparent;
-			color: var(--text);
 		}
 		.tab-icon {
 			display: grid;
@@ -609,27 +611,44 @@
 		nav a:active .tab-icon {
 			scale: var(--press-scale);
 		}
-		/* The dot sits on the icon's top right corner. */
+		/* The dot sits on the icon's top right corner (icon + label are centred as a block). */
 		.overdue-dot {
-			top: calc(50% - var(--tab-icon) / 2 - 1px);
+			top: calc(
+				50% - (var(--tab-icon) + var(--tab-label-gap) + var(--fs-tab-label) * 1.2) / 2 - 1px
+			);
 			right: auto;
 			left: calc(50% + var(--tab-icon) / 2 - 5px);
 			box-shadow: 0 0 0 2px var(--glass-bg-solid);
 		}
-		/* Icons only: the label names the link for screen readers (like .sr-only). */
+		/* A small label under each icon (Apple tab bars always name their tabs). */
 		.tab-label {
-			position: absolute;
-			width: 1px;
-			height: 1px;
+			max-width: 100%;
 			overflow: hidden;
-			clip-path: inset(50%);
 			white-space: nowrap;
+			text-overflow: ellipsis;
+			font-size: var(--fs-tab-label);
+			font-weight: var(--fw-medium);
+			line-height: 1.2;
+			letter-spacing: 0.01em;
+		}
+		/* The active tab: icon and label in the accent, on its pill. */
+		nav a.active,
+		.tab-account a[aria-current='page'] {
+			color: var(--accent-text);
 		}
 
-		/* The avatar slot: the whole slot is the link (hit area), the avatar centred. */
+		/* The avatar slot: the whole slot is the link (hit area), avatar and label centred. */
 		.tab-account a {
+			display: grid;
+			place-items: center;
+			align-content: center;
+			gap: var(--tab-label-gap);
 			width: 100%;
 			height: 100%;
+			color: var(--text-muted);
+		}
+		.tab-account :global(.wrap.sm) {
+			--avatar-size: var(--tab-avatar);
 		}
 		.tab-account a:active :global(.wrap) {
 			scale: var(--press-scale);

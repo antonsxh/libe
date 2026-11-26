@@ -409,10 +409,8 @@
 		margin: 0;
 		padding: 0 var(--space-2);
 		min-width: 0;
-		font-size: var(--fs-xs);
+		font-size: var(--fs-sm);
 		font-weight: var(--fw-semibold);
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
 		color: var(--text-muted);
 	}
 	.dot {
@@ -588,8 +586,6 @@
 	}
 	.strip-label {
 		writing-mode: vertical-rl;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		font-weight: var(--fw-medium);
+		font-weight: var(--fw-semibold);
 	}
 </style>

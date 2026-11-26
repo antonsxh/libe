@@ -110,3 +110,26 @@ export function questFormEcho(
 		text[field] = messages[code];
 	return { intent, ok: false as const, ...fields, errors: text };
 }
+
+/** The quest dialog's "More options" (icon, description, weekly budget) as stored or echoed. */
+export interface QuestExtras {
+	icon?: string | null;
+	description?: string | null;
+	weeklyBudgetH?: number | string | null;
+}
+
+/**
+ * Whether the quest dialog opens "More options": the quest has something set there — an icon
+ * other than the default, a description or a weekly budget. A new quest starts collapsed.
+ */
+export function hasQuestExtras(extras: QuestExtras | null | undefined): boolean {
+	if (!extras) return false;
+	const icon = String(extras.icon ?? '').trim();
+	const description = String(extras.description ?? '').trim();
+	const budget = extras.weeklyBudgetH;
+	return (
+		(icon !== '' && icon !== DEFAULT_QUEST_ICON) ||
+		description !== '' ||
+		(budget !== null && budget !== undefined && String(budget).trim() !== '')
+	);
+}

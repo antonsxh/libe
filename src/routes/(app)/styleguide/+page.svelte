@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Check, Filter, Pause, Play, Plus } from '@lucide/svelte';
+	import { ChartColumn, Check, Filter, Pause, Play, Plus } from '@lucide/svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Button from '#lib/components/Button.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
 	import GroupedList from '#lib/components/GroupedList.svelte';
 	import GroupedRow from '#lib/components/GroupedRow.svelte';
 	import SegmentedControl from '#lib/components/SegmentedControl.svelte';
@@ -163,6 +164,24 @@
 </section>
 
 <section>
+	<h2 class="label">Empty state</h2>
+	<p class="muted">
+		One symbol, one sentence, one action — instead of a page full of zeros (Review, Quests,
+		Calendar, Plan). The action is a link or a button; leave it out when nothing fits.
+	</p>
+	<div class="card empty-demo">
+		<EmptyState
+			icon={ChartColumn}
+			title="Nothing logged yet"
+			text="Once you finish a focus, your week shows up here."
+			action="Start focus"
+			actionIcon={Play}
+			href="/focus"
+		/>
+	</div>
+</section>
+
+<section>
 	<h2 class="label">Avatar</h2>
 	<div class="row">
 		<Avatar name={null} size="sm" />
@@ -242,11 +261,14 @@
 		<p style:font-size="var(--fs-lg)">Design the next chapter</p>
 		<p>Body text — The few things that actually matter.</p>
 		<p class="muted" style:font-size="var(--fs-sm)">Secondary meta text</p>
-		<p class="label">Quest work</p>
+		<p class="label">Section label (sentence case)</p>
 	</div>
 </section>
 
 <style>
+	.empty-demo {
+		max-width: 560px;
+	}
 	section {
 		display: grid;
 		gap: var(--space-4);

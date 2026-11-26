@@ -66,6 +66,7 @@ export const de: Messages = {
 		quests: 'Quests',
 		review: 'Rückblick',
 		main: 'Hauptnavigation',
+		me: 'Ich',
 		brandHome: 'libe – Start',
 		timerChip: (display, state, title) => `Timer ${display} (${state}): ${title} – Fokus öffnen`,
 		search: 'Suchen …',
@@ -129,7 +130,7 @@ export const de: Messages = {
 		moveToBacklog: 'Ins Backlog verschieben',
 		moveToTomorrow: 'Auf morgen verschieben',
 		moveToToday: 'Auf heute verschieben',
-		filter: 'Quest-Arbeit nach Quest filtern',
+		filter: 'Aufgaben nach Quest filtern',
 		filterDialog: 'Quest-Filter',
 		filterHint: 'Aufgaben anzeigen von',
 		noOpenQuests: 'Keine offenen Quests.',
@@ -181,7 +182,7 @@ export const de: Messages = {
 	},
 	plan: {
 		title: 'Woche planen',
-		addOther: 'Sonstige Aufgabe …',
+		addOther: 'Zu Sonstiges …',
 		todayMarker: '(heute)',
 		openBacklog: 'Offene Aufgaben im Backlog',
 		collapseBacklog: 'Backlog einklappen',
@@ -190,7 +191,12 @@ export const de: Messages = {
 		emptyDayHint: 'Füge eine Aufgabe hinzu oder hol dir eine aus dem Backlog.',
 		addTask: 'Aufgabe hinzufügen',
 		openBacklogSheet: 'Backlog öffnen',
-		hasOpenTasks: 'offene Aufgaben'
+		hasOpenTasks: 'offene Aufgaben',
+		emptyWeek: {
+			title: 'Nichts geplant',
+			text: 'Füge einem Tag eine Aufgabe hinzu – oder hol dir eine aus dem Backlog.',
+			action: 'Aufgabe hinzufügen'
+		}
 	},
 	overdue: {
 		label: 'Überfällig',
@@ -223,6 +229,11 @@ export const de: Messages = {
 		now: 'jetzt',
 		editAria: (title, span) => `${title} bearbeiten, ${span}`,
 		done: 'Erledigt',
+		empty: {
+			title: 'Diese Woche ist leer',
+			text: 'Hier erscheint die Zeit, die du fokussierst oder erfasst.',
+			action: 'Zeit erfassen'
+		},
 		dialog: {
 			titleEdit: 'Sitzung bearbeiten',
 			titleNew: 'Zeit erfassen',
@@ -350,6 +361,11 @@ export const de: Messages = {
 		scheduled: 'Eingeplant',
 		scheduledEmpty: 'Für diese Quest ist noch nichts eingeplant.',
 		notFound: 'Quest nicht gefunden',
+		empty: {
+			title: 'Noch keine Quest',
+			text: 'Eine Quest ist ein größeres Ziel, zum Beispiel eine Sprache oder ein Projekt.',
+			action: 'Quest erstellen'
+		},
 		card: {
 			deleteConfirm: (name) =>
 				`„${name}“ löschen? Ihre Aufgaben und alle erfassten Zeiten werden ebenfalls gelöscht.`,
@@ -361,18 +377,20 @@ export const de: Messages = {
 		form: {
 			name: 'Name',
 			namePlaceholder: 'Meine Idee umsetzen',
+			more: 'Weitere Optionen',
+			moreHint: 'Symbol, Budget …',
 			description: 'Beschreibung',
-			descriptionPlaceholder: 'Die wenigen Dinge, die wirklich zählen …',
-			icon: 'Icon',
+			descriptionPlaceholder: 'Beschreibung (optional)',
+			icon: 'Symbol',
 			suggested: 'Vorgeschlagene Emojis',
-			useIcon: (emoji) => `${emoji} als Icon verwenden`,
-			budget: 'Wochenbudget · h',
-			budgetPlaceholder: 'keins',
+			useIcon: (emoji) => `${emoji} als Symbol verwenden`,
+			budget: 'Wochenbudget',
+			budgetPlaceholder: 'Keins',
+			budgetUnit: 'h',
+			budgetHours: 'Stunden',
 			colour: 'Farbe',
 			colourGroup: 'Quest-Farbe',
-			changeLater: 'Du kannst später alles ändern.',
-			create: 'Quest erstellen',
-			saveChanges: 'Änderungen speichern'
+			create: 'Quest erstellen'
 		}
 	},
 	colors: {
@@ -420,6 +438,14 @@ export const de: Messages = {
 		split: (quest, pct, other) => `Quest-Arbeit ${quest} (${pct}${nb}%), Sonstiges ${other}`,
 		noTimeThisWeek: 'Diese Woche wurde keine Zeit erfasst',
 		questWorkLegend: 'Quest-Arbeit',
+		empty: {
+			title: 'Noch nichts erfasst',
+			text: 'Sobald du einen Fokus beendest, siehst du hier deine Woche.',
+			action: 'Fokus starten',
+			pastTitle: 'Nichts erfasst',
+			pastText: 'In dieser Woche wurde keine Zeit erfasst.',
+			futureText: 'Der Rückblick füllt sich, sobald du Zeit erfasst.'
+		},
 		yourWeek: (name) => (name ? `Deine Woche, ${name}.` : 'Deine Woche.'),
 		summary: {
 			future: 'Sie hat noch nicht begonnen.',

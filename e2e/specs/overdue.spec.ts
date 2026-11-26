@@ -245,6 +245,8 @@ test("Plan: the rail's Overdue group drags onto a day; past-day cards carry the 
 
 	// Next week: the board starts at the left (rail and Mon–Wed on screen).
 	const nextTue = addDays(mondayOf(day), 8);
+	// A task in that week, so it shows its columns (a week without any shows its empty state).
+	await createTask(sql, { title: `Next week ${id}`, day: addDays(mondayOf(day), 7) });
 	await gotoLive(page, `/plan?week=${addDays(mondayOf(day), 7)}`);
 	const group = page.getByRole('region', { name: 'Backlog' }).getByTestId('overdue-group');
 	const done = actionDone(page, 'moveTo');

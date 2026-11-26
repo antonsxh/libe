@@ -102,8 +102,11 @@ test('server-side validation errors come back in German', async ({ page, sql, co
 	await page.getByRole('button', { name: 'Neue Quest' }).first().click();
 	const dialog = page.getByRole('dialog', { name: 'Neue Quest' });
 	await dialog.getByLabel('Name').fill(name);
-	// Two emoji — only the server rejects this.
-	await dialog.getByLabel('Icon', { exact: true }).fill('🚀🚀');
+	// Two emoji — only the server rejects this (the icon sits under "Weitere Optionen").
+	await dialog.locator('summary', { hasText: 'Weitere Optionen' }).click();
+	// The collapsed hint ("Symbol, Budget …") also mentions it: click the row's own label.
+	await dialog.getByText('Symbol', { exact: true }).click();
+	await dialog.getByLabel('Symbol', { exact: true }).fill('🚀🚀');
 	await dialog.getByRole('button', { name: 'Quest erstellen' }).click();
 
 	await expect(dialog.getByText('Verwende genau ein Emoji.')).toBeVisible();
@@ -122,9 +125,15 @@ test('German UI: the main pages fit a phone without sideways scrolling @mobile',
 		await expectNoHorizontalScroll(page);
 	}
 	if (viewport!.width <= 720) {
-		// The icon-only tab bar still names its tabs (in German) and navigates by them.
+		// The tab bar names its tabs (in German) under the icons — every label fits its slot
+		// (no ellipsis) — and navigates by them.
 		await gotoLive(page, '/');
 		const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+		const labels = nav.locator('.tab-label:visible');
+		await expect(labels).toHaveText(['Start', 'Planen', 'Kalender', 'Quests', 'Rückblick', 'Ich']);
+		expect(
+			await labels.evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth).length)
+		).toBe(0);
 		await nav.getByRole('link', { name: 'Rückblick' }).tap();
 		await expect(page).toHaveURL(/\/review$/);
 		await expect(nav.getByRole('link', { name: 'Rückblick' })).toHaveAttribute(

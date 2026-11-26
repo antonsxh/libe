@@ -1,11 +1,21 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ChevronLeft, ChevronRight, Eye, EyeOff, Inbox } from '@lucide/svelte';
+	import {
+		CalendarCheck,
+		ChevronLeft,
+		ChevronRight,
+		Eye,
+		EyeOff,
+		Inbox,
+		Plus
+	} from '@lucide/svelte';
 	import Button from '#lib/components/Button.svelte';
 	import DayStrip from '#lib/components/DayStrip.svelte';
 	import DaySwipe from '#lib/components/DaySwipe.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import QuestFilter from '#lib/components/tasks/QuestFilter.svelte';
 	import BacklogColumn from '#lib/components/plan/BacklogColumn.svelte';
@@ -107,6 +117,23 @@
 	const overdueIds = $derived(new Set(data.overdue.map((task) => task.id)));
 	const overdueOn = $derived(overdueDays(data.overdue));
 
+	/**
+	 * A week without any planned task: one symbol, one sentence and "Add a task" instead of
+	 * seven empty columns (the backlog rail and the week nav stay). The action shows the week
+	 * and focuses the add row of today (or the selected day / Monday) — until the week changes.
+	 */
+	let shownWeek = $state<string | null>(null);
+	const weekEmpty = $derived(data.weekPlanned === 0 && shownWeek !== data.weekMonday);
+	async function showWeek() {
+		shownWeek = data.weekMonday;
+		await tick();
+		const input = board?.querySelector<HTMLInputElement>(
+			`[data-day="${selected}"] form.add input[name=title]`
+		);
+		input?.focus();
+		input?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+	}
+
 	/** Backlog bottom sheet; its content mounts on open and unmounts after the exit animation. */
 	let backlogOpen = $state(false);
 	let backlogMounted = $state(false);
@@ -170,17 +197,19 @@
 	{/snippet}
 </PageHeader>
 
-<DayStrip
-	monday={data.weekMonday}
-	{selected}
-	today={data.today}
-	marked={openDays}
-	markLabel={t.plan.hasOpenTasks}
-	alerts={overdueOn}
-	alertLabel={t.overdue.stripMark}
-	hrefFor={dayLink}
-	onselect={selectDay}
-/>
+{#if !weekEmpty}
+	<DayStrip
+		monday={data.weekMonday}
+		{selected}
+		today={data.today}
+		marked={openDays}
+		markLabel={t.plan.hasOpenTasks}
+		alerts={overdueOn}
+		alertLabel={t.overdue.stripMark}
+		hrefFor={dayLink}
+		onselect={selectDay}
+	/>
+{/if}
 
 <DaySwipe day={selected} onstep={(delta) => selectDay(stepDay(selected, delta).day)}>
 	<div class="board" bind:this={board}>
@@ -194,16 +223,30 @@
 				form={taskForm}
 			/>
 		</div>
-		{#each data.columns as col (col.day)}
-			<PlanColumn
-				{col}
-				quests={data.visibleQuests}
-				form={taskForm}
-				ontoggleother={toggleOther}
-				{overdueIds}
-				selected={col.day === selected}
-			/>
-		{/each}
+		{#if weekEmpty}
+			<div class="empty-week">
+				<EmptyState
+					icon={CalendarCheck}
+					title={t.plan.emptyWeek.title}
+					text={t.plan.emptyWeek.text}
+					action={t.plan.emptyWeek.action}
+					actionIcon={Plus}
+					onaction={showWeek}
+					testid="plan-empty"
+				/>
+			</div>
+		{:else}
+			{#each data.columns as col (col.day)}
+				<PlanColumn
+					{col}
+					quests={data.visibleQuests}
+					form={taskForm}
+					ontoggleother={toggleOther}
+					{overdueIds}
+					selected={col.day === selected}
+				/>
+			{/each}
+		{/if}
 	</div>
 </DaySwipe>
 
@@ -238,6 +281,12 @@
 
 	.rail-slot {
 		display: contents;
+	}
+	.empty-week {
+		flex: 1;
+		display: grid;
+		place-items: center;
+		min-width: 0;
 	}
 	.backlog-btn {
 		display: none;

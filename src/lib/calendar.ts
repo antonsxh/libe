@@ -112,6 +112,28 @@ export function wallClock(ms: number, timeZone?: string): string {
 	return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
+/** Length of the log the empty week's "Log time" proposes (like a click on an empty slot). */
+export const EMPTY_WEEK_LOG_MIN = 30;
+
+/**
+ * Where an empty week's "Log time" starts (wall time, minute of day): this week → the last
+ * half hour before now (quarter-hour aligned) on today; a past week → 09:00 on its Monday;
+ * a future week → null (there is nothing to log yet).
+ */
+export function emptyWeekLogStart(
+	days: ISODay[],
+	today: ISODay,
+	nowMin: number
+): { day: ISODay; minute: number } | null {
+	if (days.length === 0) return null;
+	if (days.includes(today)) {
+		const end = Math.floor(Math.max(0, nowMin) / 15) * 15;
+		return { day: today, minute: Math.max(0, end - EMPTY_WEEK_LOG_MIN) };
+	}
+	if (days[0] > today) return null;
+	return { day: days[0], minute: 9 * 60 };
+}
+
 /** `[start, end)` instants (ms) of each day in `timeZone` (DST-aware: 23/25-hour days). */
 export function daySpans(days: ISODay[], timeZone?: string): Array<{ start: number; end: number }> {
 	return days.map((day) => {

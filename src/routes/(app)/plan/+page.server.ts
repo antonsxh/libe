@@ -68,6 +68,9 @@ export const load = (async ({ url, locals }) => {
 		? quests_.filter((quest) => questFilter!.has(quest.id))
 		: quests_;
 
+	/** Tasks planned on a day of this week (any quest, done or not, unfiltered). */
+	const weekPlanned = weekTasks.length;
+
 	const columns = days.map((day) => {
 		const dayTasks = weekTasks.filter((t) => t.day === day);
 		const questSplit = doneLast(
@@ -116,6 +119,7 @@ export const load = (async ({ url, locals }) => {
 		today,
 		monthLabel: weekMonthLabel(weekMonday, t.intl),
 		columns,
+		weekPlanned,
 		backlogGroups,
 		/** Open tasks planned before today, of any week (`#lib/overdue.ts`): the rail's top group. */
 		overdue,

@@ -2,14 +2,22 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { LayoutList } from '@lucide/svelte';
+	import { CalendarDays, LayoutList, Plus } from '@lucide/svelte';
 	import DayStrip from '#lib/components/DayStrip.svelte';
 	import DaySwipe from '#lib/components/DaySwipe.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import WeekNav from '#lib/components/WeekNav.svelte';
 	import WeekGrid from '#lib/components/calendar/WeekGrid.svelte';
 	import SessionDialog, { type SessionEditor } from '#lib/components/calendar/SessionDialog.svelte';
-	import { calendarWeek, wallClock, type CalendarSession, type PickTask } from '#lib/calendar.ts';
+	import {
+		calendarWeek,
+		emptyWeekLogStart,
+		wallClock,
+		wallMinutes,
+		type CalendarSession,
+		type PickTask
+	} from '#lib/calendar.ts';
 	import { addDays, formatHours, formatMinutes, todayISO } from '#lib/dates.ts';
 	import { formatDurationMs } from '#lib/duration.ts';
 	import { dayHref, resolveDay, stepDay } from '#lib/day-view.ts';
@@ -117,6 +125,19 @@
 		};
 	}
 
+	/**
+	 * A week without any session (none logged, no live one, no planned blocks shown): one
+	 * symbol, one sentence and "Log time" instead of an empty grid. The week nav stays.
+	 */
+	const empty = $derived(!live && data.sessions.length === 0 && data.blocks.length === 0);
+	const emptyLog = $derived(
+		emptyWeekLogStart(dayList, data.today, wallMinutes(data.now, data.timeZone))
+	);
+	function logFromEmpty() {
+		const at = emptyWeekLogStart(dayList, data.today, wallMinutes(serverNow(), data.timeZone));
+		if (at) openLog(at.day, at.minute);
+	}
+
 	/** Empty slot: that day at the clicked time, 30 minutes. */
 	function openLog(day: string, minute: number) {
 		const endMin = minute + 30;
@@ -152,7 +173,7 @@
 		</div>
 	{/snippet}
 	{#snippet actions()}
-		<div class="week-stats">
+		<div class="week-stats" class:hidden={empty}>
 			<p class="totals tabular">
 				<strong data-testid="week-total">{formatDurationMs(week.totalMs, t.intl)}</strong>
 				<span data-testid="quest-total">
@@ -173,28 +194,40 @@
 	{/snippet}
 </PageHeader>
 
-<DayStrip
-	monday={data.weekMonday}
-	{selected}
-	today={data.today}
-	marked={loggedDays}
-	markLabel={t.calendar.hasLogged}
-	hrefFor={dayLink}
-	onselect={selectDay}
-/>
-
-<DaySwipe day={selected} onstep={(delta) => selectDay(stepDay(selected, delta).day)}>
-	<WeekGrid
-		days={data.days}
-		{week}
-		blocks={data.blocks}
-		timeZone={data.timeZone}
-		{now}
-		{selected}
-		onedit={openEdit}
-		onlog={openLog}
+{#if empty}
+	<EmptyState
+		icon={CalendarDays}
+		title={t.calendar.empty.title}
+		text={t.calendar.empty.text}
+		action={emptyLog ? t.calendar.empty.action : undefined}
+		actionIcon={Plus}
+		onaction={logFromEmpty}
+		testid="calendar-empty"
 	/>
-</DaySwipe>
+{:else}
+	<DayStrip
+		monday={data.weekMonday}
+		{selected}
+		today={data.today}
+		marked={loggedDays}
+		markLabel={t.calendar.hasLogged}
+		hrefFor={dayLink}
+		onselect={selectDay}
+	/>
+
+	<DaySwipe day={selected} onstep={(delta) => selectDay(stepDay(selected, delta).day)}>
+		<WeekGrid
+			days={data.days}
+			{week}
+			blocks={data.blocks}
+			timeZone={data.timeZone}
+			{now}
+			{selected}
+			onedit={openEdit}
+			onlog={openLog}
+		/>
+	</DaySwipe>
+{/if}
 
 {#if editor}
 	{#key editorKey}
@@ -247,6 +280,10 @@
 		border-color: var(--control-on);
 	}
 
+	/* An empty week has no totals to show (but keeps its place in the header). */
+	.week-stats.hidden {
+		visibility: hidden;
+	}
 	.week-stats {
 		display: flex;
 		align-items: center;

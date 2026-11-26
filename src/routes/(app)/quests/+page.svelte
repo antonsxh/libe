@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { Plus } from '@lucide/svelte';
+	import { Flag, Plus } from '@lucide/svelte';
 	import Button from '#lib/components/Button.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import QuestCard from '#lib/components/quests/QuestCard.svelte';
 	import QuestForm from '#lib/components/quests/QuestForm.svelte';
@@ -33,49 +34,64 @@
 
 	const openQuests = $derived(data.open);
 	const closedQuests = $derived(data.closed);
+	/** No quest at all (closed ones count — then the page has something to show). */
+	const empty = $derived(openQuests.length === 0 && closedQuests.length === 0);
 </script>
 
 <svelte:head><title>{t.quests.title} · libe</title></svelte:head>
 
-<PageHeader title={t.quests.title} subtitle={t.quests.subtitle}>
+<PageHeader title={t.quests.title} subtitle={empty ? undefined : t.quests.subtitle}>
 	{#snippet actions()}
-		<Button variant="primary" onclick={startCreate}>
-			<Plus size={18} />
-			{t.quests.newQuest}
-		</Button>
+		{#if !empty}
+			<Button variant="primary" onclick={startCreate}>
+				<Plus size={18} />
+				{t.quests.newQuest}
+			</Button>
+		{/if}
 	{/snippet}
 </PageHeader>
 
-<p class="summary">
-	<strong class="big tabular">{formatHours(data.hours.quarterTotalH, t.intl)}</strong>
-	<span class="muted">{t.quests.summary(openQuests.length)}</span>
-</p>
+{#if empty}
+	<EmptyState
+		icon={Flag}
+		title={t.quests.empty.title}
+		text={t.quests.empty.text}
+		action={t.quests.empty.action}
+		onaction={startCreate}
+		testid="quests-empty"
+	/>
+{:else}
+	<p class="summary">
+		<strong class="big tabular">{formatHours(data.hours.quarterTotalH, t.intl)}</strong>
+		<span class="muted">{t.quests.summary(openQuests.length)}</span>
+	</p>
 
-<div class="grid">
-	{#each openQuests as quest, i (quest.id)}
-		<QuestCard
-			{quest}
-			stats={data.hours.byQuest[quest.id]}
-			first={i === 0}
-			last={i === openQuests.length - 1}
-			onedit={startEdit}
-		/>
-	{/each}
-	<button type="button" class="new-tile" onclick={startCreate}>
-		<Plus size={20} />
-		<span>{t.quests.newQuest}</span>
-	</button>
-</div>
+	<div class="grid">
+		{#each openQuests as quest, i (quest.id)}
+			<QuestCard
+				{quest}
+				stats={data.hours.byQuest[quest.id]}
+				first={i === 0}
+				last={i === openQuests.length - 1}
+				onedit={startEdit}
+			/>
+		{/each}
+		<button type="button" class="new-tile" onclick={startCreate}>
+			<Plus size={20} />
+			<span>{t.quests.newQuest}</span>
+		</button>
+	</div>
 
-{#if closedQuests.length > 0}
-	<details class="closed-section">
-		<summary class="label">{t.quests.closedCount(closedQuests.length)}</summary>
-		<div class="grid">
-			{#each closedQuests as quest (quest.id)}
-				<QuestCard {quest} stats={data.hours.byQuest[quest.id]} closed onedit={startEdit} />
-			{/each}
-		</div>
-	</details>
+	{#if closedQuests.length > 0}
+		<details class="closed-section">
+			<summary class="label">{t.quests.closedCount(closedQuests.length)}</summary>
+			<div class="grid">
+				{#each closedQuests as quest (quest.id)}
+					<QuestCard {quest} stats={data.hours.byQuest[quest.id]} closed onedit={startEdit} />
+				{/each}
+			</div>
+		</details>
+	{/if}
 {/if}
 
 <Dialog bind:open={creating} title={t.quests.newQuest}>

@@ -96,7 +96,8 @@
 	--fw-semibold: 600;
 	--fw-bold: 700; /* large titles only */
 
-	--tracking-label: 0.12em; /* uppercase section labels: QUEST WORK, THIS WEEK */
+	--fs-label: 0.875rem; /* 14  section labels (.label, grouped list headers) */
+	--tracking-label: 0.12em; /* the few uppercase lines left: Focus' crumb and timer state */
 
 	/* ── Spacing (4px grid) ───────────────────────────────── */
 	--space-1: 4px;
@@ -120,13 +121,16 @@
 	--page-max: 1880px;
 	--nav-h: 72px;
 	--nav-h-compact: 56px; /* top bar on phones (brand + search) */
-	--tabbar-h: 60px; /* floating tab bar capsule on phones */
+	--tabbar-h: 64px; /* floating tab bar capsule on phones (icon + label) */
 	--tabbar-pad: 6px; /* capsule padding around the tab slots */
 	--tabbar-inset: var(--space-4); /* capsule / mini-player distance from the screen sides */
 	/* … and from the bottom: just above the home indicator, at least 12px. */
 	--tabbar-lift: max(var(--space-3), calc(var(--safe-bottom) - var(--space-2)));
 	--tabbar-max-w: 440px; /* the capsule never stretches wider (landscape phones) */
 	--tab-icon: 22px; /* tab bar icons */
+	--tab-avatar: 22px; /* the account avatar in the tab bar */
+	--tab-label-gap: 2px; /* tab bar: icon → label */
+	--fs-tab-label: 0.625rem; /* 10  tab bar labels under the icons */
 	--player-h: 56px; /* timer mini-player, floating just above the capsule */
 	--sheet-handle-w: 36px; /* grab handle of a bottom sheet */
 	--sheet-handle-h: 5px;
@@ -208,6 +212,8 @@
 	--grouped-radius: var(--radius-lg);
 	--grouped-row-h: 44px; /* min. row height (= --hit-min) */
 	--grouped-inset: var(--space-4); /* row padding and separator inset */
+	--grouped-bg-raised: var(--surface-2); /* … inside a dialog / sheet (one step lighter) */
+	--grouped-separator-raised: var(--border-strong);
 	--segmented-bg: color-mix(in srgb, var(--text) 7%, transparent); /* the control's track */
 	--segmented-thumb: color-mix(in srgb, var(--text) 16%, var(--surface)); /* selected segment */
 	--segmented-shadow: 0 1px 3px rgb(var(--shadow-color) / 0.45);
@@ -220,6 +226,8 @@
 	--fs-title: 1.75rem; /* 28  large bold screen titles (first-run flow) */
 	--symbol-lg: 52px; /* accent symbol above a large title */
 	--welcome-col: 480px; /* the first-run flow's column on wide screens */
+	--empty-text-max: 34ch; /* EmptyState: the one sentence */
+	--empty-action-min-w: 200px; /* EmptyState: the one action */
 
 	/* ── Home as one list (O3a) ── */
 	--row-check: 22px; /* round check / "+" at the start of a task row */

@@ -73,6 +73,8 @@ const avatar = (page: Page) =>
 	page
 		.getByRole('button', { name: /^Account and devices/ })
 		.or(page.getByRole('link', { name: /^Account and devices/ }));
+/** What the avatar itself shows (initials/emoji) — the iPhone tab also carries its "Me" label. */
+const avatarFace = (page: Page) => avatar(page).locator('.avatar');
 /** iPhone: the tab bar avatar links to Settings — there is no account menu. */
 const phone = (page: Page) => page.viewportSize()!.width <= 720;
 const GREETING = /^(Good morning|Good afternoon|Good evening|Still up)/;
@@ -103,7 +105,7 @@ test('Settings → Profile: name and colour persist; nav avatar, menu and Home g
 	sql
 }) => {
 	await gotoLive(page, '/');
-	await expect(avatar(page)).toHaveText('');
+	await expect(avatarFace(page)).toHaveText('');
 	await expect(greeting(page)).toHaveText(
 		/^(Good morning|Good afternoon|Good evening|Still up\?)$/
 	);
@@ -124,7 +126,7 @@ test('Settings → Profile: name and colour persist; nav avatar, menu and Home g
 			avatar_color: 'teal'
 		});
 	// The layout data was refreshed: the nav avatar shows the initials without a reload.
-	await expect(avatar(page)).toHaveText('AS');
+	await expect(avatarFace(page)).toHaveText('AS');
 	await expectNoHorizontalScroll(page);
 
 	await reloadLive(page);
@@ -140,7 +142,7 @@ test('Settings → Profile: name and colour persist; nav avatar, menu and Home g
 	}
 
 	await gotoLive(page, '/');
-	await expect(avatar(page)).toHaveText('AS');
+	await expect(avatarFace(page)).toHaveText('AS');
 	await expect(greeting(page)).toHaveText(
 		/^(Good morning|Good afternoon|Good evening|Still up), Anton Schmidt\??$/
 	);
@@ -154,20 +156,20 @@ test('Profile name: 40 characters pass, 41 are rejected, whitespace-only clears 
 	console.allow(/status of 400/);
 	await setProfile(sql, 'Anton', 'blue');
 	await gotoLive(page, '/settings');
-	await expect(avatar(page)).toHaveText('A');
+	await expect(avatarFace(page)).toHaveText('A');
 
 	await saveProfile(page, 'b'.repeat(41));
 	await expect(page.getByRole('alert')).toHaveText('Keep the name to at most 40 characters.');
 	expect(await storedProfile(sql)).toEqual({ display_name: 'Anton', avatar_color: 'blue' });
-	await expect(avatar(page)).toHaveText('A');
+	await expect(avatarFace(page)).toHaveText('A');
 
 	await saveProfile(page, 'b'.repeat(40));
 	await expect.poll(async () => (await storedProfile(sql))?.display_name).toBe('b'.repeat(40));
-	await expect(avatar(page)).toHaveText('B');
+	await expect(avatarFace(page)).toHaveText('B');
 
 	await saveProfile(page, '   ');
 	await expect.poll(() => storedProfile(sql)).toEqual({ display_name: null, avatar_color: 'blue' });
-	await expect(avatar(page)).toHaveText('');
+	await expect(avatarFace(page)).toHaveText('');
 	await expect(avatar(page)).toHaveAccessibleName('Account and devices');
 });
 
@@ -213,7 +215,7 @@ test('first /setup: "Your name" sets the profile and the first page welcomes onc
 		'Welcome, Mia Lee — this device is now paired.'
 	);
 	await expect(greeting(page)).toContainText('Mia Lee');
-	await expect(avatar(page)).toHaveText('ML');
+	await expect(avatarFace(page)).toHaveText('ML');
 
 	await reloadLive(page);
 	await expect(page.getByText('this device is now paired')).toHaveCount(0);
@@ -260,7 +262,7 @@ test('emoji avatar and daily goal: the nav ring reports today, live with the tim
 	await expect.poll(() => storedExtras(sql)).toEqual({ avatar_emoji: '🦊', daily_goal_min: 60 });
 
 	await reloadLive(page);
-	await expect(avatar(page)).toHaveText('🦊');
+	await expect(avatarFace(page)).toHaveText('🦊');
 	const named = (logged: number) =>
 		new RegExp(`^Account and devices \\(Anton\\), (${hm(logged)}|${hm(logged + 1)}) of 1 h today$`);
 	await expect(avatar(page)).toHaveAccessibleName(named(base));

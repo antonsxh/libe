@@ -124,6 +124,18 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   both are rows under the list and the daily plan opens as a sheet (whole day, `dayWindow`).
   `?backlog=1` (`BACKLOG_HREF`, `#lib/nav.ts`; the palette's target for a backlog task) opens
   the Backlog sheet and is dropped from the URL again.
+- **Quest dialog** (`components/quests/QuestForm.svelte`, in `Dialog`): name + colour as
+  grouped rows; icon, description and weekly budget behind **More options** — a native
+  `<details>` (works without JS; folded fields still submit), open when the quest has any of
+  them set (`hasQuestExtras`, `#lib/quest-form.ts`) or one failed validation. The emoji choice
+  opens on tap (nested `<details>`). One primary button (Create quest / Save), no Cancel.
+- **Empty states**: a page with nothing to show renders `EmptyState.svelte` — one symbol,
+  one sentence, one action (link or button) — instead of its structure full of zeros
+  (Review/Calendar/Plan weeks, Quests). Keep the navigation (week nav, backlog) and check the
+  real data condition: partial data (e.g. only "Other" time) is not empty.
+- **Wording**: one word per thing — "Other" / „Sonstiges“ for tasks without a quest; numbers in
+  words where there is room ("3 days in a row", "7 in backlog"); hints only while they help
+  (e.g. `streakHint` in `#lib/streak.ts`).
 - **Command palette** (⌘K / Ctrl+K, the nav search button): `components/palette/CommandPalette.svelte`
   (rendered by `AppNav`); pages/actions are filtered on the client, quests/tasks come from
   `GET /api/search?q=` (`server/search.ts`, escaped `ILIKE`); pure matching/ranking/targets/↑↓
@@ -277,22 +289,26 @@ timer.serverNow)` so today moves live with the timer.
   — so a new look or a light theme only changes `tokens.css`. After changing colours run
   `bun scripts/contrast.ts` (also: `bun scripts/contrast.ts draft.css` for a palette draft);
   `scripts/contrast.test.ts` enforces it in `bun run test` (its `KNOWN_GAPS` only shrinks).
-- Global utilities (`src/lib/styles/global.css`): `.label` (uppercase section label), `.card`,
+- Global utilities (`src/lib/styles/global.css`): `.label` (section label in sentence case:
+  `--fs-label`, semibold, muted — no uppercase; only the Focus screen keeps uppercase), `.card`,
   `.muted`, `.tabular`, `.hatch` (diagonal hatching tinted by `--q`), `.sr-only`, `.strike`
   (animatable strike-through, full under `.struck`).
 - Charts are plain divs/SVG (no chart library); sizes come from the `--chart-*` tokens and every
   chart needs a text alternative (aria-label or `.sr-only` text).
 - Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`,
   `Avatar`, `ColorSwatches`, `EmojiPicker`, `Dialog` (centred modal; bottom sheet on phones),
+  `EmptyState` (symbol, title, one line, one primary action),
   `MiniPlayer` (phone timer bar, rendered by the `(app)` layout), `DayStrip` / `DaySwipe`
   (phone day view). Apple-style (later milestones move more pages to these): `GroupedList`
   (inset grouped rows, header/footer; with `options` a radio choice list with a checkmark) +
   `GroupedRow` (label left, control right, or a borderless text field filling the row) and
-  `SegmentedControl` (radio group) — tokens `--grouped-*`, `--segmented-*`.
+  `SegmentedControl` (radio group) — tokens `--grouped-*`, `--segmented-*` (inside a dialog
+  set `--grouped-bg: var(--grouped-bg-raised)` and the raised separator, like `QuestForm`).
   Look at `/styleguide` in the running app before building new UI.
 - Dark theme only. Keep focus rings (`:focus-visible` uses `--ring`). Make layouts work down to ~375px.
-  Below 720px the nav is a floating capsule at the bottom (icons only, a sliding pill, the account
-  avatar as the last slot, no Focus tab — `TAB_ITEMS` / `activeTab` in `#lib/nav.ts`); the top
+  Below 720px the nav is a floating capsule at the bottom (icons with a small label under each —
+  `t.nav` names, "Me" under the account avatar, the active tab in `--accent-text` on a sliding
+  pill — no Focus tab; `TAB_ITEMS` / `activeTab` in `#lib/nav.ts`); the top
   bar keeps brand + search. `main` pads for capsule and mini-player (`--tabbar-*`, `--player-h`).
 - **Mobile UX principles** (phones ≤ 720px, the iPhone home-screen PWA):
   - _Hierarchy_: one clear primary action per phone screen (filled accent `Button`); everything
