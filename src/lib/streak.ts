@@ -32,9 +32,9 @@ export const ALL_WEEKDAYS_MASK = 0b111_1111;
 /** Largest valid mask value — the check constraint is `0 … REST_MASK_MAX` minus the full week. */
 export const REST_MASK_MAX = ALL_WEEKDAYS_MASK - 1;
 
-/** Where the rest days are edited (Settings section anchor). */
+/** Where the rest days are edited: Settings' "Daily goal and streak" (old anchor `#streak` too). */
 export const STREAK_ANCHOR = 'streak';
-export const STREAK_HREF = `/settings#${STREAK_ANCHOR}`;
+export const STREAK_HREF = '/settings?section=goal';
 
 // ─── Rest days ──────────────────────────────────────────────────────────────
 

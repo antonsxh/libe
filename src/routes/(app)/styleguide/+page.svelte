@@ -1,12 +1,24 @@
 <script lang="ts">
-	import { ChartColumn, Check, Filter, House, Pause, Play, Plus } from '@lucide/svelte';
+	import {
+		ChartColumn,
+		Check,
+		Filter,
+		Flame,
+		House,
+		Pause,
+		Play,
+		Plus,
+		Target
+	} from '@lucide/svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Button from '#lib/components/Button.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
 	import GoalRing from '#lib/components/GoalRing.svelte';
 	import GroupedList from '#lib/components/GroupedList.svelte';
+	import GroupedNavRow from '#lib/components/GroupedNavRow.svelte';
 	import GroupedRow from '#lib/components/GroupedRow.svelte';
+	import Switch from '#lib/components/Switch.svelte';
 	import SegmentedControl from '#lib/components/SegmentedControl.svelte';
 	import MiniPlayer from '#lib/components/MiniPlayer.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
@@ -38,6 +50,8 @@
 	let sheetOpen = $state(false);
 	let sampleChoice = $state('60');
 	let sampleSegment = $state('25');
+	let sampleSwitch = $state(true);
+	let sampleDays = $state(['5', '6']);
 </script>
 
 <svelte:head><title>Styleguide · libe</title></svelte:head>
@@ -161,6 +175,35 @@
 				/>
 			</GroupedRow>
 		</GroupedList>
+		<GroupedList
+			header="Settings rows (iOS symbol tiles, --tile-*)"
+			footer="Switches save on change."
+		>
+			<GroupedNavRow label="Daily goal" value="2 h" tile="var(--tile-goal)" onclick={() => {}}>
+				{#snippet icon()}<Target size={16} strokeWidth={2} />{/snippet}
+			</GroupedNavRow>
+			<GroupedNavRow
+				label="Rest days"
+				value="Sat, Sun"
+				tile="var(--tile-streak)"
+				onclick={() => {}}
+			>
+				{#snippet icon()}<Flame size={16} strokeWidth={2} />{/snippet}
+			</GroupedNavRow>
+			<GroupedRow label="Switch" for="sg-switch">
+				<Switch id="sg-switch" bind:checked={sampleSwitch} />
+			</GroupedRow>
+		</GroupedList>
+		<GroupedList
+			header="Checklist"
+			name="sg-days"
+			multiple
+			options={[
+				{ value: '5', label: 'Saturday' },
+				{ value: '6', label: 'Sunday' }
+			]}
+			bind:values={sampleDays}
+		/>
 	</div>
 </section>
 

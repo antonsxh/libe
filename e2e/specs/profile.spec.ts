@@ -9,7 +9,7 @@
  * The profile, the goal and the timer are global state — every test resets them (no name,
  * amber, no emoji, no goal, no timer), which the rest of the suite relies on.
  */
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, Locator, Page } from '@playwright/test';
 import {
 	test,
 	expect,
@@ -32,6 +32,7 @@ import {
 	type Sql
 } from '../support/db.ts';
 import { BASE, SETUP_SECRET } from '../support/env.ts';
+import { choose, closeSheet, openSettings } from '../support/settings.ts';
 
 async function setProfile(
 	sql: Sql,
@@ -92,14 +93,17 @@ const phone = (page: Page) => page.viewportSize()!.width <= 720;
 const GREETING = /^(Good morning|Good afternoon|Good evening|Still up)/;
 const greeting = (page: Page) => page.getByText(GREETING);
 
-/** "Avatar shows: Emoji" (a segmented control — the label takes the click). */
-const chooseEmojiStyle = (page: Page) =>
-	page.locator('label', { has: page.getByRole('radio', { name: 'Emoji', exact: true }) }).click();
+/** "Avatar shows: Emoji" (a segmented control — the label takes the click; saves nothing yet). */
+const chooseEmojiStyle = (scope: Locator) =>
+	scope
+		.locator('label', { has: scope.page().getByRole('radio', { name: 'Emoji', exact: true }) })
+		.click();
 
-async function saveProfile(page: Page, name: string) {
-	await page.getByLabel('Name', { exact: true }).fill(name);
+/** Types a name and commits it with Enter — it saves itself (no Save button). */
+async function saveName(page: Page, scope: Locator, name: string) {
+	await scope.getByLabel('Name', { exact: true }).fill(name);
 	const done = actionDone(page, 'profile');
-	await page.getByRole('button', { name: 'Save profile' }).click();
+	await scope.getByLabel('Name', { exact: true }).press('Enter');
 	await done;
 }
 
@@ -122,15 +126,23 @@ test('Settings → Profile: name and colour persist; nav avatar, menu and Home g
 		/^(Good morning|Good afternoon|Good evening|Still up\?)$/
 	);
 
-	// The palette's "Edit profile" lands on the section.
+	// The palette's "Edit profile" lands on the section (iPhone: its sheet opens).
 	await page.getByRole('button', { name: 'Search or jump…' }).click();
 	await page.getByRole('combobox', { name: /Search pages/ }).fill('profile');
 	await page.keyboard.press('Enter');
-	await expect(page).toHaveURL(`${BASE}/settings#profile`);
-	await expect(page.getByLabel('Name', { exact: true })).toBeInViewport();
+	await expect(page).toHaveURL(`${BASE}/settings?section=profile`);
+	const scope = phone(page)
+		? page.getByRole('dialog', { name: 'Profile' })
+		: page.getByRole('region', { name: 'Profile' });
+	await expect(scope.getByLabel('Name', { exact: true })).toBeInViewport();
 
-	await page.locator('label', { has: page.getByRole('radio', { name: 'Teal' }) }).click();
-	await saveProfile(page, '  Anton   Schmidt ');
+	// A colour saves on the tap, the name once committed — no Save button.
+	await expect(page.getByRole('button', { name: /^Save/ })).toHaveCount(0);
+	const done = actionDone(page, 'profile');
+	await scope.locator('label', { has: page.getByRole('radio', { name: 'Teal' }) }).click();
+	await done;
+	await expect.poll(() => storedProfile(sql)).toEqual({ display_name: null, avatar_color: 'teal' });
+	await saveName(page, scope, '  Anton   Schmidt ');
 	await expect
 		.poll(() => storedProfile(sql))
 		.toEqual({
@@ -142,10 +154,14 @@ test('Settings → Profile: name and colour persist; nav avatar, menu and Home g
 	await expectNoHorizontalScroll(page);
 
 	await reloadLive(page);
-	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Anton Schmidt');
-	await expect(page.getByRole('radio', { name: 'Teal' })).toBeChecked();
+	await expect(scope.getByLabel('Name', { exact: true })).toHaveValue('Anton Schmidt');
+	await expect(scope.getByRole('radio', { name: 'Teal' })).toBeChecked();
+	await closeSheet(page);
 	await expect(avatar(page)).toHaveAccessibleName('Account and devices (Anton Schmidt)');
-	if (!phone(page)) {
+	if (phone(page)) {
+		// The list's profile row shows the saved name.
+		await expect(page.getByTestId('row-profile')).toContainText('Anton Schmidt');
+	} else {
 		await avatar(page).click();
 		const menu = page.getByRole('menu');
 		await expect(menu).toContainText('Anton Schmidt');
@@ -167,19 +183,19 @@ test('Profile name: 40 characters pass, 41 are rejected, whitespace-only clears 
 }) => {
 	console.allow(/status of 400/);
 	await setProfile(sql, 'Anton', 'blue');
-	await gotoLive(page, '/settings');
+	const scope = await openSettings(page, 'profile');
 	await expect(avatarFace(page)).toHaveText('A');
 
-	await saveProfile(page, 'b'.repeat(41));
+	await saveName(page, scope, 'b'.repeat(41));
 	await expect(page.getByRole('alert')).toHaveText('Keep the name to at most 40 characters.');
 	expect(await storedProfile(sql)).toEqual({ display_name: 'Anton', avatar_color: 'blue' });
 	await expect(avatarFace(page)).toHaveText('A');
 
-	await saveProfile(page, 'b'.repeat(40));
+	await saveName(page, scope, 'b'.repeat(40));
 	await expect.poll(async () => (await storedProfile(sql))?.display_name).toBe('b'.repeat(40));
 	await expect(avatarFace(page)).toHaveText('B');
 
-	await saveProfile(page, '   ');
+	await saveName(page, scope, '   ');
 	await expect.poll(() => storedProfile(sql)).toEqual({ display_name: null, avatar_color: 'blue' });
 	await expect(avatarFace(page)).toHaveText('');
 	await expect(avatar(page)).toHaveAccessibleName('Account and devices');
@@ -261,17 +277,19 @@ test('emoji avatar and daily goal: the ring at Home reports today, live with the
 	const base = await loggedToday(sql); // includes the 30 minutes just logged
 	await setProfile(sql, 'Anton');
 
-	await gotoLive(page, '/settings');
-	await chooseEmojiStyle(page);
-	await page.getByRole('button', { name: 'Use 🦊 as avatar' }).click();
+	let scope = await openSettings(page, 'profile');
+	await chooseEmojiStyle(scope);
+	// Picking the emoji saves it (with the style) — "Emoji" alone saved nothing.
 	let done = actionDone(page, 'profile');
-	await page.getByRole('button', { name: 'Save profile' }).click();
+	await scope.getByRole('button', { name: 'Use 🦊 as avatar' }).click();
 	await done;
-	await page.getByLabel('Goal', { exact: true }).selectOption({ label: '1 h' });
+	await closeSheet(page);
+	scope = await openSettings(page, 'goal', { navigate: false });
 	done = actionDone(page, 'goal');
-	await page.getByRole('button', { name: 'Save goal' }).click();
+	await choose(scope, '1 h');
 	await done;
 	await expect.poll(() => storedExtras(sql)).toEqual({ avatar_emoji: '🦊', daily_goal_min: 60 });
+	await closeSheet(page);
 
 	await reloadLive(page);
 	await expect(avatarFace(page)).toHaveText('🦊');
@@ -341,41 +359,52 @@ test('daily goal: 16 h passes, 16 h 15 min is rejected, "No daily goal" removes 
 }) => {
 	console.allow(/status of 400/);
 	await setProfile(sql, null, 'amber', { goalMin: 120 });
+	// The old anchor still lands on the section.
 	await gotoLive(page, '/settings#goal');
+	await expect(page).toHaveURL(`${BASE}/settings?section=goal`);
+	const pane = page.getByRole('region', { name: 'Daily goal and streak' });
 	const base = await loggedToday(sql);
 	await expect(homeLink(page)).toHaveAccessibleName(progressName(base, '2 h', base >= 120));
+	await expect(pane.getByRole('radio', { name: '2 h' })).toBeChecked();
 
-	const saveGoal = async (hours: string, minutes: string) => {
-		await page.getByLabel('Goal', { exact: true }).selectOption({ label: 'Custom…' });
-		await page.getByLabel('Hours').fill(hours);
-		await page.getByLabel('Minutes').selectOption(minutes);
-		const done = actionDone(page, 'goal');
-		await page.getByRole('button', { name: 'Save goal' }).click();
-		await done;
-	};
-	await saveGoal('16', '15');
+	// "Custom duration…" only shows the fields (starting from 2 h); each committed field saves.
+	await choose(pane, 'Custom duration…');
+	await expect(pane.getByLabel('Hours')).toHaveValue('2');
+	expect((await storedExtras(sql))?.daily_goal_min).toBe(120);
+	let done = actionDone(page, 'goal');
+	await pane.getByLabel('Minutes').selectOption('15');
+	await done;
+	await expect.poll(async () => (await storedExtras(sql))?.daily_goal_min).toBe(135);
+
+	await pane.getByLabel('Hours').fill('16');
+	done = actionDone(page, 'goal');
+	await pane.getByLabel('Hours').press('Enter');
+	await done;
 	await expect(page.getByRole('alert')).toHaveText(
 		'Pick a goal from 15 min to 16 h, in 15-minute steps.'
 	);
-	expect((await storedExtras(sql))?.daily_goal_min).toBe(120);
+	expect((await storedExtras(sql))?.daily_goal_min).toBe(135);
 
-	await saveGoal('16', '0');
+	done = actionDone(page, 'goal');
+	await pane.getByLabel('Minutes').selectOption('0');
+	await done;
 	await expect.poll(async () => (await storedExtras(sql))?.daily_goal_min).toBe(960);
 	await expect(homeLink(page)).toHaveAccessibleName(progressName(base, '16 h'));
+	await expect(pane.getByRole('radio', { name: /^Custom duration/ })).toBeChecked();
 
-	await page.getByLabel('Goal', { exact: true }).selectOption({ label: 'No daily goal' });
-	let done = actionDone(page, 'goal');
-	await page.getByRole('button', { name: 'Save goal' }).click();
+	done = actionDone(page, 'goal');
+	await choose(pane, 'No daily goal');
 	await done;
 	await expect.poll(async () => (await storedExtras(sql))?.daily_goal_min).toBeNull();
 	await expect(avatar(page)).toHaveAccessibleName('Account and devices');
 	await expect(homeLink(page)).toHaveAccessibleName(NO_GOAL_NAME);
 	await expect(page.locator('[data-testid="goal-ring"]')).toHaveCount(0);
 
-	await chooseEmojiStyle(page);
-	await page.getByLabel('Avatar emoji').fill('ab');
+	const profile = await openSettings(page, 'profile', { navigate: false });
+	await chooseEmojiStyle(profile);
+	await profile.getByLabel('Avatar emoji').fill('ab');
 	done = actionDone(page, 'profile');
-	await page.getByRole('button', { name: 'Save profile' }).click();
+	await profile.getByLabel('Avatar emoji').press('Enter');
 	await done;
 	await expect(page.getByRole('alert')).toHaveText('Use exactly one emoji.');
 	expect((await storedExtras(sql))?.avatar_emoji).toBeNull();

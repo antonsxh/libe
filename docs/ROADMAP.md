@@ -2005,3 +2005,98 @@ Review on phones.
   (`@mobile-only`, iPhone): the summary and list match SQL aggregates; Quarter sets
   `?view=quarter`, survives a reload, shows the quarter's numbers (incl. the change vs the
   same span of the previous quarter) and hides the week; Back returns to the week.
+
+## Apple building blocks (after O4b)
+
+The pages still in the old card style move to the Apple building blocks of the first-run flow
+and Home — inset grouped lists, rows with a value and a chevron, sheets, switches, segmented
+controls, one button at the bottom — as shown in the owner's mock-up "libe Apple-Bausteine"
+(today vs proposal per page). Every function stays; only the form changes.
+
+| #   | Scope                                                                                       | Status  |
+| --- | ------------------------------------------------------------------------------------------- | ------- |
+| AB1 | Settings: iOS grouped list + sheets on phones, macOS System Settings layout wider, autosave | ✅ done |
+| AB2 | Quest detail and starting a focus                                                           | planned |
+| AB3 | Plan and Calendar                                                                           | planned |
+
+## AB1 — what exists
+
+Section "1 · Einstellungen" of the mock-up, as approved: Settings is no longer a long page of
+eight cards (three with their own "Save"), but iOS Settings on phones and macOS System
+Settings on wider screens — and everything saves itself.
+
+- **Phones (≤ 720px)**: the large title, then inset grouped sections. A profile row (large
+  avatar, name, "Name, avatar") opens the profile sheet. **Your day**: Daily goal ("2 h" /
+  "Off") → sheet with the first-run flow's choices (30 min, 1 h, 2 h, 3 h), "Custom duration…"
+  (hours + minutes rows; a stored custom goal shows its value on that row) and "No daily goal";
+  Rest days ("Sat, Sun", four or more as "4 days", "None") → sheet with the weekdays as a
+  checklist, the streak rule as its footer. **Focus**: Pomodoro ("25 · 5 · 15 min") → sheet
+  with the four intervals; Auto-start as a switch row. **This device**: Notifications as a
+  switch row (disabled with the install / blocked / unsupported explanation as the group
+  footer; "Send test" appears while on), Language (value) → choice sheet. **Devices**: one row
+  per device (this one first, green tile, "This device · Active now"; others grey with their
+  kind and last activity) → a device sheet: the name (saves when committed), kind, pairing
+  date, last activity and Revoke… / Sign out (then the existing confirmation). "Pair a device"
+  is the add row (the existing pairing dialog). **Desktop app** only inside the app: its rows
+  (track, status, Check for updates, restart, Change server / Unpair… with the inline
+  confirmation) — every function kept, the tauri spec's hooks (`desktop-title`,
+  `app-version`, `data-phase`, `update-track`, `managed-by-nix`) too.
+- **Wider screens**: a sidebar (profile on top, then Daily goal and streak, Focus,
+  Notifications (not in the app), Language, Devices, Desktop app (only in the app), each with
+  its small tile; the selected one on the accent like macOS, its tile translucent white) and
+  the selected section's grouped form beside it, inline (only a device's details open a
+  dialog). The section is `?section=` — client-only, so switching re-runs no `load` (links
+  replace the history entry and keep focus). `PROFILE_HREF` / `GOAL_HREF` / `STREAK_HREF`
+  point there; old `#profile` / `#goal` / `#streak` links are rewritten on arrival. On phones a
+  section link (avatar menu "Profile…", the palette) opens that section's sheet; closing it
+  drops the parameter. Without JS a phone section link shows that section's form as a page
+  with a "‹ Settings" link.
+- **One tree**: the page is server-rendered for both layouts (CSS shows one); once it runs
+  (`MediaQuery`) only the current layout stays mounted, so every field exists exactly once.
+- **Autosave** (`createAutosave`, `#lib/autosave.svelte.ts`; the queue in `#lib/autosave.ts`):
+  each editor is still a form action with `use:enhance`, so every rule stays on the server
+  (`normalizeDisplayName`/`parseAvatarColor`/`parseAvatarEmoji`, `parseDailyGoal`,
+  `parseRestDays`, `parsePomodoroSettings`, `isLanguageSetting`, `parseDeviceName`).
+  Choices, checklists, colour swatches, the segmented control and switches save on `change`;
+  text and number fields when committed — blur or Enter (Enter does not submit natively and the
+  same values are never sent twice; no saving per keystroke). One form's saves never overlap: a
+  change while a save is in flight waits, then the form is sent again with its current values
+  instead of applying the stale answer. Forms are `novalidate`: a rejected value comes back as
+  the action's `form`, the field keeps the input and shows the existing inline error, nothing
+  is saved. Steps that are not a value yet don't save: "Custom duration…" (the fields appear,
+  starting from the chosen goal) and "Emoji" before an emoji is picked (saving would mean
+  initials). Feedback: the row's value, the tick, the avatar preview, and a quiet
+  `SaveStatus` ("Saving…" → "Saved" with a check, fading; a live region) beside the pane title
+  and in the sheets — no toasts. Without JS a small Save button per form is rendered until the
+  page runs (`NoJsSave`). Auto-start saves with the stored intervals as hidden fields; the
+  interval form carries the stored auto-start.
+- **Primitives**: `GroupedNavRow` takes `tile` (iOS colour tile) and `href` (a link that works
+  without JS; `onclick` handles the tap); `GroupedList` got `multiple` (a checklist), an
+  option's `detail` and `lang`, `describedby` and a `foot` snippet; new `Switch.svelte`
+  (native checkbox, `role="switch"`), `SettingsTile`, `SaveStatus`, `NoJsSave`, and the
+  editors `ProfileEditor`, `GoalEditor`, `RestDaysEditor`, `PomodoroEditor`, `AutoStartForm`,
+  `LanguageEditor`, `NotificationsGroup` (was `NotificationsSection`), `DeviceList`.
+  `/styleguide` shows the tiles, the switch and the checklist.
+- **Tokens**: `--tile-ink`, `--tile-goal` (the accent), `--tile-streak`, `--tile-focus`,
+  `--tile-notifications`, `--tile-language`, `--tile-devices`, `--tile-neutral`, `--tile-sm`,
+  `--tile-radius(-sm)`, `--switch-*` (on = `--success`, like iOS), `--settings-sidebar`,
+  `--settings-pane-max`, `--sidebar-active-bg/-ink/-tile`.
+- **Decisions**: the sheets have no "Done" button — they close like every sheet (✕, drag,
+  backdrop), since every change is already saved; the rest days are inline on wide screens
+  (seven rows) instead of a further level; a device's details stay a dialog on wide screens
+  too (a list inside a pane has no room for rename/revoke); the restart / unpair buttons of the
+  desktop app are secondary (Settings has no filled button); the German pair row says „Gerät
+  koppeln“ and the notifications row „Benachrichtigungen“ (the app's glossary, not the
+  mock-up's „verbinden“/„Mitteilungen“); `goalChoice` takes the preset list (Settings lists
+  the first-run flow's four). Unused strings of the old page were removed.
+- **Tests**: unit `settings-sections.test.ts` (sections per device, `requestedSection` incl.
+  old anchors and the shared edit links, `restDaysSummary`, `weekdayName`), `autosave.test.ts`
+  (the save queue, `formSignature`), `daily-goal.test.ts` (`goalChoice` with presets). e2e
+  `settings.spec.ts` (`@mobile`: desktop pane, iPhone sheets, iPad): a goal, a rest day and
+  the auto-start switch save without any Save button → DB rows, the rows' values, after a
+  reload; pomodoro intervals save on Enter/blur, an out-of-range value shows its error and is
+  not stored. `profile`, `streak`, `auth` (device sheet rename/revoke/sign out, "Pair a
+  device"), `i18n` and `focus` follow the new structure (still asserting DB rows after a
+  reload); `profile` covers the old `#goal` anchor and the custom duration's intermediate
+  saves. Disabling the change listener makes both settings tests fail. The tauri spec opens
+  `?section=desktop` (not run here: needs tauri-driver).

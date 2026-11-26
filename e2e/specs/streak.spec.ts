@@ -30,6 +30,7 @@ import {
 	uid,
 	type Sql
 } from '../support/db.ts';
+import { isPhone, openSettings } from '../support/settings.ts';
 
 const GOAL = 960; // 16 h — nothing but this spec's own sessions reaches it
 const PREFIX = 'Streak e2e';
@@ -132,39 +133,40 @@ test('a rest day saved in Settings bridges a gap; seven rest days are rejected',
 	await gotoLive(page, '/');
 	await expect(chip(page)).toHaveText('1 day in a row');
 
-	await gotoLive(page, '/settings#streak');
-	await expect(page.getByTestId('streak-rule')).toHaveText(
+	const restMask = async () =>
+		(await sql`select streak_rest_days from settings where id = 1`)[0].streak_rest_days;
+	await gotoLive(page, '/settings#streak'); // the old anchor lands on the section
+	const scope = await openSettings(page, 'rest', { navigate: isPhone(page) });
+	await expect(scope.getByTestId('streak-rule')).toHaveText(
 		'A day counts toward your streak once you reach your daily goal (16 h).'
 	);
-	// All seven: at least one day has to count.
-	for (const i of [0, 1, 2, 3, 4, 5, 6])
-		await page.locator('label', { has: page.locator(`input[name=restDay][value="${i}"]`) }).click();
-	let done = actionDone(page, 'streak');
-	await page.getByRole('button', { name: 'Save rest days' }).click();
-	await done;
+	/** Every tick saves the whole set at once (no Save button). */
+	const tick = async (i: number) => {
+		const done = actionDone(page, 'streak');
+		await scope
+			.locator('label', { has: page.locator(`input[name=restDay][value="${i}"]`) })
+			.click();
+		await done;
+	};
+	await tick(gapIndex);
+	await expect.poll(restMask).toBe(1 << gapIndex);
+
+	// All seven: at least one day has to count — the seventh is rejected, six stay saved.
+	const others = [0, 1, 2, 3, 4, 5, 6].filter((i) => i !== gapIndex);
+	for (const i of others) await tick(i);
 	await expect(page.getByRole('alert')).toHaveText(
 		'Pick at most 6 rest days — at least one day a week has to count.'
 	);
-	expect((await sql`select streak_rest_days from settings where id = 1`)[0].streak_rest_days).toBe(
-		0
-	);
+	expect(await restMask()).toBe(0b111_1111 & ~(1 << others[5]));
 
-	// Only the gap's weekday stays checked (the rejected input was echoed).
-	for (const i of [0, 1, 2, 3, 4, 5, 6])
-		if (i !== gapIndex)
-			await page
-				.locator('label', { has: page.locator(`input[name=restDay][value="${i}"]`) })
-				.click();
-	await expect(page.getByRole('checkbox', { name: weekdayName(gap) })).toBeChecked();
-	done = actionDone(page, 'streak');
-	await page.getByRole('button', { name: 'Save rest days' }).click();
-	await done;
-	await expect
-		.poll(async () => (await sql`select streak_rest_days from settings where id = 1`)[0])
-		.toEqual({ streak_rest_days: 1 << gapIndex });
+	// Back to only the gap's weekday (the rejected input was echoed, so it starts at seven).
+	for (const i of others) await tick(i);
+	await expect(scope.getByRole('checkbox', { name: weekdayName(gap) })).toBeChecked();
+	await expect.poll(restMask).toBe(1 << gapIndex);
 
 	await reloadLive(page);
-	await expect(page.getByRole('checkbox', { name: weekdayName(gap) })).toBeChecked();
+	const after = await openSettings(page, 'rest', { navigate: isPhone(page) });
+	await expect(after.getByRole('checkbox', { name: weekdayName(gap) })).toBeChecked();
 	await gotoLive(page, '/');
 	await expect(chip(page)).toHaveText('2 days in a row');
 

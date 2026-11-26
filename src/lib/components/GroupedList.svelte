@@ -12,8 +12,12 @@
 	 *   radios, one row each, the selected row marked with a checkmark. It submits without JS,
 	 *   arrow keys move the selection and screen readers announce a radio group named by the
 	 *   header (or `label`).
+	 * - **Checklist**: `options` + `name` + `multiple` (+ bindable `values`) — native checkboxes,
+	 *   every checked row ticked (iOS's multiple choice, e.g. rest days).
+	 *
+	 * An option may carry a muted `detail` before the tick and a `lang` for its label.
 	 */
-	type Option = { value: string; label: string };
+	type Option = { value: string; label: string; detail?: string; lang?: string };
 	type Props = {
 		header?: string;
 		footer?: string;
@@ -23,26 +27,52 @@
 		/** Form field name of the choice. */
 		name?: string;
 		value?: string;
+		/** Checklist instead of a single choice. */
+		multiple?: boolean;
+		values?: string[];
+		/** Extra description (e.g. an error) besides the footer. */
+		describedby?: string;
+		/** Footer as a snippet (rich text, a live status) instead of `footer`. */
+		foot?: Snippet;
 		children?: Snippet;
 	};
-	let { header, footer, label, options, name, value = $bindable(), children }: Props = $props();
+	let {
+		header,
+		footer,
+		label,
+		options,
+		name,
+		value = $bindable(),
+		multiple = false,
+		values = $bindable([]),
+		describedby,
+		foot,
+		children
+	}: Props = $props();
 	const id = $props.id();
-	const footId = $derived(footer ? `${id}-foot` : undefined);
+	const footId = $derived(footer || foot ? `${id}-foot` : undefined);
+	const described = $derived([footId, describedby].filter(Boolean).join(' ') || undefined);
 </script>
 
 {#if options}
-	<fieldset class="grouped" aria-describedby={footId}>
+	<fieldset class="grouped" aria-describedby={described}>
 		<legend class={header ? 'head' : 'sr-only'}>{header ?? label}</legend>
 		<div class="rows">
 			{#each options as option (option.value)}
 				<label class="choice">
-					<input type="radio" {name} value={option.value} bind:group={value} />
-					<span class="text">{option.label}</span>
+					{#if multiple}
+						<input type="checkbox" {name} value={option.value} bind:group={values} />
+					{:else}
+						<input type="radio" {name} value={option.value} bind:group={value} />
+					{/if}
+					<span class="text" lang={option.lang}>{option.label}</span>
+					{#if option.detail}<span class="detail">{option.detail}</span>{/if}
 					<span class="check" aria-hidden="true"><Check size={20} strokeWidth={2.5} /></span>
 				</label>
 			{/each}
+			{@render children?.()}
 		</div>
-		{#if footer}<p class="foot" id={footId}>{footer}</p>{/if}
+		{@render footer_()}
 	</fieldset>
 {:else}
 	<div
@@ -50,13 +80,21 @@
 		role="group"
 		aria-labelledby={header ? `${id}-head` : undefined}
 		aria-label={header ? undefined : label}
-		aria-describedby={footId}
+		aria-describedby={described}
 	>
 		{#if header}<div class="head" id="{id}-head">{header}</div>{/if}
 		<div class="rows">{@render children?.()}</div>
-		{#if footer}<p class="foot" id={footId}>{footer}</p>{/if}
+		{@render footer_()}
 	</div>
 {/if}
+
+{#snippet footer_()}
+	{#if foot}
+		<div class="foot" id={footId}>{@render foot()}</div>
+	{:else if footer}
+		<p class="foot" id={footId}>{footer}</p>
+	{/if}
+{/snippet}
 
 <style>
 	.grouped {
@@ -133,8 +171,14 @@
 		box-shadow: inset 0 0 0 2px var(--focus-ring);
 	}
 	.text {
+		flex: 1;
 		min-width: 0;
 		overflow-wrap: anywhere;
+	}
+	.detail {
+		flex: none;
+		color: var(--text-muted);
+		font-size: var(--fs-sm);
 	}
 	.check {
 		display: inline-flex;

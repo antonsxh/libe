@@ -523,10 +523,7 @@ export const en = {
 	},
 	settings: {
 		title: 'Settings',
-		subtitle:
-			'Profile, daily goal, streak, paired devices, focus timer, notifications and language.',
 		profile: 'Profile',
-		profileDesc: 'Your name and avatar — the same on all your devices.',
 		displayName: 'Name',
 		displayNamePlaceholder: 'Your name',
 		displayNameHint: `Optional, up to ${DISPLAY_NAME_MAX} characters. Leave it empty for no name.`,
@@ -542,12 +539,9 @@ export const en = {
 			'How much time you want to log each day. A ring at Home in the navigation fills up as you go.',
 		goal: 'Goal',
 		goalOff: 'No daily goal',
-		goalCustom: 'Custom…',
 		goalHours: 'Hours',
 		goalMinutes: 'Minutes',
 		goalHint: `From ${duration(0, DAILY_GOAL_MIN)} to ${duration(DAILY_GOAL_MAX / 60, 0)}, in ${DAILY_GOAL_STEP}-minute steps.`,
-		saveGoal: 'Save goal',
-		goalSaved: 'Daily goal saved.',
 		streak: 'Streak',
 		/** `threshold`: "1 h" — the daily goal, or the fallback while none is set. */
 		streakRuleGoal: (threshold: string) =>
@@ -558,31 +552,19 @@ export const en = {
 			'Past days are judged with the current goal, so changing it recounts your streak.',
 		restDays: 'Rest days',
 		restDaysHint: `Rest days never break a streak: without enough time they are skipped, with enough time they still count. Up to ${MAX_REST_DAYS} a week.`,
-		restDayToggle: (weekday: string) => `${weekday} is a rest day`,
-		saveRestDays: 'Save rest days',
-		restDaysSaved: 'Rest days saved.',
-		saveProfile: 'Save profile',
-		profileSaved: 'Profile saved.',
 		devices: 'Devices',
 		devicesDesc:
 			'Every browser, home-screen app and desktop app that can open libe. Revoke one to sign it out everywhere at once.',
-		pairNew: 'Pair new device',
 		deviceName: 'Device name',
 		thisDevice: 'This device',
 		paired: (date: string) => `Paired ${date}`,
 		activeNow: 'Active now',
 		lastSeen: (ago: string) => `Last seen ${ago}`,
 		neverSeen: 'Never seen',
-		rename: 'Rename…',
 		signOut: 'Sign out',
 		revokeMenu: 'Revoke…',
 		revoke: 'Revoke',
 		kinds: { browser: 'Browser', pwa: 'Home-screen app', tauri: 'Desktop app' },
-		focusTimer: 'Focus timer',
-		pomodoroSummary: (focus: number, short: number, long: number, every: number) =>
-			`Pomodoro: ${focus} min focus · ${short} min break · ${long} min long break every ${every} rounds`,
-		autoStart: ' · auto-start',
-		pomodoroSettings: 'Pomodoro settings',
 		confirmSignOutTitle: 'Sign out this device?',
 		confirmRevokeTitle: 'Revoke device?',
 		confirmSignOut:
@@ -591,11 +573,8 @@ export const en = {
 		notifications: {
 			title: 'Notifications',
 			desc: 'A short note on this device when a timer phase ends, and today’s open tasks on the app icon.',
-			turnOn: 'Turn on notifications',
-			turnOff: 'Turn off',
 			sendTest: 'Send test',
 			sent: 'Sent',
-			on: 'On for this device.',
 			install:
 				'Add libe to your Home Screen to get notifications: tap Share, then “Add to Home Screen”.',
 			unsupported: 'This browser can’t receive notifications from libe.',
@@ -608,6 +587,38 @@ export const en = {
 		language: 'Language',
 		languageDesc:
 			'For libe on all your devices. “System default” follows each browser’s language settings.',
+		/** AB1: the grouped list (phones) and the sidebar (wider screens). */
+		sections: {
+			profile: 'Profile',
+			goal: 'Daily goal and streak',
+			focus: 'Focus',
+			notifications: 'Notifications',
+			language: 'Language',
+			devices: 'Devices',
+			desktop: 'Desktop app'
+		},
+		sectionsLabel: 'Settings sections',
+		profileRowHint: 'Name, avatar',
+		yourDay: 'Your day',
+		goalCustomRow: 'Custom duration…',
+		/** Daily goal row's value while there is no goal. */
+		goalOffValue: 'Off',
+		restNone: 'None',
+		restDaysCount: (n: number) => `${n} days`,
+		focusGroup: 'Focus',
+		pomodoro: 'Pomodoro',
+		/** Pomodoro row's value: focus · short break · long break. */
+		pomodoroValue: (focus: number, short: number, long: number) =>
+			`${focus} · ${short} · ${long} min`,
+		autoStartRow: 'Auto-start',
+		autoStartDesc: 'Breaks and the next round start by themselves.',
+		pairRow: 'Pair a device',
+		deviceKind: 'Type',
+		devicePaired: 'Paired',
+		deviceLastSeen: 'Last seen',
+		/** Autosave status (no Save buttons in Settings). */
+		saving: 'Saving…',
+		saved: 'Saved',
 		languageOptions: { auto: 'System default', en: 'English', de: 'Deutsch' },
 		pair: {
 			title: 'Pair a new device',

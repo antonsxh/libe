@@ -4,7 +4,9 @@
 
 	/**
 	 * A navigation row of a `GroupedList` (iOS Settings style): an icon tile, the label, a value
-	 * or a count badge, and a chevron. A button — it opens a sheet or moves on (`onclick`).
+	 * or a count badge, and a chevron. A button — it opens a sheet or moves on (`onclick`). With
+	 * `href` it is a link (works without JS); `onclick` then handles the tap instead.
+	 * `tile` colours the icon tile like iOS Settings (a `--tile-*` role token).
 	 */
 	type Props = {
 		label: string;
@@ -19,25 +21,63 @@
 		/** Opens a dialog (`aria-haspopup`). */
 		dialog?: boolean;
 		testid?: string;
-		onclick: () => void;
+		/** Link target (no-JS fallback); a tap calls `onclick` instead when given. */
+		href?: string;
+		/** Colour of the icon tile, e.g. `var(--tile-goal)`; default: the neutral raised tile. */
+		tile?: string;
+		onclick?: () => void;
 	};
-	let { label, ariaLabel, value, count, icon, dialog = false, testid, onclick }: Props = $props();
+	let {
+		label,
+		ariaLabel,
+		value,
+		count,
+		icon,
+		dialog = false,
+		testid,
+		href,
+		tile,
+		onclick
+	}: Props = $props();
 </script>
 
-<button
-	type="button"
-	class="nav-row press"
-	aria-label={ariaLabel}
-	aria-haspopup={dialog ? 'dialog' : undefined}
-	data-testid={testid}
-	{onclick}
->
-	<span class="tile" aria-hidden="true">{@render icon()}</span>
+{#snippet content()}
+	<span class="tile" class:coloured={tile} style:--tile-bg={tile} aria-hidden="true">
+		{@render icon()}
+	</span>
 	<span class="text">{label}</span>
 	{#if value}<span class="value">{value}</span>{/if}
 	{#if count}<span class="badge tabular">{count}</span>{/if}
 	<ChevronRight size={16} class="chev" aria-hidden="true" />
-</button>
+{/snippet}
+
+{#if href}
+	<a
+		{href}
+		class="nav-row press"
+		aria-label={ariaLabel}
+		aria-haspopup={dialog ? 'dialog' : undefined}
+		data-testid={testid}
+		onclick={(e) => {
+			if (!onclick) return;
+			e.preventDefault();
+			onclick();
+		}}
+	>
+		{@render content()}
+	</a>
+{:else}
+	<button
+		type="button"
+		class="nav-row press"
+		aria-label={ariaLabel}
+		aria-haspopup={dialog ? 'dialog' : undefined}
+		data-testid={testid}
+		{onclick}
+	>
+		{@render content()}
+	</button>
+{/if}
 
 <style>
 	.nav-row {
@@ -52,6 +92,7 @@
 		color: var(--text);
 		font-size: var(--fs-md);
 		text-align: left;
+		text-decoration: none;
 		-webkit-tap-highlight-color: transparent;
 		transition: background var(--dur) var(--ease);
 	}
@@ -72,6 +113,11 @@
 		border-radius: var(--radius-md);
 		background: var(--surface-2);
 		color: var(--text-2);
+	}
+	.tile.coloured {
+		border-radius: var(--tile-radius);
+		background: var(--tile-bg);
+		color: var(--tile-ink);
 	}
 	.text {
 		flex: none;

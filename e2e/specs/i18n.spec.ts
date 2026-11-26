@@ -38,7 +38,7 @@ test.beforeEach(async ({ sql }) => setLanguage(sql, 'auto'));
 test.afterEach(async ({ sql }) => setLanguage(sql, 'auto'));
 
 test('Settings → Language: Deutsch persists and applies to every page', async ({ page, sql }) => {
-	await gotoLive(page, '/settings');
+	await gotoLive(page, '/settings?section=language');
 	const done = actionDone(page, 'language');
 	await pick(page, 'Deutsch');
 	await done;
@@ -56,7 +56,7 @@ test('Settings → Language: Deutsch persists and applies to every page', async 
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText(GERMAN_DAY);
 
 	// The same browser (en-US) is back to English once the choice is "System default".
-	await gotoLive(page, '/settings');
+	await gotoLive(page, '/settings?section=language');
 	await expect(page.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
 	const back = actionDone(page, 'language');
 	await pick(page, 'Systemstandard');

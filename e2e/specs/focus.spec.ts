@@ -249,9 +249,10 @@ test('pomodoro settings persist; without auto-start a finished round waits for i
 	expect((await active(sql)).map((s) => s.source)).toEqual(['pomodoro']);
 
 	// The Settings page shows the same (global) settings.
-	await gotoLive(page, '/settings');
-	await expect(page.getByText(/Pomodoro: 20 min focus/)).toBeVisible();
-	await expect(page.getByText(/auto-start/)).toHaveCount(0);
+	await gotoLive(page, '/settings?section=focus');
+	const pane = page.getByRole('region', { name: 'Focus' });
+	await expect(pane.getByLabel('Focus', { exact: true })).toHaveValue('20');
+	await expect(pane.getByRole('switch', { name: 'Auto-start' })).not.toBeChecked();
 });
 
 test('with auto-start a pomodoro rolls through the break into round 2 and every tab sees it', async ({

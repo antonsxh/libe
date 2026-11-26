@@ -267,6 +267,30 @@
 	--done-check: 60px; /* the "All done" card's check circle (O4a) */
 	--done-halo-w: 8px; /* … and its soft ring */
 
+	/* ── Settings (AB1): iOS symbol tiles, switches, the macOS-style sidebar ── */
+	--tile-ink: #ffffff; /* the symbol on a coloured tile */
+	--tile-goal: var(--accent); /* Daily goal (and the "Daily goal and streak" section) */
+	--tile-streak: var(--streak); /* Rest days */
+	--tile-focus: var(--quest-red); /* Pomodoro, the Focus section */
+	--tile-notifications: var(--quest-red);
+	--tile-language: var(--quest-blue);
+	--tile-devices: var(--success); /* Devices, this device */
+	--tile-neutral: var(--bar-muted); /* Auto-start, other devices, the desktop app */
+	--tile-sm: 22px; /* the sidebar's tiles (rows use --row-icon) */
+	--tile-radius: 7px;
+	--tile-radius-sm: 6px;
+	--switch-w: 51px; /* iOS switch */
+	--switch-h: 31px;
+	--switch-on: var(--success);
+	--switch-off: var(--bar-muted);
+	--switch-knob: #ffffff;
+	--switch-knob-shadow: 0 2px 4px rgb(var(--shadow-color) / 0.3);
+	--settings-sidebar: 240px; /* wider screens: the section list */
+	--settings-pane-max: 640px; /* … and the selected section's form beside it */
+	--sidebar-active-bg: var(--accent); /* the selected section, like macOS */
+	--sidebar-active-ink: var(--accent-ink);
+	--sidebar-active-tile: color-mix(in srgb, var(--accent-ink) 22%, transparent);
+
 	/* ── Hatching (planned blocks, calendar entries) ──────── */
 	--hatch-angle: 135deg;
 	--hatch-line: 2px;
