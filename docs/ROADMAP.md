@@ -2016,7 +2016,7 @@ controls, one button at the bottom — as shown in the owner's mock-up "libe App
 | #   | Scope                                                                                       | Status  |
 | --- | ------------------------------------------------------------------------------------------- | ------- |
 | AB1 | Settings: iOS grouped list + sheets on phones, macOS System Settings layout wider, autosave | ✅ done |
-| AB2 | Quest detail and starting a focus                                                           | planned |
+| AB2 | Quest detail and starting a focus                                                           | ✅ done |
 | AB3 | Plan and Calendar                                                                           | planned |
 
 ## AB1 — what exists
@@ -2100,3 +2100,60 @@ Settings on wider screens — and everything saves itself.
   reload); `profile` covers the old `#goal` anchor and the custom duration's intermediate
   saves. Disabling the change listener makes both settings tests fail. The tauri spec opens
   `?section=desktop` (not run here: needs tauri-driver).
+
+## AB2 — what exists
+
+Sections "2 · Quest-Detail" and "4 · Fokus starten" of the mock-up, as approved: both pages
+move from cards and boxes to the Apple building blocks; every function stays.
+
+- **Quest detail** (`/quests/[id]`): a toolbar ("‹ Quests" in `--accent-text`, "Edit" opening
+  the existing quest dialog), the emoji in a tile tinted with the quest colour, the name as
+  the global large title in white (no more coloured title), the description muted under it,
+  "Closed" for a closed quest. A summary card: this week's hours as the figure, "/ 10h this
+  week" and a bar in the quest colour (only with a budget), "71.7h this quarter · 88% of
+  target" (the percentage only with a budget; the target is budget × elapsed weeks, the
+  Review's rule) — pure `questSummary` (`#lib/quest-detail.ts`), the hours from one query
+  (`questDetailTime`, `server/stats.ts`, the stats attribution). Then **Backlog** and
+  **Scheduled** as inset grouped lists of `QuestTaskRow` (round check in the quest colour,
+  the title struck when done): backlog rows show the planned duration and a ⋯ menu (↑/↓,
+  Today, Tomorrow, Delete — the new actions `today` / `tomorrow` move a backlog task onto that
+  day), "+ Add to backlog…" is the list's last row (`TaskAddForm row`, no quest picker);
+  scheduled rows show "Mon, Nov 23 · 1 h 30 min planned" (logged time wins, like Home). The
+  column is `--detail-col` (720px) on wide screens.
+- **Focus setup** (`/focus` without a timer): a toolbar ("‹ Back" to the page we came from,
+  the Pomodoro settings as an icon), the title "What are you working on?", Focus | Pomodoro as
+  a `SegmentedControl`, the tasks as `GroupedList` choices with a tick (the first-run flow's
+  pattern) in two groups — Today (quest work, then Other, like Home's one list) and Backlog —
+  each row a title over "● Quest · 45 min planned" (`optionRow`). The duration is a segmented
+  control 25 · 45 · 60 · 90 · Open · Other…: the task's planned minutes are preselected (a
+  preset, else "Other…" with its minutes; no plan = 25), picking another task resets it,
+  "Open" is the stopwatch, "Other…" unfolds a minutes row (CSS `:has`, so also without JS).
+  Pomodoro shows its intervals with "Change". A full-width "Start focus" with "Log time
+  afterwards…" under it; on phones it sticks to the bottom (thumb zone). The column is
+  `--focus-setup-w` (480px).
+- **Without JS** the setup posts `duration` (+ `customMin`) to `/api/timer`;
+  `withPlannedChoice` (`#lib/focus-setup.ts`) folds them into `plannedMin`, so
+  `parseTimerCommand` validates it like any input (an unknown choice is rejected).
+- **Primitives**: `GroupedList` got `optionRow` (a snippet rendering an option's row content;
+  the tick stays), shown in `/styleguide`. `QuestTaskRow` replaces the old `TaskRow` card. The
+  quest dialog's "update" action is shared by Quests and the quest detail
+  (`updateQuestAction`, `server/quest-actions.ts`).
+- **Tokens**: `--detail-col`, `--detail-tile`, `--detail-tile-tint`, `--fs-detail-tile`,
+  `--track-raised` (a bar's track on a card), `--focus-setup-w`.
+- **Decisions**: "Other…" is a sixth segment that unfolds a minutes row, not an item in a menu
+  (a segmented control has no menu, and this works without JS); scheduled rows say
+  "planned" / "logged" after the duration (the durations rule — the mock-up showed the bare
+  duration); the old "Today · Quest work" / "Today · Other" groups became one "Today"; picks
+  (task, mode, duration) survive background refreshes (SSE, other tabs) — the selection
+  follows `?task=` and the task's plan only until the user picks. Unused strings
+  (`plannedMinutes`, `openEnded`, `plannedHint`, `start`, `allQuests`, the two today groups)
+  were removed.
+- **Tests**: unit `focus-setup.test.ts` (`initialDuration`, `plannedMinFor`,
+  `isDurationChoice`, `withPlannedChoice`) and `quest-detail.test.ts` (`questSummary` with and
+  without a budget, over budget, closed). e2e `focus.spec.ts`: the picked task and duration
+  decide the session's planned minutes (`@mobile`; DB row; a preset plan preselected, Open =
+  stopwatch), "Other…" shows a non-preset plan and out-of-range minutes are rejected by the
+  server and start nothing; the pomodoro and no-JS tests follow the new setup.
+  `quests.spec.ts`: the add row and every ⋯ action persist after a reload (`@mobile`: order,
+  Today, Tomorrow, Delete, done), scheduled tasks are listed with their plan; the summary
+  matches the logged sessions against the budget and Edit saves the quest.

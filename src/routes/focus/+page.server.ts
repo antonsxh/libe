@@ -42,9 +42,9 @@ export const load = (async ({ url, locals }) => {
 		listOtherBacklog()
 	]);
 	const open = (list: TaskWithQuest[]) => list.filter((t) => t.doneAt === null).map(pick);
+	// Today: quest work, then Other (like Home's one list); then the backlog.
 	const groups = [
-		{ key: 'today-quest', label: g.todayQuest, tasks: open(questToday) },
-		{ key: 'today-other', label: g.todayOther, tasks: open(otherToday) },
+		{ key: 'today', label: g.today, tasks: open([...questToday, ...otherToday]) },
 		{ key: 'backlog', label: g.backlog, tasks: open([...questBacklog, ...otherBacklog]) }
 	];
 

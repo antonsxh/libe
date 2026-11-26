@@ -13,6 +13,7 @@ import {
 	updatePomodoroSettings
 } from '#lib/server/timer.ts';
 import { parseTimerCommand, type TimerCommand, type TimerSnapshot } from '#lib/timer.ts';
+import { withPlannedChoice } from '#lib/focus-setup.ts';
 import { i18n } from '#lib/i18n/index.ts';
 import type { RequestHandler } from './$types';
 
@@ -62,7 +63,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	let raw: Record<string, unknown>;
 	try {
 		raw = isForm
-			? Object.fromEntries(await request.formData())
+			? // The Focus setup without JS posts its duration choice (`duration`, `customMin`).
+				withPlannedChoice(Object.fromEntries(await request.formData()))
 			: ((await request.json()) as Record<string, unknown>);
 	} catch {
 		error(400, t.errors.invalidBody);

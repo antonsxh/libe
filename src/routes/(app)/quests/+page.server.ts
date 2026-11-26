@@ -1,17 +1,13 @@
-import { fail } from '@sveltejs/kit';
 import { isUuid } from '#lib/ids.ts';
-import { parseQuestForm, questFormEcho, validateQuestForm } from '#lib/quest-form.ts';
 import { questHours } from '#lib/server/stats.ts';
-import { createQuestAction } from '#lib/server/quest-actions.ts';
+import { createQuestAction, updateQuestAction } from '#lib/server/quest-actions.ts';
 import {
 	deleteQuest,
 	listClosedQuests,
 	listOpenQuests,
 	moveQuest,
-	setQuestClosed,
-	updateQuest
+	setQuestClosed
 } from '#lib/server/quests.ts';
-import { i18n } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
@@ -26,19 +22,7 @@ export const load: PageServerLoad = async () => {
 export const actions = {
 	create: createQuestAction,
 
-	update: async ({ request, locals }) => {
-		const formData = await request.formData();
-		const questId = String(formData.get('questId') ?? '');
-		const fields = parseQuestForm(formData);
-		const result = validateQuestForm(fields);
-		const { errors } = i18n(locals.locale);
-		if (!isUuid(questId))
-			return fail(400, questFormEcho('update', fields, { name: 'questUnknown' }, errors));
-		if (!result.ok) return fail(400, questFormEcho('update', fields, result.errors, errors));
-		const quest = await updateQuest(questId, result.draft);
-		if (!quest) return fail(404, questFormEcho('update', fields, { name: 'questGone' }, errors));
-		return { intent: 'update', ok: true, questId: quest.id };
-	},
+	update: updateQuestAction,
 
 	close: async ({ request }) => {
 		const questId = String((await request.formData()).get('questId') ?? '');

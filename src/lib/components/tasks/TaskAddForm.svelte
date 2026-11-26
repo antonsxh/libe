@@ -337,6 +337,10 @@
 		background: var(--surface-2);
 		border-color: transparent;
 	}
+	/* Without a quest picker (a quest's own backlog) the duration starts line 2 under the title. */
+	.add.row:not(:has(> .pick)) > .duration {
+		margin-left: calc(var(--row-check) + var(--space-3));
+	}
 	.add.row:not(.unfolded, :focus-within) > .pick,
 	.add.row:not(.unfolded, :focus-within) > .duration,
 	.add.row:not(.unfolded, :focus-within) > :global(.btn) {

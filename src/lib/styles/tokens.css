@@ -291,6 +291,14 @@
 	--sidebar-active-ink: var(--accent-ink);
 	--sidebar-active-tile: color-mix(in srgb, var(--accent-ink) 22%, transparent);
 
+	/* ── Quest detail and Focus setup (AB2) ── */
+	--detail-col: 720px; /* the quest detail's column on wide screens */
+	--detail-tile: 56px; /* the quest detail's emoji tile */
+	--detail-tile-tint: 22%; /* … tinted with the quest colour over --surface */
+	--fs-detail-tile: 1.75rem; /* 28  the emoji in it */
+	--track-raised: var(--border-strong); /* a bar's empty track on a --surface card */
+	--focus-setup-w: 480px; /* the Focus setup's column on wide screens */
+
 	/* ── Hatching (planned blocks, calendar entries) ──────── */
 	--hatch-angle: 135deg;
 	--hatch-line: 2px;

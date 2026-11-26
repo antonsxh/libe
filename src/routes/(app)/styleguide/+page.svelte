@@ -52,6 +52,13 @@
 	let sampleSegment = $state('25');
 	let sampleSwitch = $state(true);
 	let sampleDays = $state(['5', '6']);
+	let sampleTask = $state('a');
+	// `optionRow` sample: a title over a detail line with the quest dot (the Focus setup's tasks).
+	const sampleTasks: Record<string, { quest: string; color: string; meta: string }> = {
+		a: { quest: 'Write the thesis', color: 'blue', meta: '45 min planned' },
+		b: { quest: 'Learn Japanese', color: 'orange', meta: '25 min planned' },
+		c: { quest: 'Other', color: 'slate', meta: '' }
+	};
 </script>
 
 <svelte:head><title>Styleguide · libe</title></svelte:head>
@@ -204,8 +211,31 @@
 			]}
 			bind:values={sampleDays}
 		/>
+		<GroupedList
+			header="Choice with optionRow"
+			footer="optionRow renders each row's content; the checkmark stays."
+			name="sg-task"
+			options={[
+				{ value: 'a', label: 'Outline chapter 2' },
+				{ value: 'b', label: 'Review flashcards' },
+				{ value: 'c', label: 'Answer emails' }
+			]}
+			bind:value={sampleTask}
+			optionRow={taskOption}
+		/>
 	</div>
 </section>
+
+{#snippet taskOption(option: { value: string; label: string })}
+	{@const task = sampleTasks[option.value]}
+	<span class="opt-row" style:--q={questColorVar(task.color)}>
+		<span class="opt-title">{option.label}</span>
+		<span class="opt-sub">
+			<span class="opt-dot" aria-hidden="true"></span>
+			{task.meta ? `${task.quest} · ${task.meta}` : task.quest}
+		</span>
+	</span>
+{/snippet}
 
 <section>
 	<h2 class="label">Empty state</h2>
@@ -346,6 +376,29 @@
 		grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
 		gap: var(--space-6);
 		max-width: 760px;
+	}
+	.opt-row {
+		display: grid;
+		gap: 1px;
+		min-width: 0;
+	}
+	.opt-title {
+		color: var(--text);
+		font-size: var(--fs-md);
+	}
+	.opt-sub {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+	}
+	.opt-dot {
+		flex: none;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--q);
 	}
 	.caption {
 		margin: var(--space-4) 0 var(--space-2);

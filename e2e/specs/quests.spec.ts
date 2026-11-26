@@ -215,53 +215,122 @@ test('⋯ Delete quest asks first, then deletes its tasks and logged time', asyn
 	expect(left).toEqual({ quests: 0, tasks: 0, sessions: 0 });
 });
 
-test('quest page: backlog add / reorder / done / delete persist; scheduled tasks are listed', async ({
+test('quest detail: the add row and every ⋯ action persist; scheduled tasks are listed @mobile', async ({
 	page,
 	sql
 }) => {
 	const quest = await createQuest(sql, { name: `Backlog quest ${uid()}` });
 	const day = addDays(await today(sql), 2);
-	await createTask(sql, { title: 'Already scheduled', questId: quest.id, day });
+	await createTask(sql, { title: 'Already scheduled', questId: quest.id, day, durationMin: 90 });
 	await gotoLive(page, `/quests/${quest.id}`);
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText(quest.name);
 
-	const add = page.locator('form.add');
-	for (const [title, min] of [
-		['First idea', '20'],
-		['Second idea', '']
-	]) {
-		await add.getByPlaceholder('Add to backlog…').fill(title);
-		await add.getByLabel('Duration in minutes (optional)').fill(min);
-		const done = actionDone(page, 'add');
-		await add.getByRole('button', { name: 'Add' }).click();
-		await done;
-	}
-	const rows = page.locator('.tasks').first().locator('li.task');
-	await expect(rows.locator('.title')).toHaveText(['First idea', 'Second idea']);
-	const stored = await sql`
-		select title, day, duration_min, kind from tasks where quest_id = ${quest.id} and day is null
-		order by sort_order`;
-	expect(stored).toEqual([
-		{ title: 'First idea', day: null, duration_min: 20, kind: 'quest' },
-		{ title: 'Second idea', day: null, duration_min: null, kind: 'quest' }
+	// "+ Add to backlog…": Enter appends, Shift+Enter puts it on top; the duration is optional.
+	const add = page.locator('form.add[data-intent=add]');
+	const title = add.getByPlaceholder('Add to backlog…');
+	await title.fill('First idea');
+	await add.getByLabel('Duration in minutes (optional)').fill('20');
+	let done = actionDone(page, 'add');
+	await title.press('Enter');
+	await done;
+	await title.fill('Second idea');
+	done = actionDone(page, 'add');
+	await title.press('Enter');
+	await done;
+	await title.fill('Top idea');
+	done = actionDone(page, 'add');
+	await title.press('Shift+Enter');
+	await done;
+
+	const backlog = page.getByTestId('quest-backlog').locator('li.task');
+	await expect(backlog.locator('.title')).toHaveText(['Top idea', 'First idea', 'Second idea']);
+	expect(
+		await sql`
+		select title, duration_min, kind from tasks where quest_id = ${quest.id} and day is null
+		order by sort_order`
+	).toEqual([
+		{ title: 'Top idea', duration_min: null, kind: 'quest' },
+		{ title: 'First idea', duration_min: 20, kind: 'quest' },
+		{ title: 'Second idea', duration_min: null, kind: 'quest' }
 	]);
 
-	await rows.filter({ hasText: 'First idea' }).getByRole('button', { name: 'Move down' }).click();
-	await expect(rows.locator('.title')).toHaveText(['Second idea', 'First idea']);
-	await rows
-		.filter({ hasText: 'Second idea' })
+	const actionName: Record<string, string> = {
+		'Move down': 'moveDown',
+		'Move up': 'moveUp',
+		'Move to today': 'today',
+		'Move to tomorrow': 'tomorrow',
+		Delete: 'delete'
+	};
+	const act = async (task: string, item: string) => {
+		await backlog
+			.filter({ hasText: task })
+			.getByRole('button', { name: `Actions for ${task}` })
+			.click();
+		const answered = actionDone(page, actionName[item]);
+		await page.getByRole('menuitem', { name: item, exact: true }).click();
+		await answered;
+	};
+	await act('Top idea', 'Move down');
+	await expect(backlog.locator('.title')).toHaveText(['First idea', 'Top idea', 'Second idea']);
+	await act('Second idea', 'Move up');
+	await expect(backlog.locator('.title')).toHaveText(['First idea', 'Second idea', 'Top idea']);
+	await act('First idea', 'Move to today');
+	await act('Second idea', 'Move to tomorrow');
+	await act('Top idea', 'Delete');
+	await expect(backlog).toHaveCount(0);
+
+	// The check ring marks a scheduled task done (struck).
+	const scheduled = page.getByTestId('quest-scheduled').locator('li.task');
+	await scheduled
+		.filter({ hasText: 'First idea' })
 		.getByRole('button', { name: 'Mark as done' })
 		.click();
-	await expect(rows.filter({ hasText: 'Second idea' })).toHaveClass(/done/);
-	await rows.filter({ hasText: 'First idea' }).getByRole('button', { name: 'Delete task' }).click();
-	await expect(rows).toHaveCount(1);
+	await expect(scheduled.filter({ hasText: 'First idea' })).toHaveClass(/done/);
 
 	await reloadLive(page);
-	await expect(rows.locator('.title')).toHaveText(['Second idea']);
-	const [second] =
-		await sql`select done_at from tasks where quest_id = ${quest.id} and title = 'Second idea'`;
-	expect(second.done_at).not.toBeNull();
-	await expect(page.locator('li.sched')).toHaveText([/Already scheduled/]);
+	const t0 = await today(sql);
+	const rows = await sql`
+		select title, day, done_at is not null as done from tasks where quest_id = ${quest.id}
+		order by day, title`;
+	expect(rows).toEqual([
+		{ title: 'First idea', day: t0, done: true },
+		{ title: 'Second idea', day: addDays(t0, 1), done: false },
+		{ title: 'Already scheduled', day, done: false }
+	]);
+	await expect(scheduled.locator('.title')).toHaveText([
+		'First idea',
+		'Second idea',
+		'Already scheduled'
+	]);
+	await expect(scheduled.filter({ hasText: 'First idea' })).toHaveClass(/done/);
+	await expect(scheduled.filter({ hasText: 'Already scheduled' })).toContainText(
+		'1 h 30 min planned'
+	);
+	await expect(page.getByTestId('quest-backlog')).toContainText('Nothing in the backlog yet');
+});
+
+test('quest detail: the summary shows this week against the budget; Edit saves the quest', async ({
+	page,
+	sql
+}) => {
+	const quest = await createQuest(sql, { name: `Detail quest ${uid()}`, budgetH: 4 });
+	const task = await createTask(sql, { title: `Detail task ${uid()}`, questId: quest.id });
+	await createSession(sql, { taskId: task.id, day: await today(sql), start: '00:10', minutes: 90 });
+	await gotoLive(page, `/quests/${quest.id}`);
+	await expect(page.getByTestId('quest-summary')).toContainText(/1\.5h\s*\/ 4h this week/);
+
+	await page.getByRole('button', { name: 'Edit', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Edit quest' });
+	await dialog.getByLabel('Weekly budget').fill('2');
+	const done = actionDone(page, 'update');
+	await dialog.getByRole('button', { name: 'Save' }).click();
+	await done;
+	await expect(dialog).toBeHidden();
+	await reloadLive(page);
+	await expect(page.getByTestId('quest-summary')).toContainText(/1\.5h\s*\/ 2h this week/);
+	expect((await sql`select weekly_budget_h from quests where id = ${quest.id}`)[0]).toEqual({
+		weekly_budget_h: 2
+	});
 });
 
 test('unknown or malformed quest ids are a 404', async ({ page, console }) => {
