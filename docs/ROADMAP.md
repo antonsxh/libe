@@ -2017,7 +2017,7 @@ controls, one button at the bottom — as shown in the owner's mock-up "libe App
 | --- | ------------------------------------------------------------------------------------------- | ------- |
 | AB1 | Settings: iOS grouped list + sheets on phones, macOS System Settings layout wider, autosave | ✅ done |
 | AB2 | Quest detail and starting a focus                                                           | ✅ done |
-| AB3 | Plan and Calendar                                                                           | planned |
+| AB3 | Plan and Calendar, red now line                                                             | ✅ done |
 
 ## AB1 — what exists
 
@@ -2157,3 +2157,56 @@ move from cards and boxes to the Apple building blocks; every function stays.
   `quests.spec.ts`: the add row and every ⋯ action persist after a reload (`@mobile`: order,
   Today, Tomorrow, Delete, done), scheduled tasks are listed with their plan; the summary
   matches the logged sessions against the budget and Edit saves the quest.
+
+## AB3 — what exists
+
+Sections "3 · Plan" and "5 · Kalender" of the mock-up, as approved, plus the owner's answer to
+"red or blue now line": red, like Apple Calendar.
+
+- **Plan, phones (≤ 720px)**: one header line — the large title "Plan" and two round icon
+  buttons (filter, backlog). Under it the `DayStrip` with the month ("November 2026") and
+  "Today"; weeks change by swiping across the strip (the same weekday of the previous/next
+  week, a history entry; `onweek`), "Today" jumps back to the current week — no ‹ › on phones.
+  "Hide done tasks" moved from an eye button into the filter menu (a `Switch`, `?hideDone=1`).
+  The selected day is an inset grouped list like Home's ("Thursday · 1 open", rows with the
+  round check in the quest colour, title, "● quest", the duration, ▶ ⋯), "+ Add a task…" the
+  last row. The strip stays on an empty week (the empty state sits under it).
+- **Plan, board (wider)**: one header line — title, week range, round ‹ ›, "Today", filter
+  (`WeekNav variant="toolbar"`). The Backlog rail and every day column are inset grouped lists
+  with the add row last (instead of an input on top of each column; one add row per day, a
+  quest or Other — the separate "Add to Other…" row and its `addOther` action are gone). Rows
+  (`PlanRow`, replacing the `DayTaskCard` cards) show the title over the planned/logged
+  duration; ▶ ⋯ appear on hover (laid over the row's end, so titles use the full width) and
+  always on touch. Drag & drop between columns and the rail stays; ⋯ keeps the tap
+  equivalents (↑/↓, previous/next day, any day of the week, Backlog, Delete). The rail's
+  overdue rows are one line plus their age (no quest name; the check's colour shows it).
+- **Calendar**: blocks like Apple Calendar — a soft fill in the quest colour with a colour edge
+  (the global `.event`, replacing `.hatch`), planned blocks only outlined and dashed
+  (`.event.planned`) with their time span when tall enough. Today's date in a filled accent
+  circle (`--cal-today-num`), today's column only barely tinted (`--today-col-tint`). "Show
+  plan" is a `Switch` (still `?plan=1`). On phones the toolbar is the title and the switch;
+  the week moves on the strip like Plan's.
+- **Now line**: `--now-line` (Apple red, ≥ 3:1 on every surface, checked by
+  `scripts/contrast.ts`), 2px with a dot (`--now-line-w`, `--now-dot`), in the Calendar and in
+  Home's day plan (which also draws its blocks as `.event`; the line now starts at the track,
+  so the hour label stays readable). The accent rule names it as its one exception.
+- **Shared pieces**: `#lib/swipe-gesture.ts` (pointer plumbing of a sideways swipe, used by
+  `DaySwipe` and the strip), `todayHref` (`#lib/day-view.ts`), `DayStrip`'s `month` /
+  `todayLink`, `WeekNav`'s `toolbar` variant and `weekScoped`, `QuestFilter`'s `round` and
+  `onhidedone`. Tokens: `--now-line`, `--now-line-w`, `--now-dot`, `--event-*`,
+  `--cal-today-num`, `--today-col-tint`, `--plan-col-w`, `--plan-rail-w`, `--toolbar-btn*`;
+  the `--hatch-*` tokens are gone.
+- **Decisions**: the Calendar's day head keeps "Thu (26)" on one line with the day total under
+  it (the mock-up stacked weekday over date, but had no total); the now line still spans the
+  whole week in the Calendar (as before); Home's daily plan blocks follow the Calendar's
+  `.event` look so `.hatch` could go; "Show plan" and "Hide done tasks" need JS (they were
+  links; a `Switch` is a checkbox — the rest of both views needs JS anyway); the Calendar
+  phone view moves weeks on the strip too, so both day views behave the same.
+- **Tests**: unit `day-view.test.ts` (`todayHref`: drops week/day/week-scoped params, keeps the
+  rest, never an action param). e2e `day-view.spec.ts`: swiping the day strip moves Plan and
+  Calendar a week (same weekday, kept on reload; no ‹ › on phones), "Today" returns (`@mobile`;
+  the vertical-scroll test no longer depends on earlier runs' cards). `plan.spec.ts`: "Hide
+  done tasks" in the filter menu hides finished rows on the board and in the backlog, kept on
+  reload; the add row and the "Other" pick follow the one add row per day. `calendar.spec.ts`:
+  the "Show plan" switch overlays the blocks, survives a reload and the week links, and turns
+  off again. Each new test fails with its bug put back.

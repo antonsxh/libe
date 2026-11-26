@@ -108,8 +108,9 @@ test('Plan: swiping left on Sunday shows next week’s Monday; a vertical scroll
 	const sun = addDays(monday, 6);
 	const after = addDays(monday, 7);
 	const quest = await createQuest(sql, { name: `Swipe ${id}` });
-	// Enough cards for the page to scroll vertically.
-	for (let i = 0; i < 8; i++)
+	// Enough cards for the page to scroll vertically below the first one (earlier runs' cards
+	// for the same Sunday sit above them: `--repeat-each`).
+	for (let i = 0; i < 14; i++)
 		await createTask(sql, { title: `Sunday ${i} ${id}`, questId: quest.id, day: sun });
 	const next = await createTask(sql, { title: `Next Monday ${id}`, questId: quest.id, day: after });
 
@@ -120,7 +121,7 @@ test('Plan: swiping left on Sunday shows next week’s Monday; a vertical scroll
 	// Vertical: the page scrolls, the day stays (also with some sideways drift).
 	const scrollY = () => page.evaluate(() => window.scrollY);
 	const middle = card(page, `Sunday 3 ${id}`).locator('.title');
-	await middle.scrollIntoViewIfNeeded();
+	await first.evaluate((el) => el.scrollIntoView({ block: 'start' }));
 	const y0 = await scrollY();
 	await touchDrag(page, middle, -30, -300);
 	await expect.poll(scrollY).toBeGreaterThan(y0);
@@ -153,6 +154,56 @@ test('Plan: swiping left on Sunday shows next week’s Monday; a vertical scroll
 	await touchDrag(page, card(page, next.title).locator('.title'), 260, 0);
 	await expect(first).toBeVisible();
 	expect(params(page)).toMatchObject({ week: monday, day: sun });
+});
+
+test('Plan and Calendar: swiping the day strip changes the week (same weekday, kept on reload); "Today" returns @mobile', async ({
+	page,
+	sql
+}) => {
+	const id = uid();
+	const now = await today(sql);
+	const monday = await nextMonday(sql);
+	const wed = addDays(monday, 2);
+	const later = addDays(wed, 7);
+	const quest = await createQuest(sql, { name: `Week swipe ${id}` });
+	const here = await createTask(sql, { title: `This Wed ${id}`, questId: quest.id, day: wed });
+	const there = await createTask(sql, { title: `Next Wed ${id}`, questId: quest.id, day: later });
+
+	await gotoLive(page, `/plan?week=${monday}&day=${wed}`);
+	await expect(card(page, here.title)).toBeVisible();
+	// No ‹ › on phones: the strip is the week navigation.
+	await expect(page.getByRole('link', { name: 'Next week' })).toBeHidden();
+
+	// Left → the next week, the same weekday.
+	await touchDrag(page, strip(page), -220, 0);
+	await expect(card(page, there.title)).toBeVisible();
+	expect(params(page)).toMatchObject({ week: addDays(monday, 7), day: later });
+	await reloadLive(page);
+	await expect(card(page, there.title)).toBeVisible();
+	await expect(strip(page).getByRole('link', { name: /^Wednesday/ })).toHaveAttribute(
+		'aria-current',
+		'true'
+	);
+
+	// Right → back.
+	await touchDrag(page, strip(page), 220, 0);
+	await expect(card(page, here.title)).toBeVisible();
+	expect(params(page)).toMatchObject({ week: monday, day: wed });
+
+	// "Today" → the current week with today selected.
+	await settle(page);
+	await page.getByRole('link', { name: 'Today', exact: true }).tap();
+	await expect(page).toHaveURL(/\/plan\??$/);
+	await expect(strip(page).locator(`a[data-day="${now}"]`)).toHaveAttribute('aria-current', 'true');
+
+	// The Calendar's strip moves weeks the same way.
+	await gotoLive(page, `/calendar?week=${monday}&day=${wed}`);
+	await touchDrag(page, strip(page), -220, 0);
+	await expect.poll(() => params(page)).toMatchObject({ week: addDays(monday, 7), day: later });
+	await expect(strip(page).locator(`a[data-day="${later}"]`)).toHaveAttribute(
+		'aria-current',
+		'true'
+	);
 });
 
 test('Plan: the backlog sheet moves a backlog task to the selected day @mobile', async ({

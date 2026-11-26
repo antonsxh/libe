@@ -96,21 +96,21 @@ button {
 }
 
 /**
- * Diagonal hatching tinted by `--q` (a quest colour).
- * Usage: <div class="hatch" style="--q: var(--quest-red)">…</div>
+ * A block on a time grid, like an event in Apple Calendar (AB3): a soft fill in `--q` (a quest
+ * colour) with a solid edge in it. `.planned`: a planned block — only outlined, dashed.
+ * Usage: <div class="event" style="--q: var(--quest-red)">…</div>
  */
-.hatch {
+.event {
 	--q: var(--quest-slate);
-	background:
-		repeating-linear-gradient(
-			var(--hatch-angle),
-			color-mix(in srgb, var(--q) 34%, transparent) 0 var(--hatch-line),
-			transparent var(--hatch-line) var(--hatch-gap)
-		),
-		color-mix(in srgb, var(--q) 14%, var(--surface));
-	border: 1px solid color-mix(in srgb, var(--q) 55%, transparent);
-	border-left: 2px solid var(--q);
+	border: none;
+	border-left: var(--event-edge) solid var(--q);
 	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--q) var(--event-tint), var(--surface));
+}
+.event.planned {
+	border: 1px dashed color-mix(in srgb, var(--q) var(--event-dash-mix), transparent);
+	border-left: var(--event-edge) solid var(--q);
+	background: transparent;
 }
 
 .sr-only {
@@ -234,7 +234,7 @@ summary {
 	}
 }
 
-/* Completing a task (DayTaskCard, TaskRow): the check pops on tap, the tick draws and the
+/* Completing a task (PlanRow, TodayRow, QuestTaskRow): the check pops on tap, the tick draws and the
    title is struck through once the server confirms. */
 @keyframes check-pop {
 	50% {

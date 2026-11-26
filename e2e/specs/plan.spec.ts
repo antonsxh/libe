@@ -8,7 +8,7 @@ import { test, expect, gotoLive, actionDone, reloadLive } from '../support/fixtu
 import { addDays, createQuest, createTask, mondayOf, today, uid, type Sql } from '../support/db.ts';
 
 const column = (page: Page, day: string) => page.locator(`.col[data-day="${day}"]`);
-const questCards = (col: Locator) => col.locator('.body > ul.cards li.task .title');
+const questCards = (col: Locator) => col.locator('.group > ul.cards li.task .title');
 const card = (scope: Locator | Page, title: string) => scope.locator('li.task', { hasText: title });
 const rail = (page: Page) => page.getByRole('region', { name: 'Backlog' });
 const params = (page: Page) => Object.fromEntries(new URL(page.url()).searchParams);
@@ -66,7 +66,7 @@ test('week navigation: ‹ › and Today; ?week= takes any day of a week', async
 	// A Thursday shows its week; garbage falls back to the current week.
 	await gotoLive(page, '/plan?week=2026-12-31');
 	expect(await days()).toEqual([0, 1, 2, 3, 4, 5, 6].map((i) => addDays('2026-12-28', i)));
-	await expect(page.locator('.week-nav .month')).toHaveText('Dec 2026 – Jan 2027');
+	await expect(page.locator('.week-nav .range')).toHaveText('Dec 28 – Jan 3');
 	await gotoLive(page, '/plan?week=not-a-day');
 	expect((await days())[0]).toBe(monday);
 });
@@ -117,6 +117,43 @@ test('?week, ?q, ?hideDone and ?other survive adds and ⋯ moves', async ({ page
 	expect(params(page)).toEqual(query);
 });
 
+test('"Hide done tasks" in the filter menu hides finished rows on the board and in the backlog', async ({
+	page,
+	sql
+}) => {
+	const id = uid();
+	const monday = await nextMonday(sql);
+	const tue = addDays(monday, 1);
+	const quest = await createQuest(sql, { name: `Hide ${id}` });
+	await createTask(sql, { title: `Open ${id}`, questId: quest.id, day: tue });
+	await createTask(sql, { title: `Finished ${id}`, questId: quest.id, day: tue, done: true });
+	await createTask(sql, { title: `Backlog done ${id}`, questId: quest.id, done: true });
+
+	await gotoLive(page, `/plan?week=${monday}`);
+	const col = column(page, tue);
+	await expect(card(col, `Finished ${id}`)).toBeVisible();
+	await expect(rail(page)).toContainText(`Backlog done ${id}`);
+
+	await page.getByRole('button', { name: 'Filter tasks by quest' }).click();
+	const menu = page.getByRole('dialog', { name: 'Quest filter' });
+	const hide = menu.getByRole('switch', { name: 'Hide done tasks' });
+	await expect(hide).not.toBeChecked();
+	await hide.click();
+	await expect(page).toHaveURL(/hideDone=1/);
+	await expect(card(col, `Finished ${id}`)).toHaveCount(0);
+	await expect(card(col, `Open ${id}`)).toBeVisible();
+	await expect(rail(page)).not.toContainText(`Backlog done ${id}`);
+	expect(params(page)).toMatchObject({ week: monday, hideDone: '1' });
+
+	await reloadLive(page);
+	await expect(card(column(page, tue), `Finished ${id}`)).toHaveCount(0);
+	await page.getByRole('button', { name: 'Filter tasks by quest' }).click();
+	await expect(menu.getByRole('switch', { name: 'Hide done tasks' })).toBeChecked();
+	await menu.getByRole('switch', { name: 'Hide done tasks' }).click();
+	await expect(page).not.toHaveURL(/hideDone/);
+	await expect(card(column(page, tue), `Finished ${id}`)).toBeVisible();
+});
+
 test('"Other" from the picker creates an other task in the day\'s Other zone; its state is in the URL', async ({
 	page,
 	sql
@@ -128,10 +165,11 @@ test('"Other" from the picker creates an other task in the day\'s Other zone; it
 	await gotoLive(page, `/plan?week=${monday}`);
 	const col = column(page, wed);
 
+	// The day's one add row (last in its list): the picker unfolds once it holds a title.
 	const add = col.locator('form.add').first();
-	await add.getByRole('button', { name: /^Quest: .* \(change\)$/ }).click();
-	await page.getByRole('menuitemradio', { name: 'Other' }).click();
 	await add.getByPlaceholder('Add a task…').fill(`Errand ${id}`);
+	await add.getByRole('button', { name: 'Choose quest' }).click();
+	await page.getByRole('menuitemradio', { name: 'Other', exact: true }).click();
 	const done = actionDone(page, 'add');
 	await add.getByPlaceholder('Add a task…').press('Enter');
 	await done;

@@ -23,7 +23,10 @@
 		tasks: TaskWithQuest[];
 		/** The server's today (ages are relative to it). */
 		today: string;
-		/** Plan's narrow rail: no pill (the colour bar shows the quest), smaller rows. */
+		/**
+		 * Plan's narrow rail: no quest name (the check's colour shows it), one-line titles,
+		 * an icon-only "Today".
+		 */
 		compact?: boolean;
 		/**
 		 * Home: rows of an inset grouped list (like "Today") — a check ring in the quest colour,
@@ -91,7 +94,7 @@
 			<span class="main">
 				<span class="title">{task.title}</span>
 				<span class="meta">
-					{#if grouped}
+					{#if grouped && !compact}
 						<span class="qdot" aria-hidden="true"></span>
 						<span class="qname">{task.questName ?? t.common.other}</span>
 						<span class="sep" aria-hidden="true">·</span>
@@ -368,6 +371,18 @@
 	}
 	.grouped .meta {
 		flex-wrap: nowrap;
+	}
+	/* Plan's rail (grouped + compact): one line per title, the age under it. */
+	.grouped.compact .row {
+		min-height: var(--grouped-row-h);
+		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+		gap: var(--space-3);
+	}
+	.grouped.compact > li + li::after {
+		left: calc(var(--space-3) + var(--row-check) + var(--space-3));
+	}
+	.grouped.compact .title {
+		white-space: nowrap;
 	}
 
 	/* menu items */

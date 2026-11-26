@@ -120,7 +120,7 @@
 				class:sel={d.day === selected}
 				style:grid-column={i + 2}
 			>
-				<span class="wd">{d.weekday} <span class="num">{d.dayNum}</span></span>
+				<span class="wd">{d.weekday} <span class="num tabular">{d.dayNum}</span></span>
 				<span class="total tabular" data-testid="day-total">
 					{formatDurationMs(week.dayMs[i], t.intl)}
 				</span>
@@ -149,8 +149,12 @@
 				></button>
 
 				{#each planned[i] as p (p.block.id)}
+					<!-- A logged block over the plan's start hides its text (it would peek out below). -->
+					{@const covered = placed[i].some(
+						(e) => e.top <= p.block.startMin && e.bottom > p.block.startMin
+					)}
 					<div
-						class="plan"
+						class="plan event planned"
 						style:--q={questColorVar(p.block.questColor ?? 'slate')}
 						style:--t={p.block.startMin}
 						style:--b={p.block.endMin}
@@ -158,7 +162,12 @@
 						style:--cols={p.columns}
 						title={t.calendar.planned(p.block.taskTitle)}
 					>
-						<span class="plan-title">{p.block.taskTitle}</span>
+						{#if !covered}<span class="plan-title">{p.block.taskTitle}</span>{/if}
+						{#if !covered && p.block.endMin - p.block.startMin >= TALL_MIN}
+							<span class="plan-time tabular">
+								{formatMinutes(p.block.startMin)} – {formatMinutes(p.block.endMin)}
+							</span>
+						{/if}
 					</div>
 				{/each}
 
@@ -168,7 +177,7 @@
 					{@const span = sessionSpanLabel(s, timeZone, t.intl)}
 					{#if s.active}
 						<a
-							class="entry hatch active"
+							class="entry event active"
 							class:tall
 							class:paused={s.paused}
 							href="/focus"
@@ -196,7 +205,7 @@
 					{:else}
 						<button
 							type="button"
-							class="entry hatch"
+							class="entry event"
 							class:tall
 							data-session={s.id}
 							style:--q={colorOf(s)}
@@ -267,10 +276,11 @@
 		padding: var(--space-3) var(--space-2) var(--space-2);
 		border-left: 1px solid var(--border);
 	}
-	.head.today {
-		background: linear-gradient(var(--today-tint), var(--today-tint)), var(--surface);
-	}
 	.wd {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		min-height: var(--cal-today-num);
 		font-size: var(--fs-md);
 		font-weight: var(--fw-medium);
 		color: var(--text-2);
@@ -283,8 +293,17 @@
 	.head.today .wd {
 		color: var(--text);
 	}
+	/* Today's date: a filled accent circle with white digits (Apple Calendar). */
 	.head.today .num {
-		color: var(--accent-text);
+		display: inline-grid;
+		place-items: center;
+		min-width: var(--cal-today-num);
+		height: var(--cal-today-num);
+		padding: 0 var(--space-1);
+		border-radius: var(--radius-pill);
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-weight: var(--fw-semibold);
 	}
 	.total {
 		font-size: var(--fs-xs);
@@ -324,7 +343,7 @@
 		min-width: 0;
 	}
 	.col.today {
-		background-color: var(--today-tint);
+		background-color: var(--today-col-tint);
 	}
 	.slot {
 		position: absolute;
@@ -358,24 +377,32 @@
 		width: calc(100% / var(--cols) - 4px);
 	}
 
+	/* A planned block (plan overlay, `.event.planned`): only outlined — dashed. */
 	.plan {
 		z-index: 1;
-		border: 1px dashed color-mix(in srgb, var(--q) 70%, transparent);
-		border-radius: var(--radius-sm);
-		padding: 1px var(--space-2);
+		display: flex;
+		flex-direction: column;
+		padding: 2px var(--space-2);
 		overflow: hidden;
 		pointer-events: none;
 	}
-	.plan-title {
+	.plan-title,
+	.plan-time {
 		display: block;
 		font-size: var(--fs-xs);
 		line-height: 1.3;
-		color: var(--text-faint);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	.plan-title {
+		color: var(--text-2);
+	}
+	.plan-time {
+		color: var(--text-muted);
+	}
 
+	/* A logged block (`.event`): a soft fill in the quest colour with its colour edge. */
 	.entry {
 		z-index: 2;
 		display: flex;
@@ -413,7 +440,7 @@
 	.time {
 		font-size: var(--fs-xs);
 		line-height: 1.3;
-		color: var(--text-muted);
+		color: color-mix(in srgb, var(--q) var(--event-time-mix), var(--text));
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -431,8 +458,7 @@
 
 	/* The running/paused timer: accent outline, pulsing dot. */
 	.entry.active {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 1px var(--accent);
+		box-shadow: inset 0 0 0 1px var(--accent);
 	}
 	.rec {
 		display: inline-block;
@@ -467,21 +493,25 @@
 		pointer-events: none;
 		z-index: 3;
 	}
+	/* Apple Calendar's red now line (`--now-line`), a dot at its start. */
 	.now {
 		position: absolute;
 		left: 0;
 		right: 0;
-		top: calc(var(--pad) + (var(--now) - var(--start)) * var(--cal-hour) / 60);
-		border-top: 1px solid var(--accent);
+		top: calc(
+			var(--pad) + (var(--now) - var(--start)) * var(--cal-hour) / 60 - var(--now-line-w) / 2
+		);
+		height: var(--now-line-w);
+		background: var(--now-line);
 	}
 	.now-dot {
 		position: absolute;
-		left: -4px;
-		top: -4.5px;
-		width: 8px;
-		height: 8px;
+		left: calc(var(--now-dot) / -2);
+		top: calc((var(--now-line-w) - var(--now-dot)) / 2);
+		width: var(--now-dot);
+		height: var(--now-dot);
 		border-radius: 50%;
-		background: var(--accent);
+		background: var(--now-line);
 	}
 
 	/*
@@ -512,7 +542,7 @@
 		}
 		.day-view .head {
 			display: flex;
-			align-items: baseline;
+			align-items: center;
 			justify-content: space-between;
 			padding: var(--space-2) var(--space-3);
 		}

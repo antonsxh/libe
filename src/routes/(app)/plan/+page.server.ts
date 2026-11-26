@@ -5,7 +5,8 @@ import {
 	startOfWeek,
 	todayISO,
 	formatDayLabel,
-	weekMonthLabel
+	weekMonthLabel,
+	weekRangeLabel
 } from '#lib/dates.ts';
 import { isUuid } from '#lib/ids.ts';
 import { listOpenQuests } from '#lib/server/quests.ts';
@@ -117,7 +118,10 @@ export const load = (async ({ url, locals }) => {
 	return {
 		weekMonday,
 		today,
+		/** Phones, under the title: "November 2026". */
 		monthLabel: weekMonthLabel(weekMonday, t.intl),
+		/** Board toolbar: "Nov 23 – 29". */
+		rangeLabel: weekRangeLabel(weekMonday, t.intl),
 		columns,
 		weekPlanned,
 		backlogGroups,
@@ -140,7 +144,7 @@ async function menuTaskId(request: Request): Promise<string | null> {
 export const actions: Actions = {
 	...sharedTaskActions,
 
-	/** Add a task to a day column. `questId` may be `'other'`/empty → kind `other`. */
+	/** Add a task to a day (its list's add row). `questId` may be `'other'`/empty → kind `other`. */
 	add: addTaskAction('add', async (form) => {
 		const day = formStr(form, 'day');
 		if (!isISODay(day)) return { ok: false, errors: { title: 'unknownDay' } };
@@ -148,14 +152,6 @@ export const actions: Actions = {
 		return target.ok
 			? { ok: true, target: target.target, day }
 			: { ok: false, errors: { title: target.error } };
-	}),
-
-	/** Add an "Other" task from a column's expanded Other zone. */
-	addOther: addTaskAction('addOther', (form) => {
-		const day = formStr(form, 'day');
-		return isISODay(day)
-			? { ok: true, target: { kind: 'other' }, day }
-			: { ok: false, errors: { title: 'unknownDay' } };
 	}),
 
 	/** Add a task to the backlog (backlog column): a quest's, or `other`. */

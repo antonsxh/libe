@@ -124,11 +124,12 @@
 </script>
 
 {#snippet addSlot()}
+	<!-- The backlog's one add row, last (like every Plan list): a quest or Other. -->
 	<div class="add-slot">
 		<TaskAddForm
 			action="addBacklog"
 			placeholder={t.tasks.addToBacklog}
-			compact
+			row
 			{quests}
 			otherOption
 			{form}
@@ -149,6 +150,7 @@
 				<OverdueList
 					tasks={overduePreview.shown}
 					{today}
+					grouped
 					compact={!sheet}
 					mark={false}
 					ondragstart={sheet ? undefined : (e, task) => startDrag(e, task)}
@@ -250,12 +252,12 @@
 		{#if groups.length === 0}
 			<p class="muted empty">{t.tasks.backlogEmpty}</p>
 		{/if}
+		{@render addSlot()}
 	</div>
 {/snippet}
 
 {#if sheet}
 	<div class="sheet">
-		{@render addSlot()}
 		{@render groupList()}
 	</div>
 {:else if expanded}
@@ -281,7 +283,6 @@
 			</button>
 		</header>
 
-		{@render addSlot()}
 		{@render groupList()}
 
 		<form method="POST" action={formAction('moveTo')} use:enhance bind:this={moveForm} hidden>
@@ -306,32 +307,28 @@
 
 <style>
 	.rail {
-		flex: 0 0 240px;
+		flex: 0 0 var(--plan-rail-w);
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-3);
+		gap: var(--space-2);
 		min-width: 0;
 		min-height: 0;
-		padding: var(--space-3) var(--space-2) var(--space-2);
-		border: 1px dashed var(--border-dashed);
-		border-radius: var(--radius-lg);
 	}
 	.rail-head {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: 0 var(--space-2) var(--space-3);
-		border-bottom: 1px solid var(--border);
+		padding: 0 var(--space-2);
 	}
 	.title {
 		margin: 0;
-		font-size: var(--fs-lg);
-		font-weight: var(--fw-medium);
-		color: var(--text-muted);
+		font-size: var(--fs-md);
+		font-weight: var(--fw-semibold);
+		color: var(--text);
 	}
 	.count {
 		font-size: var(--fs-sm);
-		color: var(--text-faint);
+		color: var(--text-muted);
 	}
 	.collapse {
 		margin-left: auto;
@@ -350,16 +347,17 @@
 	}
 	/* Phones: the sheet body (the dialog brings title, padding and scrolling). */
 	.sheet {
+		--grouped-bg: var(--grouped-bg-raised);
+		--grouped-separator: var(--grouped-separator-raised);
 		display: grid;
 		gap: var(--space-4);
 	}
 	.sheet .body {
 		overflow: visible;
-		gap: var(--space-4);
+		gap: var(--space-5);
 	}
 	.sheet .row {
 		cursor: default;
-		padding-block: var(--space-2);
 	}
 	.sheet .rtitle {
 		font-size: var(--fs-md);
@@ -371,9 +369,9 @@
 		gap: var(--space-1);
 		height: 28px;
 		padding: 0 var(--space-2);
-		border: 1px solid var(--border-strong);
+		border: none;
 		border-radius: var(--radius-pill);
-		background: var(--surface-2);
+		background: var(--toolbar-btn-bg-hover);
 		color: var(--text-2);
 		font-size: var(--fs-xs);
 		font-weight: var(--fw-medium);
@@ -382,9 +380,14 @@
 	.move:hover {
 		color: var(--text);
 	}
-	.add-slot :global(form.add) {
-		margin-bottom: 0;
-		padding-left: var(--space-3);
+	.add-slot {
+		flex: none;
+		border-radius: var(--grouped-radius);
+		background: var(--grouped-bg);
+		overflow: hidden;
+	}
+	.rail .add-slot :global(form.add.row) {
+		padding-inline: var(--space-3);
 	}
 
 	.body {
@@ -392,11 +395,12 @@
 		min-height: 0;
 		display: grid;
 		align-content: start;
-		gap: var(--space-3);
+		gap: var(--space-4);
 		overflow-y: auto;
 		scrollbar-width: thin;
 		scrollbar-color: var(--border-strong) transparent;
 	}
+	/* One inset grouped list per quest (and Other, Overdue), its name above it. */
 	.group {
 		display: grid;
 		gap: var(--space-1);
@@ -409,14 +413,18 @@
 		margin: 0;
 		padding: 0 var(--space-2);
 		min-width: 0;
-		font-size: var(--fs-sm);
+		font-size: var(--fs-xs);
 		font-weight: var(--fw-semibold);
 		color: var(--text-muted);
 	}
+	.sheet .group-head {
+		padding: 0 var(--grouped-inset);
+		font-size: var(--fs-label);
+	}
 	.dot {
 		flex: none;
-		width: 8px;
-		height: 8px;
+		width: 7px;
+		height: 7px;
 		border-radius: 50%;
 		background: var(--q);
 	}
@@ -429,62 +437,73 @@
 	}
 	.group-head .count {
 		font-size: var(--fs-xs);
+		font-weight: var(--fw-regular);
 		letter-spacing: 0;
 	}
 
 	.rows {
 		list-style: none;
 		display: grid;
-		gap: var(--space-1);
 		margin: 0;
 		padding: 0;
+		border-radius: var(--grouped-radius);
+		background: var(--grouped-bg);
+		overflow: hidden;
 	}
 	.row {
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: var(--space-3);
 		min-width: 0;
-		padding: var(--space-1) var(--space-1) var(--space-1) calc(var(--space-2) + 2px);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--surface);
+		min-height: var(--grouped-row-h);
+		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
 		cursor: grab;
+		transition: background var(--dur) var(--ease);
 	}
-	.row::before {
+	.sheet .row {
+		padding-left: var(--grouped-inset);
+	}
+	@media (hover: hover) {
+		.row:hover {
+			background: var(--surface-hover);
+		}
+	}
+	/* Hairline between rows, inset to the text. */
+	.row + .row::after {
 		content: '';
 		position: absolute;
-		left: -1px;
-		top: -1px;
-		bottom: -1px;
-		width: 3px;
-		border-radius: var(--radius-md) 0 0 var(--radius-md);
-		background: var(--q);
+		top: 0;
+		left: calc(var(--space-3) + var(--row-check) + var(--space-3));
+		right: 0;
+		height: 1px;
+		background: var(--grouped-separator);
+		pointer-events: none;
 	}
-	.row:hover {
-		border-color: var(--border-strong);
+	.sheet .row + .row::after {
+		left: calc(var(--grouped-inset) + var(--row-check) + var(--space-3));
 	}
 	.row.dragging {
 		opacity: 0.4;
 	}
-	/* 2px accent drop line centred in the 4px gap above the row. */
-	.row.drop-before::after {
+	/* 2px accent drop line on the row's top edge. */
+	.row.drop-before::before {
 		content: '';
 		position: absolute;
 		left: 0;
 		right: 0;
-		top: -4px;
+		top: -1px;
 		height: 2px;
-		border-radius: 1px;
 		background: var(--accent);
 		pointer-events: none;
-	}
-	.done {
-		opacity: 0.55;
+		z-index: 1;
 	}
 	.done .rtitle {
 		color: var(--text-faint);
 		text-decoration: line-through;
+	}
+	.done .dur {
+		opacity: 0.6;
 	}
 	.inline {
 		display: contents;
@@ -493,19 +512,21 @@
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 16px;
-		height: 16px;
+		width: var(--row-check);
+		height: var(--row-check);
 		padding: 0;
-		border: 1.5px solid var(--border-strong);
+		border: 1.5px solid var(--q);
 		border-radius: 50%;
 		background: transparent;
 		color: var(--bg);
+		transition: background var(--dur) var(--ease);
 	}
-	.check:hover {
-		border-color: var(--text-muted);
+	@media (hover: hover) {
+		.check:hover {
+			background: color-mix(in srgb, var(--q) 18%, transparent);
+		}
 	}
 	.done .check {
-		border-color: var(--q);
 		background: var(--q);
 	}
 	.rtitle {
@@ -527,16 +548,14 @@
 		border: none;
 		border-radius: var(--radius-sm);
 		background: transparent;
-		color: var(--text-muted);
+		color: var(--accent-text);
 		font-size: var(--fs-xs);
 	}
 	.more:hover {
-		color: var(--text);
 		background: var(--surface-hover);
 	}
 	.drop-end {
 		height: 2px;
-		border-radius: 1px;
 		background: var(--accent);
 	}
 	.empty {
@@ -574,15 +593,15 @@
 		align-items: center;
 		gap: var(--space-2);
 		padding: var(--space-3) 0;
-		border: 1px dashed var(--border-dashed);
-		border-radius: var(--radius-lg);
-		background: transparent;
+		border: none;
+		border-radius: var(--grouped-radius);
+		background: var(--grouped-bg);
 		color: var(--text-muted);
 		font-size: var(--fs-xs);
 	}
 	.rail-strip:hover {
 		color: var(--text);
-		border-color: var(--border-strong);
+		background: var(--surface-hover);
 	}
 	.strip-label {
 		writing-mode: vertical-rl;

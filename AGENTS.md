@@ -104,8 +104,9 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `questColorVar(key)` → `var(--quest-<key>)`. Tasks of kind `other` use `slate`.
 - Keep components small; shared ones in `src/lib/components/`, feature-specific ones in
   `src/lib/components/<feature>/`. Use `type Props = {...}; let {...}: Props = $props()`.
-  Task-list pieces live in `components/tasks/` (`DayTaskCard` — Plan's board cards,
-  `TaskAddForm`, `QuestPicker`, `QuestFilter`, `OverdueList`); their shared form actions
+  Task-list pieces live in `components/tasks/` (`TaskAddForm`, `QuestPicker`, `QuestFilter`,
+  `OverdueList`), Plan's in `components/plan/` (`PlanRow`, `PlanColumn`, `BacklogColumn`,
+  `drag.svelte.ts`); their shared form actions
   (toggle, ↑/↓, backlog, delete, `overdueTo`, `addTaskAction` factory) in
   `src/lib/server/task-actions.ts`. Add rows have one **Add** button: Enter/Add append at the
   bottom, Shift+Enter adds at the top (no visible Top/Bottom). No add row may need a quest that
@@ -212,8 +213,24 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   second rule. The server sends only the streak through yesterday (root layout data `streak`,
   `server/streak.ts`); pages show `pageStreak(data.streak, data.todayLog, runningSpan(…),
 timer.serverNow)` so today moves live with the timer.
-- Week navigation (‹ range › + "This week", `?week=`) is the shared `WeekNav.svelte`
-  (Calendar, Review); extra controls go in its children snippet. Week links drop `?day=`.
+- Week navigation (`?week=`) is the shared `WeekNav.svelte`: Review uses ‹ range › + "This
+  week" (extra controls in its children snippet); Plan and Calendar use `variant="toolbar"`
+  (range, round ‹ ›, a "Today" capsule — wider than 720px only). Week links drop `?day=` and
+  the page's `weekScoped` params (Plan's `other`).
+- **Plan** (AB3, `routes/(app)/plan`): one header line — the large title "Plan", then the week
+  toolbar and the filter (`QuestFilter round`; the quest checklist and the "Hide done tasks"
+  switch, `?hideDone=1`) — on phones only the title, the filter and a Backlog button (sheet).
+  The board (wider than 720px) is the Backlog rail and one column per day, each an inset
+  grouped list of `PlanRow`s (round check in the quest colour, title over the duration; ▶ ⋯ on
+  hover, always on touch; ⋯ holds Log time, ↑/↓, previous/next day, any day of the week,
+  Backlog, Delete — the tap equivalent of drag & drop) with the day's **one** add row last
+  (`TaskAddForm row`, action `add`: a quest or Other); Other tasks fold under "Other" (`?other=`).
+  Drag & drop between columns and the rail stays. Phones show the selected day as Home's list
+  ("Thursday · 1 open", rows with "● quest" and the duration, the add row last).
+- **Calendar** (AB3): logged sessions are `.event` blocks (soft quest-colour fill, colour
+  edge; the running one with an accent outline), planned blocks `.event.planned` (dashed)
+  behind the "Show plan" `Switch` (`?plan=1`, kept on week links); today's date sits in a
+  filled accent circle; the now line is red `--now-line` with a dot.
 - **Review on phones** (≤ 720px): a `SegmentedControl` **Week | Quarter** under the title, the
   choice in `?view=quarter` (server-read, `parseReviewView` / `reviewViewHref` in
   `#lib/review.ts`; switching is a history entry). Each view: one `SummaryCard` (three
@@ -221,8 +238,10 @@ timer.serverNow)` so today moves live with the timer.
   row; the week nav only in the week view. Wider screens keep the grid and ignore `?view=`.
   One tree for both — CSS hides `desk-only` / `phone-only` parts, so phone-only elements get
   their own test ids (`sum-*`, `q-sum-*`, `list-row` inside `week-list` / `quarter-list`).
-- **Phone day view** (Plan, Calendar ≤ 720px): `DayStrip.svelte` (Mon–Sun, sliding pill, one
-  dot per day) + `DaySwipe.svelte` (swipe ±1 day, slide-in) show one day of the week. The day
+- **Phone day view** (Plan, Calendar ≤ 720px): `DayStrip.svelte` (the month + "Today" over
+  Mon–Sun, sliding pill, one dot per day; swiping the strip steps a week — `onweek`, the same
+  weekday, a history entry; no ‹ › on phones) + `DaySwipe.svelte` (swipe ±1 day, slide-in)
+  show one day of the week; both use the pointer plumbing in `#lib/swipe-gesture.ts`. The day
   is `?day=` — client-only (the server never reads it, so a day change re-runs no `load`);
   resolve/step/link it with `#lib/day-view.ts`, swipe rules in `#lib/swipe.ts`. The pages
   still render the whole week; CSS hides the other days on phones (`PlanColumn selected`,
@@ -333,9 +352,11 @@ timer.serverNow)` so today moves live with the timer.
   elevation through lightness (each raised layer a step lighter, not shadows), few and soft
   borders ("structure is felt, not seen"), a nav that recedes, near-white text, one restrained
   blue accent, the **Geist** font, and Apple's system colours for quests. **The accent is only
-  for the primary action and the "now"**: the one filled button, the running timer, the now
-  line, "today" markers, focus rings — and, as Apple's tint, interactive text (links, active
-  tab/filter, selection ticks, drop lines). Never decoration: numbers are `--text`, charts and
+  for the primary action and the "now"**: the one filled button, the running timer, "today"
+  markers (the Calendar's date circle), focus rings — and, as Apple's tint, interactive text
+  (links, active tab/filter, selection ticks, drop lines). The one exception is **the now line**
+  of every time grid (Calendar, Home's day plan): red `--now-line` like Apple Calendar (AB3,
+  the owner's choice). Never decoration: numbers are `--text`, charts and
   non-"now" progress use quest colours or `--progress-fill`, deltas are muted (no green/red),
   the streak flame is `--streak` (Apple orange, the one reward colour). `--accent` is for
   fills, lines, rings and dots; wherever the accent is a **text or icon colour** use
@@ -352,8 +373,9 @@ timer.serverNow)` so today moves live with the timer.
   `scripts/contrast.test.ts` enforces it in `bun run test` (its `KNOWN_GAPS` only shrinks).
 - Global utilities (`src/lib/styles/global.css`): `.label` (section label in sentence case:
   `--fs-label`, semibold, muted — no uppercase; only the Focus screen keeps uppercase), `.card`,
-  `.muted`, `.tabular`, `.hatch` (diagonal hatching tinted by `--q`), `.sr-only`, `.strike`
-  (animatable strike-through, full under `.struck`).
+  `.muted`, `.tabular`, `.event` (a block on a time grid like an Apple Calendar event: a soft
+  fill in `--q` with a colour edge; `.event.planned` only outlined, dashed — Calendar, Home's
+  day plan), `.sr-only`, `.strike` (animatable strike-through, full under `.struck`).
 - Charts are plain divs/SVG (no chart library); sizes come from the `--chart-*` tokens and every
   chart needs a text alternative (aria-label or `.sr-only` text).
 - Shared primitives: `Button` (primary/secondary/ghost, sm/md, icon), `QuestPill`, `PageHeader`,

@@ -4,6 +4,7 @@ import {
 	startOfWeek,
 	todayISO,
 	weekDays,
+	weekMonthLabel,
 	weekRangeLabel
 } from '#lib/dates.ts';
 import { listWeekBlocks } from '#lib/server/blocks.ts';
@@ -35,6 +36,8 @@ export const load = (async ({ url, locals }) => {
 		/** Server clock at render time (first paint of the now line / live entry). */
 		now: Date.now(),
 		rangeLabel: weekRangeLabel(weekMonday, intl),
+		/** Phones, over the day strip: "November 2026". */
+		monthLabel: weekMonthLabel(weekMonday, intl),
 		days: weekDays(weekMonday).map((day) => ({
 			day,
 			weekday: formatDayLabel(day, { weekday: 'short' }, intl),

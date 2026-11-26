@@ -46,6 +46,21 @@ export function dayHref(
 	return `?${p.toString()}`;
 }
 
+/**
+ * `?…` for the same page back at the current week with today selected (the day strip's
+ * "Today"): drops `week`, `day` and the `weekScoped` params, keeps every other param.
+ */
+export function todayHref(
+	search: string | URLSearchParams,
+	weekScoped: readonly string[] = []
+): string {
+	const p = new URLSearchParams(search);
+	for (const key of [...p.keys()]) if (key.startsWith('/')) p.delete(key);
+	for (const key of ['week', 'day', ...weekScoped]) p.delete(key);
+	const qs = p.toString();
+	return qs ? `?${qs}` : '?';
+}
+
 /** Plan showing `day` (its week, and the day selected in the phone day view). */
 export function planDayHref(day: ISODay): string {
 	return `/plan${dayHref('', day, startOfWeek(day))}`;

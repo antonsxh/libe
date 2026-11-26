@@ -244,7 +244,9 @@ test('"Show plan" overlays the week\'s time blocks and keeps the week', async ({
 
 	await gotoLive(page, `/calendar?week=${monday}`);
 	await expect(page.locator('.cal .plan')).toHaveCount(0);
-	await page.getByRole('link', { name: 'Show plan' }).click();
+	const toggle = page.getByRole('switch', { name: 'Show plan' });
+	await expect(toggle).not.toBeChecked();
+	await toggle.click();
 	await expect(page).toHaveURL(new RegExp(`week=${monday}`));
 	await expect(page).toHaveURL(/plan=1/);
 	const block = col(page, tue).locator('.plan', { hasText: task.title });
@@ -255,6 +257,19 @@ test('"Show plan" overlays the week\'s time blocks and keeps the week', async ({
 	]);
 	expect(pos.map(Number)).toEqual([900, 960]);
 
-	await page.getByRole('link', { name: 'Hide plan' }).click();
+	// The switch's state is the URL: kept on reload and on the week links.
+	await reloadLive(page);
+	await expect(page.getByRole('switch', { name: 'Show plan' })).toBeChecked();
+	await expect(block).toBeVisible();
+	await page.getByRole('link', { name: 'Next week' }).click();
+	await expect(page).toHaveURL(new RegExp(`week=${addDays(monday, 7)}`));
+	await expect(page).toHaveURL(/plan=1/);
+	await expect(page.getByRole('switch', { name: 'Show plan' })).toBeChecked();
+	await page.getByRole('link', { name: 'Previous week' }).click();
+	await expect(block).toBeVisible();
+
+	await page.getByRole('switch', { name: 'Show plan' }).click();
+	await expect(page).not.toHaveURL(/plan=1/);
 	await expect(page.locator('.cal .plan')).toHaveCount(0);
+	await expect(page.getByRole('switch', { name: 'Show plan' })).not.toBeChecked();
 });

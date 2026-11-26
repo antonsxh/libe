@@ -85,7 +85,7 @@
 			{#each shown as p (p.block.id)}
 				<button
 					type="button"
-					class="block hatch"
+					class="block event"
 					class:short={p.block.endMin - p.block.startMin < SHORT_MIN}
 					style:--q={questColorVar(p.block.questColor)}
 					style:--s={p.block.startMin}
@@ -194,25 +194,30 @@
 	.b-time {
 		font-size: var(--fs-xs);
 		line-height: 1.3;
-		color: var(--text-2);
+		color: color-mix(in srgb, var(--q) var(--event-time-mix), var(--text));
 	}
 
+	/*
+	 * The now line: `--now-line` (Apple Calendar's red, like the Calendar's) across the track,
+	 * a dot on its left edge; the hour labels stay readable.
+	 */
 	.now {
 		position: absolute;
-		left: -46px;
+		left: 0;
 		right: 0;
-		top: calc((var(--now) - var(--from)) * var(--tl-hour) / 60);
-		border-top: 1px solid var(--accent);
+		top: calc((var(--now) - var(--from)) * var(--tl-hour) / 60 - var(--now-line-w) / 2);
+		height: var(--now-line-w);
+		background: var(--now-line);
 		z-index: 2;
 		pointer-events: none;
 	}
 	.now-dot {
 		position: absolute;
-		left: 0;
-		top: -3.5px;
-		width: 7px;
-		height: 7px;
+		left: calc(var(--now-dot) / -2);
+		top: calc((var(--now-line-w) - var(--now-dot)) / 2);
+		width: var(--now-dot);
+		height: var(--now-dot);
 		border-radius: 50%;
-		background: var(--accent);
+		background: var(--now-line);
 	}
 </style>

@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { formAction } from '#lib/form-action.ts';
 	import { enhance } from '$app/forms';
-	import { ChevronRight, Plus } from '@lucide/svelte';
-	import Button from '#lib/components/Button.svelte';
-	import DayTaskCard from '#lib/components/tasks/DayTaskCard.svelte';
+	import { ChevronRight } from '@lucide/svelte';
+	import PlanRow from './PlanRow.svelte';
 	import TaskAddForm from '#lib/components/tasks/TaskAddForm.svelte';
 	import { drag, endDrag, rowBefore, startDrag, submitMove } from './drag.svelte.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
@@ -42,13 +41,8 @@
 
 	const otherCount = $derived(col.otherTasks.length + col.otherDone.length);
 	const empty = $derived(otherCount + col.questTasks.length + col.questDone.length === 0);
-
-	/** Phones' empty day: the add input is the one thing to do — the button leads there. */
-	function focusAdd() {
-		const input = colEl?.querySelector<HTMLInputElement>('form.add input[name=title]');
-		input?.focus();
-		input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-	}
+	/** Open tasks of the day (the phone's list header: "Thursday · 1 open"). */
+	const openCount = $derived(col.questTasks.length + col.otherTasks.length);
 
 	/* ── Drag & drop ─────────────────────────────────────────────────────────── */
 
@@ -58,7 +52,7 @@
 	let moveForm = $state<HTMLFormElement | undefined>();
 	/**
 	 * Where the dragged task would land: the list of *its* kind (a quest task hovering the
-	 * Other zone still goes to the quest list) and the card it would be inserted before.
+	 * Other zone still goes to the quest list) and the row it would be inserted before.
 	 */
 	let over = $state<{ kind: 'quest' | 'other'; beforeId: string | null } | null>(null);
 
@@ -89,26 +83,25 @@
 		submitMove(moveForm, col.day, dest?.beforeId ?? null);
 	}
 
-	function cardDragstart(e: DragEvent, task: TaskWithQuest) {
+	function rowDragstart(e: DragEvent, task: TaskWithQuest) {
 		startDrag(e, task);
 	}
-	function cardDragend() {
+	function rowDragend() {
 		over = null;
 		endDrag();
 	}
 </script>
 
-{#snippet card(task: TaskWithQuest, i: number, group: TaskWithQuest[])}
-	<DayTaskCard
+{#snippet row(task: TaskWithQuest, i: number, group: TaskWithQuest[])}
+	<PlanRow
 		{task}
-		variant="plan"
 		first={i === 0}
 		last={i === group.length - 1}
 		dropBefore={over?.beforeId === task.id}
 		dragging={drag.task?.id === task.id}
 		overdue={overdueIds?.has(task.id) ?? false}
-		ondragstart={cardDragstart}
-		ondragend={cardDragend}
+		ondragstart={rowDragstart}
+		ondragend={rowDragend}
 	/>
 {/snippet}
 
@@ -126,85 +119,79 @@
 	{ondrop}
 >
 	<header class="head">
+		<!-- Board: "Mon 23"; phones (the day strip names the date): "Thursday · 1 open". -->
 		<h2 class="day">
-			<span class="weekday">{col.weekday}</span>
-			<span class="daynum tabular">{col.dayNum}</span>
+			<span class="board-only">
+				<span class="weekday">{col.weekday}</span>
+				<span class="daynum tabular">{col.dayNum}</span>
+			</span>
+			<span class="phone-only">
+				{formatDayLabel(col.day, { weekday: 'long' }, t.intl)} · {t.homeList.open(openCount)}
+			</span>
 		</h2>
 		{#if col.isToday}<span class="sr-only">{t.plan.todayMarker}</span>{/if}
 	</header>
 
-	<TaskAddForm
-		action="add"
-		placeholder={t.tasks.addTask}
-		{quests}
-		otherOption
-		compact
-		day={col.day}
-		{form}
-	/>
-
 	<div class="body">
-		{#if empty}
-			<!-- Phones only: a calm empty day whose one action is the add input above. -->
-			<div class="empty-day">
-				<p class="empty-title">
-					{t.plan.emptyDay(formatDayLabel(col.day, { weekday: 'long' }, t.intl))}
-				</p>
-				<p class="muted">{t.plan.emptyDayHint}</p>
-				<Button variant="primary" onclick={focusAdd}>
-					<Plus size={16} />
-					{t.plan.addTask}
-				</Button>
-			</div>
-		{/if}
-		<ul class="cards" bind:this={questUl}>
-			{#each col.questTasks as task, i (task.id)}
-				{@render card(task, i, col.questTasks)}
-			{/each}
-			{#each col.questDone as task, i (task.id)}
-				{@render card(task, i, col.questDone)}
-			{/each}
-			{#if over?.kind === 'quest' && over.beforeId === null}
-				<li class="drop-end" aria-hidden="true"></li>
-			{/if}
-		</ul>
-
-		{#if otherCount > 0}
-			<div class="other">
-				<button
-					type="button"
-					class="other-toggle"
-					class:drop-target={over?.kind === 'other' && !col.otherOpen}
-					aria-expanded={col.otherOpen}
-					onclick={() => ontoggleother(col.day, !col.otherOpen)}
-				>
-					<span class="caret" class:open={col.otherOpen} aria-hidden="true">
-						<ChevronRight size={14} />
-					</span>
-					<span>{t.common.other}</span>
-					<span class="count tabular">{otherCount}</span>
-				</button>
-				{#if col.otherOpen}
-					<ul class="cards" bind:this={otherUl}>
-						{#each col.otherTasks as task, i (task.id)}
-							{@render card(task, i, col.otherTasks)}
-						{/each}
-						{#each col.otherDone as task, i (task.id)}
-							{@render card(task, i, col.otherDone)}
-						{/each}
-						{#if over?.kind === 'other' && over.beforeId === null}
-							<li class="drop-end" aria-hidden="true"></li>
-						{/if}
-					</ul>
-					<TaskAddForm
-						action="addOther"
-						placeholder={t.plan.addOther}
-						compact
-						day={col.day}
-						{form}
-					/>
+		<div class="group">
+			<ul class="cards" bind:this={questUl}>
+				{#each col.questTasks as task, i (task.id)}
+					{@render row(task, i, col.questTasks)}
+				{/each}
+				{#each col.questDone as task, i (task.id)}
+					{@render row(task, i, col.questDone)}
+				{/each}
+				{#if over?.kind === 'quest' && over.beforeId === null}
+					<li class="drop-end" aria-hidden="true"></li>
 				{/if}
+			</ul>
+
+			{#if otherCount > 0}
+				<div class="other">
+					<button
+						type="button"
+						class="other-toggle"
+						class:drop-target={over?.kind === 'other' && !col.otherOpen}
+						aria-expanded={col.otherOpen}
+						onclick={() => ontoggleother(col.day, !col.otherOpen)}
+					>
+						<span class="caret" class:open={col.otherOpen} aria-hidden="true">
+							<ChevronRight size={14} />
+						</span>
+						<span>{t.common.other}</span>
+						<span class="count tabular">{otherCount}</span>
+					</button>
+					{#if col.otherOpen}
+						<ul class="cards" bind:this={otherUl}>
+							{#each col.otherTasks as task, i (task.id)}
+								{@render row(task, i, col.otherTasks)}
+							{/each}
+							{#each col.otherDone as task, i (task.id)}
+								{@render row(task, i, col.otherDone)}
+							{/each}
+							{#if over?.kind === 'other' && over.beforeId === null}
+								<li class="drop-end" aria-hidden="true"></li>
+							{/if}
+						</ul>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- The day's one add row, last in its list: a quest or Other from the picker. -->
+			<div class="add-slot">
+				<TaskAddForm
+					action="add"
+					placeholder={t.tasks.addTask}
+					{quests}
+					otherOption
+					row
+					day={col.day}
+					{form}
+				/>
 			</div>
+		</div>
+		{#if empty}
+			<p class="empty-hint">{t.plan.emptyDayHint}</p>
 		{/if}
 	</div>
 
@@ -217,16 +204,12 @@
 
 <style>
 	.col {
-		flex: 0 0 252px;
+		flex: 0 0 var(--plan-col-w);
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-3);
+		gap: var(--space-2);
 		min-width: 0;
 		min-height: 0;
-		padding: var(--space-3) var(--space-2) var(--space-2);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: color-mix(in srgb, var(--surface) 45%, transparent);
 	}
 	/* Past days are dimmed but stay fully interactive. */
 	.past {
@@ -238,41 +221,35 @@
 	}
 
 	.head {
-		padding: 0 var(--space-2) var(--space-3);
-		border-bottom: 1px solid var(--border);
-	}
-	.today .head {
-		border-bottom: 2px solid var(--accent);
-		padding-bottom: calc(var(--space-3) - 1px);
+		padding: 0 var(--space-2);
 	}
 	.day {
 		display: flex;
 		align-items: baseline;
-		gap: var(--space-2);
 		margin: 0;
-		font-size: var(--fs-lg);
-		font-weight: var(--fw-medium);
+		font-size: var(--fs-md);
+		font-weight: var(--fw-semibold);
 	}
-	.weekday {
-		color: var(--text-muted);
+	.board-only {
+		display: inline-flex;
+		align-items: baseline;
+		gap: var(--space-2);
+	}
+	.phone-only {
+		display: none;
 	}
 	.daynum {
-		font-size: var(--fs-md);
-		color: var(--text-faint);
+		color: var(--text-muted);
+		font-weight: var(--fw-medium);
+		font-size: var(--fs-sm);
 	}
-	.today .weekday {
-		color: var(--text);
-	}
+	/* Today: weekday and date in the accent's text colour. */
+	.today .day,
 	.today .daynum {
 		color: var(--accent-text);
 	}
 
-	.col :global(form.add) {
-		margin-bottom: 0;
-		padding-left: var(--space-3);
-	}
-
-	/* Cards + Other zone scroll together inside the column. */
+	/* The list scrolls inside the column (the whole column is the drop target). */
 	.body {
 		flex: 1;
 		min-height: 0;
@@ -283,74 +260,94 @@
 		scrollbar-width: thin;
 		scrollbar-color: var(--border-strong) transparent;
 	}
+	/* One inset grouped list per day: the quest rows, the Other zone, the add row. */
+	.group {
+		flex: none;
+		border-radius: var(--grouped-radius);
+		background: var(--grouped-bg);
+		overflow: hidden;
+	}
 	.cards {
 		list-style: none;
 		display: grid;
-		align-content: start;
-		gap: var(--space-2);
 		margin: 0;
-		padding: var(--space-1) 0 0;
+		padding: 0;
 		min-width: 0;
 	}
+	/* Hairline under every row (the add row is always last, so none dangles); `::before` on the
+	 * Other toggle — touch screens give every button an `::after` hit area (`global.css`). */
+	.cards > :global(li.task)::after,
+	.other-toggle::before {
+		content: '';
+		position: absolute;
+		left: calc(var(--space-3) + var(--row-check) + var(--space-3));
+		right: 0;
+		bottom: 0;
+		height: 1px;
+		background: var(--grouped-separator);
+		pointer-events: none;
+	}
 
-	/* Accent line at the end of the list the card would be appended to. */
+	/* Accent line at the end of the list the row would be appended to. */
 	.drop-end {
 		height: 2px;
-		border-radius: 1px;
 		background: var(--accent);
 	}
 
-	.other {
-		display: grid;
-		gap: var(--space-2);
-	}
 	.other-toggle {
+		position: relative;
 		display: flex;
 		align-items: center;
-		gap: var(--space-1);
+		gap: var(--space-2);
 		width: 100%;
-		padding: var(--space-2);
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
+		min-height: var(--grouped-row-h);
+		padding: var(--space-2) var(--space-3);
+		border: none;
 		background: transparent;
 		color: var(--text-muted);
 		font-size: var(--fs-sm);
+		text-align: left;
 	}
-	.other-toggle:hover {
-		color: var(--text);
-		background: var(--surface-hover);
+	@media (hover: hover) {
+		.other-toggle:hover {
+			color: var(--text);
+			background: var(--surface-hover);
+		}
 	}
 	.other-toggle.drop-target {
-		border-color: var(--accent);
+		box-shadow: inset 0 0 0 2px var(--accent);
 	}
 	.caret {
 		display: grid;
+		place-items: center;
 		flex: none;
+		width: var(--row-check);
 		transition: transform var(--dur) var(--ease);
 	}
 	.caret.open {
 		transform: rotate(90deg);
 	}
 	.other-toggle .count {
+		margin-left: auto;
 		color: var(--text-faint);
 	}
 
-	.empty-day {
+	/* The add row in a narrow column: same inset as the rows. */
+	.add-slot :global(form.add.row) {
+		padding-inline: var(--space-3);
+	}
+	.empty-hint {
 		display: none;
 	}
 
 	/*
-	 * Phones: the day view — only the selected day, full width, no column chrome (the day
-	 * strip names the day); the page scrolls instead of the column.
+	 * Phones: the day view — only the selected day, full width; its list header names the day
+	 * and its open tasks ("Thursday · 1 open"); the page scrolls instead of the column.
 	 */
 	@media (max-width: 720px) {
 		.col {
 			flex: none;
 			width: 100%;
-			gap: var(--space-4);
-			padding: 0;
-			border: none;
-			background: none;
 		}
 		.col:not(.sel) {
 			display: none;
@@ -361,40 +358,41 @@
 			opacity: 1;
 		}
 		.head {
-			position: absolute;
-			width: 1px;
-			height: 1px;
-			overflow: hidden;
-			clip-path: inset(50%);
-			white-space: nowrap;
+			padding: 0 var(--grouped-inset);
 		}
-		.col :global(form.add) {
-			padding-left: var(--space-3);
+		.day {
+			font-size: var(--fs-label);
+			font-weight: var(--fw-semibold);
+			color: var(--text-muted);
+		}
+		.today .day {
+			color: var(--text-muted);
+		}
+		.board-only {
+			display: none;
+		}
+		.phone-only {
+			display: inline;
 		}
 		.body {
 			overflow: visible;
-			gap: var(--space-3);
 		}
-		.cards {
-			gap: var(--space-3);
+		.cards > :global(li.task)::after,
+		.other-toggle::before {
+			left: calc(var(--grouped-inset) + var(--row-check) + var(--space-3));
 		}
-		.cards:empty {
-			display: none;
+		.other-toggle {
+			padding-inline: var(--grouped-inset);
+			font-size: var(--fs-md);
 		}
-		.empty-day {
-			display: grid;
-			justify-items: start;
-			gap: var(--space-2);
-			padding: var(--space-6) var(--space-4);
-			border: 1px dashed var(--border-dashed);
-			border-radius: var(--radius-lg);
+		.add-slot :global(form.add.row) {
+			padding-inline: var(--grouped-inset);
 		}
-		.empty-title {
-			font-size: var(--fs-lg);
-			font-weight: var(--fw-medium);
-		}
-		.empty-day :global(.btn) {
-			margin-top: var(--space-2);
+		.empty-hint {
+			display: block;
+			padding: 0 var(--grouped-inset);
+			font-size: var(--fs-xs);
+			color: var(--text-muted);
 		}
 	}
 </style>

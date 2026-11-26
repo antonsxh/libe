@@ -189,6 +189,7 @@ export const CHECKS: Check[] = [
 	})),
 	...TEXT_SURFACES.map((bg) => ({ fg: '--danger', bg, min: AA_TEXT, what: 'error text' })),
 	...TEXT_SURFACES.map((bg) => ({ fg: '--success', bg, min: AA_TEXT, what: 'success text' })),
+	...TEXT_SURFACES.map((bg) => ({ fg: '--now-line', bg, min: AA_UI, what: 'now line and dot' })),
 	{ fg: '--overdue', bg: '--surface', min: AA_UI, what: 'overdue dots' },
 	...TEXT_SURFACES.map((bg) => ({ fg: '--streak', bg, min: AA_UI, what: 'streak flame' })),
 	{ fg: '--success-ink', bg: '--success', min: AA_UI, what: 'all-done check' },
