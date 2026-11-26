@@ -1363,7 +1363,7 @@ quest to pick. The overhaul runs in small milestones, each shippable on its own:
 | R4  | "Apple + Linear" look (replaces Hain): palette, Geist, Apple system colours for quests, `--accent-text`                                                          | ✅ done |
 | O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | ✅ done |
 | O3a | Less at once, part 1: Home as one list (variant A) — overdue rows, one "Today" list, one add row, Backlog and Daily plan as rows/sheets                          | ✅ done |
-| O3b | Slimmer quest dialog ("More options"), empty states (one symbol, one sentence, one action), phone tab labels, wording                                            | ✅ done     |
+| O3b | Slimmer quest dialog ("More options"), empty states (one symbol, one sentence, one action), phone tab labels, wording                                            | ✅ done |
 | O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
 | R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
 
