@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formAction } from '#lib/form-action.ts';
 	import { enhance } from '$app/forms';
+	import type { Snippet } from 'svelte';
 	import { ArrowRight, CalendarClock, Inbox, Trash2 } from '@lucide/svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
@@ -11,8 +12,8 @@
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
 	/**
-	 * Overdue tasks as rows (Home's card and sheet, Plan's Overdue group): done check, title,
-	 * quest pill, age ("yesterday" / "since Wed, Nov 18"), an inline "Today" and a ⋯ menu with
+	 * Overdue tasks as rows (Home's Overdue group, Plan's rail and phone sheet): done check,
+	 * title, quest pill (Home: "● quest" under the title), age ("yesterday" / "since Wed, Nov 18"), an inline "Today" and a ⋯ menu with
 	 * Tomorrow, Backlog and Delete. Every way out is an explicit server action (shared
 	 * `task-actions.ts`: `overdueTo`, `toggle`, `toBacklog`, `deleteTask`).
 	 */
@@ -23,6 +24,13 @@
 		today: string;
 		/** Plan's narrow rail: no pill (the colour bar shows the quest), smaller rows. */
 		compact?: boolean;
+		/**
+		 * Home: rows of an inset grouped list (like "Today") — a check ring in the quest colour,
+		 * the title over "● quest · age".
+		 */
+		grouped?: boolean;
+		/** A last row inside the list (Home's "Show N more"). */
+		more?: Snippet;
 		/**
 		 * `data-task` on the rows (the palette scrolls to it). Off where the same task also has
 		 * a card on the page (Plan's week), so the attribute stays unique.
@@ -37,6 +45,8 @@
 		tasks,
 		today,
 		compact = false,
+		grouped = false,
+		more,
 		mark = true,
 		ondragstart,
 		ondragend,
@@ -47,7 +57,7 @@
 	const age = (day: string | null) => (day ? overdueAgeLabel(day, today, t.overdue, t.intl) : '');
 </script>
 
-<ul class="rows" class:compact>
+<ul class="rows" class:compact class:grouped>
 	{#each tasks as task (task.id)}
 		<li
 			class="row"
@@ -67,7 +77,11 @@
 			<span class="main">
 				<span class="title">{task.title}</span>
 				<span class="meta">
-					{#if !compact}
+					{#if grouped}
+						<span class="qdot" aria-hidden="true"></span>
+						<span class="qname">{task.questName ?? t.common.other}</span>
+						<span class="sep" aria-hidden="true">·</span>
+					{:else if !compact}
 						{#if task.questId && task.questName}
 							<QuestPill color={task.questColor} label={task.questName} />
 						{:else}
@@ -113,6 +127,7 @@
 			</Menu>
 		</li>
 	{/each}
+	{#if more}<li class="more">{@render more()}</li>{/if}
 </ul>
 
 <style>
@@ -265,6 +280,80 @@
 		.compact .title {
 			white-space: nowrap;
 		}
+	}
+
+	/* Home: rows of an inset grouped list, title over "● quest · age". */
+	.grouped {
+		gap: 0;
+		overflow: hidden;
+		border-radius: var(--grouped-radius);
+		background: var(--grouped-bg);
+	}
+	.grouped > li {
+		position: relative;
+	}
+	.grouped > li + li::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: calc(var(--grouped-inset) + var(--row-check) + var(--space-3));
+		right: 0;
+		height: 1px;
+		background: var(--grouped-separator);
+		pointer-events: none;
+	}
+	.grouped .row {
+		min-height: calc(var(--grouped-row-h) + var(--space-2));
+		padding: var(--space-2) var(--space-2) var(--space-2) var(--grouped-inset);
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+	}
+	.grouped .row::before {
+		display: none;
+	}
+	.grouped .check {
+		width: var(--row-check);
+		height: var(--row-check);
+		border-color: var(--q);
+	}
+	@media (hover: hover) {
+		.grouped .check:hover {
+			border-color: var(--q);
+			background: color-mix(in srgb, var(--q) 18%, transparent);
+		}
+	}
+	.grouped .main {
+		display: grid;
+		gap: 1px;
+	}
+	.grouped .title {
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+	.grouped .meta {
+		gap: var(--space-1);
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+	}
+	.qdot {
+		flex: none;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--q);
+	}
+	.qname {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.sep {
+		color: var(--text-faint);
+	}
+	.grouped .meta {
+		flex-wrap: nowrap;
 	}
 
 	/* menu items */

@@ -13,7 +13,6 @@ import {
 	addTaskAction,
 	formStr,
 	optionalQuestTarget,
-	requireQuestTarget,
 	sharedTaskActions
 } from '#lib/server/task-actions.ts';
 import {
@@ -68,6 +67,9 @@ export const load = (async ({ url, locals }) => {
 			: questTasksAll
 	);
 	const otherSplit = doneLast(otherTasksAll);
+	/** `?hideDone=1` hides the done rows of the whole "Today" list. */
+	const withDone = <T>(split: { open: T[]; done: T[] }) =>
+		hideDone ? split.open : split.open.concat(split.done);
 	const weekBudgetMin = quests_.reduce((sum, quest) => sum + (quest.weeklyBudgetH ?? 0) * 60, 0);
 
 	return {
@@ -82,11 +84,12 @@ export const load = (async ({ url, locals }) => {
 		weekBudgetMin,
 		byTaskMs: time.byTaskMs,
 		quests: quests_,
-		/** Quests matching `?q=` — picker for the add rows. */
+		/** Quests matching `?q=` — the add row's picker (plus Other). */
 		visibleQuests: filter ? quests_.filter((quest) => filter.has(quest.id)) : quests_,
 		questFilter: filter ? [...filter] : null,
-		questTasks: questSplit.open.concat(questSplit.done),
-		otherTasks: otherSplit.open.concat(hideDone ? [] : otherSplit.done),
+		/** Today's two stored lists (open first); the page merges them into one (`mergeDayLists`). */
+		questTasks: withDone(questSplit),
+		otherTasks: withDone(otherSplit),
 		hideDone,
 		backlog,
 		/** "Other" tasks without a day (shown as their own group in the backlog card). */
@@ -103,9 +106,12 @@ export const actions = {
 	/** "Create your first quest" (Home without open quests) — the same action as on Quests. */
 	create: createQuestAction,
 
-	/** Add a task to a quest on today's list; `pos` = top|bottom. */
-	addQuest: addTaskAction('addQuest', async (form) => {
-		const res = await requireQuestTarget(String(form.get('questId') ?? ''));
+	/**
+	 * Home's one add row: a task on today's list — quest work for the picked quest, or Other
+	 * (`questId = 'other'`, also the only choice without open quests); `pos` = top|bottom.
+	 */
+	add: addTaskAction('add', async (form) => {
+		const res = await optionalQuestTarget(String(form.get('questId') ?? ''));
 		return res.ok
 			? { ok: true, target: res.target, day: todayISO() }
 			: { ok: false, errors: { title: res.error } };
@@ -118,13 +124,6 @@ export const actions = {
 			? { ok: true, target: res.target, day: null }
 			: { ok: false, errors: { title: res.error } };
 	}),
-
-	/** Add a plain "Other" task to today; `pos` = top|bottom. */
-	addOther: addTaskAction('addOther', () => ({
-		ok: true,
-		target: { kind: 'other' },
-		day: todayISO()
-	})),
 
 	/** Backlog button on "→ Today": schedule a backlog task onto today. */
 	today: async ({ request }) => {

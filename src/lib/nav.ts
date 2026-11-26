@@ -37,3 +37,10 @@ export function activeTab(pathname: string): number {
 	if (index >= 0) return index;
 	return ACCOUNT_PATHS.some((href) => isActive(pathname, href)) ? TAB_ITEMS.length : -1;
 }
+
+/**
+ * Home with its Backlog sheet open — where the palette sends a task without a day. Home opens
+ * the sheet and drops the parameter from the URL again (client-only, like `?day=`).
+ */
+export const BACKLOG_PARAM = 'backlog';
+export const BACKLOG_HREF = `/?${BACKLOG_PARAM}=1`;

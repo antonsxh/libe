@@ -54,7 +54,7 @@ test('Ctrl+K finds tasks with their quest; Enter opens where the task lives', as
 		page.locator(`[data-day="${nextWeek}"] li.task`, { hasText: planned.title })
 	).toBeVisible();
 
-	// The backlog lives on Home (its backlog section lists every open quest's backlog).
+	// The backlog lives in Home's Backlog sheet: the palette opens it (`?backlog=1`, dropped again).
 	await openWithShortcut(page);
 	await input(page).fill(backlog.title);
 	await expect(
@@ -62,7 +62,9 @@ test('Ctrl+K finds tasks with their quest; Enter opens where the task lives', as
 	).toBeVisible();
 	await page.keyboard.press('Enter');
 	await expect(page).toHaveURL(/\/$/);
-	await expect(page.locator('li.row', { hasText: backlog.title })).toBeVisible();
+	await expect(
+		page.getByRole('dialog', { name: 'Backlog' }).locator('li.row', { hasText: backlog.title })
+	).toBeVisible();
 });
 
 test('done tasks and closed quests are not found', async ({ page, sql }) => {

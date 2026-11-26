@@ -152,7 +152,6 @@ export const de: Messages = {
 		today: 'heute',
 		ofGoalToday: (goal) => `/ ${goal} heute`,
 		thisWeek: (hours) => `${hours} diese Woche`,
-		budgetBar: 'Genutzter Anteil des Quest-Budgets dieser Woche',
 		nextUp: {
 			label: 'Als Nächstes',
 			start: 'Fokus starten',
@@ -164,14 +163,10 @@ export const de: Messages = {
 		},
 		blockFailed:
 			'Der Zeitblock konnte nicht gespeichert werden – der Beginn muss vor dem Ende liegen, beides zwischen 00:00 und 24:00.',
-		questWork: 'Quest-Arbeit',
-		addQuestWork: 'Neue Quest-Arbeit …',
 		firstQuest: {
 			text: 'Quests sind deine größeren Ziele – eine Sprache, ein Nebenprojekt. Leg eine an, um hier Arbeit dafür zu planen; alles andere kommt unter Sonstiges.',
 			action: 'Erste Quest anlegen'
 		},
-		timeline: 'Zeitleiste',
-		openTasks: (n) => `${n} ${plural(n, 'offene Aufgabe', 'offene Aufgaben')}`,
 		scheduleToday: 'Für heute einplanen',
 		dayTimeline: 'Tageszeitleiste',
 		editBlockAria: (title, from, to) => `Zeitblock bearbeiten: ${title}, ${from} bis ${to}`,
@@ -206,9 +201,6 @@ export const de: Messages = {
 		showAll: (n) => `Alle ${n} anzeigen`,
 		showLess: 'Weniger anzeigen',
 		todayAria: (title) => `Auf heute verschieben: ${title}`,
-		row: (n) => `${n} ${plural(n, 'Aufgabe', 'Aufgaben')} überfällig`,
-		view: 'Ansehen',
-		sheetTitle: 'Überfällige Aufgaben',
 		navLabel: (home, n) => `${home}, ${n} überfällig`,
 		marker: 'Überfällig',
 		stripMark: 'überfällige Aufgaben',
@@ -877,5 +869,18 @@ export const de: Messages = {
 			today: 'zählt noch nicht',
 			future: 'kommt noch'
 		}
+	},
+	homeList: {
+		open: (n) => `${n} offen`,
+		showMore: (n) => `${n} weitere anzeigen`,
+		backlogRow: (n) => `Backlog, ${n} ${plural(n, 'Aufgabe', 'Aufgaben')}`,
+		dailyPlan: 'Tagesplan',
+		wholeDay: 'Ganzer Tag',
+		nextHours: 'Nächste Stunden',
+		planEmpty: 'Nichts geplant',
+		planNow: (title) => `Jetzt: ${title}`,
+		planNext: (time, title) => `${time} ${title}`,
+		planPast: (n) => `${n} ${plural(n, 'Block', 'Blöcke')} früher heute`,
+		planHint: 'Einen Zeitblock legst du über das ⋯-Menü einer Aufgabe an.'
 	}
 };

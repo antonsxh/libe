@@ -9,6 +9,7 @@
  * - Where a task lives in the UI (`taskHref`), shortcut / platform detection.
  */
 import { startOfWeek } from '#lib/dates.ts';
+import { BACKLOG_HREF } from '#lib/nav.ts';
 
 /** Longest query the server looks at (longer input is cut, not rejected). */
 export const SEARCH_MAX_LEN = 100;
@@ -116,16 +117,17 @@ export function rankQuests<T extends { name: string }>(
 // ─── Navigation targets ─────────────────────────────────────────────────────
 
 /**
- * Where a task is shown: today's tasks and the backlog are both on Home (its backlog section
- * lists every open quest's and the "other" backlog, at every width — the Plan board scrolls
- * its backlog column out of view on phones); any other day opens that week on the Plan board,
- * with the day's "Other" zone expanded for tasks of kind `other`.
+ * Where a task is shown: today's tasks on Home's "Today" list, the backlog in Home's Backlog
+ * sheet (`BACKLOG_HREF`: every open quest's and the "other" backlog, at every width — the Plan
+ * board scrolls its backlog column out of view on phones); any other day opens that week on
+ * the Plan board, with the day's "Other" zone expanded for tasks of kind `other`.
  */
 export function taskHref(
 	task: { day: string | null; kind: 'quest' | 'other' },
 	today: string
 ): string {
-	if (task.day === null || task.day === today) return '/';
+	if (task.day === null) return BACKLOG_HREF;
+	if (task.day === today) return '/';
 	const week = `/plan?week=${startOfWeek(task.day)}`;
 	return task.kind === 'other' ? `${week}&other=${task.day}` : week;
 }

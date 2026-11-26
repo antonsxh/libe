@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
 	doneLast,
 	dropIntoList,
-	groupEdges,
+	mergeDayLists,
 	moveWithinGroup,
 	orderAtBottom,
 	orderAtTop
@@ -87,7 +87,7 @@ describe('dropIntoList', () => {
 	}
 });
 
-describe('doneLast / groupEdges', () => {
+describe('doneLast', () => {
 	const d = new Date('2026-11-18T10:00:00Z');
 	const list = [
 		{ id: 'a', doneAt: null },
@@ -101,12 +101,34 @@ describe('doneLast / groupEdges', () => {
 		expect(open.map((t) => t.id)).toEqual(['a', 'c']);
 		expect(done.map((t) => t.id)).toEqual(['b', 'd']);
 	});
+});
 
-	test('groupEdges marks the edges of each open/done group', () => {
-		const rendered = doneLast(list).open.concat(doneLast(list).done); // a c b d
-		expect(groupEdges(rendered, 0)).toEqual({ first: true, last: false });
-		expect(groupEdges(rendered, 1)).toEqual({ first: false, last: true }); // a|c
-		expect(groupEdges(rendered, 2)).toEqual({ first: true, last: false }); // b|d
-		expect(groupEdges(rendered, 3)).toEqual({ first: false, last: true });
+describe('mergeDayLists', () => {
+	const t = (id: string, done = false) => ({ id, doneAt: done ? '2026-11-25T10:00:00Z' : null });
+	const view = (rows: ReturnType<typeof mergeDayLists<ReturnType<typeof t>>>) =>
+		rows.map((r) => `${r.task.id}${r.first ? '^' : ''}${r.last ? 'v' : ''}`);
+
+	test('empty lists', () => {
+		expect(mergeDayLists([], [])).toEqual([]);
+	});
+
+	test('open quest work, open Other, done quest work, done Other — each in list order', () => {
+		const quest = [t('q1'), t('q2', true), t('q3'), t('q4')];
+		const other = [t('o1', true), t('o2'), t('o3', true)];
+		expect(view(mergeDayLists(quest, other))).toEqual([
+			'q1^',
+			'q3',
+			'q4v',
+			'o2^v',
+			'q2^v',
+			'o1^',
+			'o3v'
+		]);
+	});
+
+	test('↑/↓ edges never cross a list or the open/done boundary', () => {
+		const rows = mergeDayLists([t('q1'), t('q2')], [t('o1'), t('o2')]);
+		// o1 is not the merged list's first row, but the first of its own list → ↑ disabled.
+		expect(view(rows)).toEqual(['q1^', 'q2v', 'o1^', 'o2v']);
 	});
 });

@@ -1,6 +1,6 @@
 /**
- * Overdue tasks (planned before today, not done, kind other or an open quest): Home's card and
- * phone sheet, "Today" / "All to today" (order kept), the nav dot, Plan's Overdue group (drag
+ * Overdue tasks (planned before today, not done, kind other or an open quest): Home's Overdue
+ * group above "Today" (every width; 3 rows + "Show N more"), "Today" / "All to today" (order kept), the nav dot, Plan's Overdue group (drag
  * onto a day) and past-day marker, and the palette action. Nothing is ever moved without an
  * explicit action; done tasks and closed quests' tasks never count.
  *
@@ -24,10 +24,12 @@ async function openQuest(sql: Sql, name: string) {
 }
 
 const card = (page: Page) => page.getByTestId('overdue');
+const todayTitles = (page: Page) =>
+	page.getByTestId('today-list').locator('li.task .title').allTextContents();
 const row = (scope: ReturnType<Page['locator']>, title: string) =>
 	scope.locator('li', { hasText: title });
 
-/** Put a task first in Home's card (yesterday's list starts with it), so the 5-row preview shows it. */
+/** Put a task first in Home's group (yesterday's list starts with it), so the 3-row preview shows it. */
 async function first(sql: Sql, id: string) {
 	await sql`update tasks set sort_order = -1000000 where id = ${id}`;
 }
@@ -85,7 +87,7 @@ test('Home lists an overdue task; "Today" moves it to the end of today\'s list â
 
 	expect(await dayOf(sql, late.id)).toBe(day);
 	await expect(row(card(page), late.title)).toHaveCount(0);
-	const titles = await page.locator('.main-col li.task .title').allTextContents();
+	const titles = await todayTitles(page);
 	expect(titles.indexOf(late.title)).toBeGreaterThan(titles.indexOf(already.title));
 	expect(titles.indexOf(already.title)).toBeGreaterThanOrEqual(0);
 });
@@ -171,6 +173,15 @@ test('"All to today" appends every overdue task in display order; Tomorrow and B
 	for (const t of [later, parked]) await first(sql, t.id);
 
 	await gotoLive(page, '/');
+	// Yesterday's list starts recentA, recentB, later, parked: the preview stops after three,
+	// "Show N more" unfolds the rest in place.
+	const n = await overdueCount(sql);
+	await expect(row(card(page), parked.title)).toHaveCount(0);
+	await card(page)
+		.getByRole('button', { name: `Show ${n - 3} more` })
+		.click();
+	await expect(row(card(page), parked.title)).toBeVisible();
+	await expect(card(page).locator('li[data-overdue]')).toHaveCount(n);
 	const menu = async (title: string, item: string) => {
 		await row(card(page), title)
 			.getByRole('button', { name: `Actions for ${title}` })
@@ -203,7 +214,9 @@ test('"All to today" appends every overdue task in display order; Tomorrow and B
 			older.title
 		]);
 		expect(await dayOf(sql, other.id)).toBe(day);
-		await expect(page.locator('.main-col li.task', { hasText: other.title })).toBeVisible();
+		await expect(
+			page.getByTestId('today-list').locator('li.task', { hasText: other.title })
+		).toBeVisible();
 	});
 });
 
@@ -263,12 +276,12 @@ test('the palette moves every overdue task to today', async ({ page, sql }) => {
 	});
 });
 
-test('phone: one row opens the overdue sheet; "Today" there moves the task @mobile', async ({
+test('phone: the overdue tasks are rows above Today; "Today" there moves the task @mobile', async ({
 	page,
 	sql,
 	viewport
 }) => {
-	test.skip(viewport!.width > 720, 'the row + sheet are the phone layout');
+	test.skip(viewport!.width > 720, 'the phone layout');
 	const id = uid();
 	const day = await today(sql);
 	const quest = await openQuest(sql, `Phone ${id}`);
@@ -277,24 +290,32 @@ test('phone: one row opens the overdue sheet; "Today" there moves the task @mobi
 		questId: quest.id,
 		day: addDays(day, -4)
 	});
-
 	await gotoLive(page, '/');
-	await expect(card(page)).toBeHidden();
-	await page.getByTestId('overdue-row').click();
-	const sheet = page.getByRole('dialog', { name: 'Overdue tasks' });
-	await expect(sheet.getByRole('button', { name: 'All to today' })).toBeVisible();
-	const r = row(sheet, late.title);
+	const group = card(page);
+	await expect(group.getByRole('button', { name: 'All to today' })).toBeVisible();
+	// The group sits above the Today list.
+	const groupBox = (await group.boundingBox())!;
+	const listBox = (await page.getByTestId('today-list').boundingBox())!;
+	expect(groupBox.y).toBeLessThan(listBox.y);
+
+	// Four days late: behind yesterday's rows, so it may sit under "Show N more".
+	const more = group.getByRole('button', { name: /^Show \d+ more$/ });
+	if (await more.isVisible()) await more.tap();
+	const r = row(group, late.title);
 	await r.scrollIntoViewIfNeeded();
 	await expect(r).toContainText('since');
+	await expect(r).toContainText(quest.name);
 
 	const done = actionDone(page, 'overdueTo');
-	await r.getByRole('button', { name: `Move to today: ${late.title}` }).click();
+	await r.getByRole('button', { name: `Move to today: ${late.title}` }).tap();
 	await done;
 	await expect(r).toHaveCount(0);
 	expect(await dayOf(sql, late.id)).toBe(day);
 
 	await reloadLive(page);
-	await expect(page.locator('.main-col li.task', { hasText: late.title })).toBeVisible();
+	await expect(
+		page.getByTestId('today-list').locator('li.task', { hasText: late.title })
+	).toBeVisible();
 });
 
 test('the API validates its input and only moves overdue tasks', async ({ api, sql }) => {

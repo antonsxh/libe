@@ -221,6 +221,13 @@
 	--symbol-lg: 52px; /* accent symbol above a large title */
 	--welcome-col: 480px; /* the first-run flow's column on wide screens */
 
+	/* ── Home as one list (O3a) ── */
+	--row-check: 22px; /* round check / "+" at the start of a task row */
+	--row-icon: 28px; /* icon tile of a navigation row (Backlog, Daily plan) */
+	--row-badge-h: 22px; /* count badge at the end of a navigation row */
+	--fs-title-lg: 2rem; /* 32  Home's large date title on wider screens */
+	--home-side: 300px; /* Home's slim right column (backlog row, compact daily plan) */
+
 	/* ── Hatching (planned blocks, calendar entries) ──────── */
 	--hatch-angle: 135deg;
 	--hatch-line: 2px;

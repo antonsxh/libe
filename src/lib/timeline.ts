@@ -133,3 +133,69 @@ export function nextHalfHourMinutes(now: Date = new Date()): number {
 	const next = (Math.floor(minutes / 30) + 1) * 30;
 	return Math.min(next, 24 * 60 - 30);
 }
+
+/** The whole-day timeline: 06:00 until midnight, earlier when a block starts before 6. */
+export const TIMELINE_DAY_START_HOUR = 6;
+
+/** Hours shown by a timeline (`startHour` inclusive, `endHour` exclusive, 0‥24). */
+export interface TimelineWindow {
+	startHour: number;
+	endHour: number;
+}
+
+/** The whole day: 06:00–24:00, or from the hour of a block that starts earlier. */
+export function dayWindow(blocks: readonly TimedBlock[]): TimelineWindow {
+	const first = Math.min(TIMELINE_DAY_START_HOUR * 60, ...blocks.map((b) => b.startMin));
+	return { startHour: Math.max(0, Math.floor(first / 60)), endHour: 24 };
+}
+
+/**
+ * Home's compact timeline: a window around now (`before` minutes back, `after` ahead, whole
+ * hours), stretched to cover every block that hasn't ended before the window starts (what is
+ * still planned today; earlier blocks are in the whole-day view). Kept inside the day and at
+ * least `minHours` long (late evening: 19–24 rather than 23–24).
+ */
+export function nowWindow(
+	blocks: readonly TimedBlock[],
+	nowMin: number,
+	{ before = 60, after = 240, minHours = 5 } = {}
+): TimelineWindow {
+	let start = Math.floor((nowMin - before) / 60);
+	let end = Math.ceil((nowMin + after) / 60);
+	for (const b of blocks) {
+		if (b.endMin <= start * 60) continue;
+		start = Math.min(start, Math.floor(b.startMin / 60));
+		end = Math.max(end, Math.ceil(b.endMin / 60));
+	}
+	start = Math.max(0, start);
+	end = Math.min(24, end);
+	if (end - start < minHours) {
+		if (end === 24) start = Math.max(0, 24 - minHours);
+		else end = Math.min(24, start + minHours);
+	}
+	return { startHour: start, endHour: end };
+}
+
+/**
+ * One line about today's plan (Home's "Daily plan" row on phones): the block running now or
+ * the next one, else how many blocks are already behind, else nothing planned.
+ */
+export type PlanSummary<T> =
+	| { kind: 'now'; block: T }
+	| { kind: 'next'; block: T }
+	| { kind: 'past'; count: number }
+	| { kind: 'empty' };
+
+export function planSummary<T extends TimedBlock>(
+	blocks: readonly T[],
+	nowMin: number
+): PlanSummary<T> {
+	if (blocks.length === 0) return { kind: 'empty' };
+	const ahead = blocks
+		.filter((b) => b.endMin > nowMin)
+		.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+	const current = ahead.find((b) => b.startMin <= nowMin);
+	if (current) return { kind: 'now', block: current };
+	if (ahead.length > 0) return { kind: 'next', block: ahead[0] };
+	return { kind: 'past', count: blocks.length };
+}
