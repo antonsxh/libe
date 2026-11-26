@@ -61,7 +61,7 @@ test('▶ starts a focus timer; pause, resume and complete are decided by the se
 	expect(s.paused_ms).toBeGreaterThanOrEqual(120_000);
 
 	await page.getByRole('button', { name: 'Complete' }).click();
-	await expect(page.getByRole('heading', { name: 'What are you focusing on?' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'What are you working on?' })).toBeVisible();
 	const [ended] = await sql`select state, ended_at from sessions where id = ${s.id}`;
 	expect(ended.state).toBe('completed');
 	expect(ended.ended_at).not.toBeNull();
@@ -69,6 +69,75 @@ test('▶ starts a focus timer; pause, resume and complete are decided by the se
 
 	await gotoLive(page, '/');
 	await expect(homeCard(page, task.title)).toHaveClass(/done/);
+});
+
+test('focus setup: the picked task and duration decide the planned minutes @mobile', async ({
+	page,
+	sql,
+	api
+}) => {
+	const id = uid();
+	const planned = await createTask(sql, {
+		title: `Planned 45 ${id}`,
+		day: await today(sql),
+		durationMin: 45
+	});
+	const loose = await createTask(sql, { title: `No plan ${id}` }); // Other, in the backlog
+	await gotoLive(page, `/focus?task=${planned.id}`);
+	const duration = page.getByRole('radiogroup', { name: 'Duration' });
+	await expect(page.getByRole('radio', { name: new RegExp(planned.title) })).toBeChecked();
+	// The task's plan is preselected when it is one of the presets.
+	await expect(duration.getByRole('radio', { name: '45', exact: true })).toBeChecked();
+	await page.getByRole('button', { name: 'Start focus', exact: true }).click();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText(planned.title);
+	expect(await active(sql)).toMatchObject([
+		{ task_id: planned.id, source: 'focus', duration_min: 45 }
+	]);
+
+	await discardTimer(api);
+	await expect(page.getByRole('heading', { name: 'What are you working on?' })).toBeVisible();
+	// Another task without a plan starts at 25; "Open" makes it a stopwatch.
+	await page.getByText(loose.title, { exact: true }).click();
+	await expect(page.getByRole('radio', { name: new RegExp(loose.title) })).toBeChecked();
+	await expect(duration.getByRole('radio', { name: '25', exact: true })).toBeChecked();
+	await duration.getByRole('radio', { name: 'Open', exact: true }).check();
+	await page.getByRole('button', { name: 'Start focus', exact: true }).click();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText(loose.title);
+	expect(await active(sql)).toMatchObject([
+		{ task_id: loose.id, source: 'focus', duration_min: null }
+	]);
+});
+
+test('focus setup: "Other…" minutes are validated by the server', async ({
+	page,
+	sql,
+	console
+}) => {
+	console.allow(/status of 400/);
+	const task = await createTask(sql, {
+		title: `Custom minutes ${uid()}`,
+		day: await today(sql),
+		durationMin: 50
+	});
+	await gotoLive(page, `/focus?task=${task.id}`);
+	const duration = page.getByRole('radiogroup', { name: 'Duration' });
+	// A plan that is no preset: "Other…" with its minutes.
+	await expect(duration.getByRole('radio', { name: 'Other…', exact: true })).toBeChecked();
+	const minutes = page.getByLabel('Minutes', { exact: true });
+	await expect(minutes).toHaveValue('50');
+
+	const start = page.getByRole('button', { name: 'Start focus', exact: true });
+	await minutes.fill('1441');
+	await start.click();
+	await expect(page.getByRole('alert')).toHaveText(
+		'Planned minutes must be a whole number from 1 to 1440.'
+	);
+	expect(await active(sql)).toHaveLength(0);
+
+	await minutes.fill('1440');
+	await start.click();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText(task.title);
+	expect(await active(sql)).toMatchObject([{ task_id: task.id, duration_min: 1440 }]);
 });
 
 test('Stop logs the time and keeps the task open; Discard throws the session away', async ({
@@ -85,7 +154,7 @@ test('Stop logs the time and keeps the task open; Discard throws the session awa
 	await timerCmd(api, { action: 'start', taskId: task.id, mode: 'focus' });
 	await gotoLive(page, '/focus');
 	await more('Stop (keep task open)');
-	await expect(page.getByRole('heading', { name: 'What are you focusing on?' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'What are you working on?' })).toBeVisible();
 	expect(await sql`select state from sessions where task_id = ${task.id}`).toEqual([
 		{ state: 'completed' }
 	]);
@@ -94,7 +163,7 @@ test('Stop logs the time and keeps the task open; Discard throws the session awa
 	await timerCmd(api, { action: 'start', taskId: task.id, mode: 'focus' });
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText(task.title); // via SSE
 	await more('Discard session');
-	await expect(page.getByRole('heading', { name: 'What are you focusing on?' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'What are you working on?' })).toBeVisible();
 	expect(await sql`select state from sessions where task_id = ${task.id}`).toEqual([
 		{ state: 'completed' }
 	]);
@@ -218,9 +287,12 @@ test('pomodoro settings persist; without auto-start a finished round waits for i
 	const [row] = await sql`select pomodoro_focus_min, pomodoro_auto_start from settings`;
 	expect(row).toEqual({ pomodoro_focus_min: 20, pomodoro_auto_start: false });
 
-	await page.getByRole('radiogroup', { name: 'Timer mode' }).getByText('Pomodoro').click();
+	await page
+		.getByRole('radiogroup', { name: 'Timer mode' })
+		.getByRole('radio', { name: 'Pomodoro' })
+		.check();
 	await expect(page.locator('.pomo')).toContainText('20 min focus');
-	await page.getByRole('button', { name: 'Start', exact: true }).click();
+	await page.getByRole('button', { name: 'Start focus', exact: true }).click();
 	await expect(page.locator('.state')).toHaveText('FOCUS · ROUND 1/4');
 	const [run] = await sql`select id from pomodoro_runs where ended_at is null`;
 	const [s1] = await active(sql);
@@ -361,7 +433,7 @@ test.describe('without JavaScript', () => {
 			durationMin: 15
 		});
 		await page.goto(`/focus?task=${task.id}`);
-		await page.getByRole('button', { name: 'Start', exact: true }).click();
+		await page.getByRole('button', { name: 'Start focus', exact: true }).click();
 		await expect(page).toHaveURL(/\/focus$/);
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText(task.title);
 		expect(await active(sql)).toMatchObject([
@@ -369,7 +441,7 @@ test.describe('without JavaScript', () => {
 		]);
 
 		await page.getByRole('button', { name: 'Complete' }).click();
-		await expect(page.getByRole('heading', { name: 'What are you focusing on?' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'What are you working on?' })).toBeVisible();
 		expect(await sql`select state from sessions where task_id = ${task.id}`).toEqual([
 			{ state: 'completed' }
 		]);

@@ -110,3 +110,34 @@ export async function todayLog(): Promise<TodayLog> {
 	const { todayMin } = dayWeekMinutes(rows, { today: day });
 	return { day, loggedMin: todayMin, start: start.getTime(), end: end.getTime() };
 }
+
+export interface QuestDetailTime {
+	/** This week's / this quarter's hours of the quest (zero without sessions). */
+	weekH: number;
+	quarterH: number;
+	/** Logged milliseconds per task of the quest. */
+	byTaskMs: Record<string, number>;
+}
+
+/** Logged time of one quest (the quest detail's summary and its scheduled rows). */
+export async function questDetailTime(questId: string): Promise<QuestDetailTime> {
+	const rows = await db
+		.select({
+			taskId: sessions.taskId,
+			questId: tasks.questId,
+			startedAt: sessions.startedAt,
+			endedAt: sessions.endedAt,
+			pausedMs: sessions.pausedMs,
+			durationMin: sessions.durationMin
+		})
+		.from(sessions)
+		.innerJoin(tasks, eq(tasks.id, sessions.taskId))
+		.where(and(eq(sessions.state, 'completed'), eq(tasks.questId, questId)));
+	const { byQuest } = aggregateQuestStats(rows, { today: todayISO(), weeks: 1 });
+	const stats = byQuest.get(questId);
+	return {
+		weekH: stats?.weekH ?? 0,
+		quarterH: stats?.quarterH ?? 0,
+		byTaskMs: Object.fromEntries(loggedMsByTask(rows))
+	};
+}

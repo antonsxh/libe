@@ -144,6 +144,9 @@ export const en = {
 		/** After a task's duration on its card: which number it is. */
 		logged: 'logged',
 		planned: 'planned',
+		/** A duration with its kind, e.g. "45 min planned" (focus setup, quest detail). */
+		plannedDuration: (duration: string) => `${duration} planned`,
+		loggedDuration: (duration: string) => `${duration} logged`,
 		addToBacklog: 'Add to backlog…',
 		addTask: 'Add a task…',
 		backlogEmpty: 'Nothing waiting in the backlog.'
@@ -304,24 +307,25 @@ export const en = {
 		switchBefore: 'Start ',
 		switchAfter: ' instead?',
 		stopAndStart: 'Stop current and start',
-		pickTitle: 'What are you focusing on?',
+		pickTitle: 'What are you working on?',
 		timerMode: 'Timer mode',
 		modeFocus: 'Focus',
 		modePomodoro: 'Pomodoro',
 		noTasks: 'No open tasks for today or in the backlog.',
 		addOnHome: 'Add one on Home',
-		plannedMinutes: 'Planned minutes',
-		openEnded: 'Open-ended',
-		plannedHint: 'Counts down, then into overtime. Empty = stopwatch.',
+		/** The duration choice before a focus starts: 25 · 45 · 60 · 90 · Open · Other…. */
+		duration: 'Duration',
+		durationOpen: 'Open',
+		durationOther: 'Other…',
+		customMinutes: 'Minutes',
+		durationHint: 'Counts down, then into overtime. “Open” is a stopwatch.',
 		pomodoroSummary: (focus: number, short: number, long: number, every: number) =>
 			`${focus} min focus · ${short} min break · ${long} min long break every ${every}`,
 		change: 'Change',
-		start: 'Start',
 		logAfterwards: 'Log time afterwards…',
 		groups: {
 			selected: 'Selected',
-			todayQuest: 'Today · Quest work',
-			todayOther: 'Today · Other',
+			today: 'Today',
 			backlog: 'Backlog'
 		},
 		log: {
@@ -386,7 +390,12 @@ export const en = {
 		editQuest: 'Edit quest',
 		summary: (n: number) => `logged this quarter across ${n} ${plural(n, 'quest', 'quests')}`,
 		closedCount: (n: number) => `Closed (${n})`,
-		allQuests: 'All quests',
+		/** The quest detail's back link (to the Quests page). */
+		backToQuests: 'Quests',
+		/** The quest detail's summary: this week's hours (and budget), this quarter's. */
+		weekOfBudget: (budget: string) => `/ ${budget} this week`,
+		thisWeek: 'this week',
+		timeSummary: 'Time logged',
 		perWeek: (hours: string) => `${hours} / week`,
 		backlogEmpty: 'Nothing in the backlog yet — everything scheduled lives under “Scheduled”.',
 		scheduled: 'Scheduled',

@@ -1,17 +1,30 @@
 <script lang="ts">
 	import { formatDurationMin } from '#lib/duration.ts';
 	import { afterNavigate } from '$app/navigation';
-	import { ArrowLeft, Clock, Play, Settings, Square, Trash2 } from '@lucide/svelte';
+	import {
+		ArrowLeft,
+		ChevronLeft,
+		Clock,
+		Play,
+		Settings,
+		Square,
+		Timer,
+		Trash2
+	} from '@lucide/svelte';
+	import GroupedList from '#lib/components/GroupedList.svelte';
+	import GroupedRow from '#lib/components/GroupedRow.svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
+	import SegmentedControl from '#lib/components/SegmentedControl.svelte';
 	import PomodoroSettingsDialog from '#lib/components/focus/PomodoroSettingsDialog.svelte';
-	import { questColorVar } from '#lib/quest-colors.ts';
 	import {
-		DEFAULT_FOCUS_MIN,
-		MAX_TIMER_MIN,
-		timerLabelText,
-		type SimpleAction
-	} from '#lib/timer.ts';
+		DURATION_PRESETS,
+		initialDuration,
+		plannedMinFor,
+		type DurationChoice
+	} from '#lib/focus-setup.ts';
+	import { questColorVar } from '#lib/quest-colors.ts';
+	import { timerLabelText, type SimpleAction } from '#lib/timer.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import { ScreenWakeLock, shouldHoldWakeLock } from '#lib/wake-lock.ts';
@@ -55,22 +68,64 @@
 		void wakeLock?.set(hold);
 	});
 
-	/* ── Picker (no active timer) ────────────────────────────────────────────── */
+	/* ── Setup (no active timer) ─────────────────────────────────────────────── */
+	const uid = $props.id();
 	const allTasks = $derived(data.groups.flatMap((g) => g.tasks));
-	/** Writable derived: follows `?task=` / fresh data, overridden by the user's pick. */
-	let selectedId = $derived(data.selectedId ?? allTasks[0]?.id ?? null);
-	const selected = $derived(allTasks.find((t) => t.id === selectedId) ?? null);
+	const taskById = $derived(new Map(allTasks.map((task) => [task.id, task])));
+	/*
+	 * Writable deriveds that follow `?task=` and the selected task, overridden by the user's
+	 * pick. They hang on primitives only: a background refresh (SSE, another tab's action)
+	 * brings new arrays/objects but must not undo a pick.
+	 */
+	const firstId = $derived(allTasks[0]?.id);
+	let selectedId = $derived<string | undefined>(data.selectedId ?? firstId);
+	const selected = $derived((selectedId && taskById.get(selectedId)) || null);
 	let mode = $state<'focus' | 'pomodoro'>('focus');
-	/** Planned minutes; empty (null) = open-ended stopwatch. Resets to the task's plan on selection. */
-	let planned = $derived<number | null>(selected?.durationMin ?? DEFAULT_FOCUS_MIN);
+
+	/**
+	 * Duration: the task's plan preselected (a preset, else "Other…" with its minutes); both
+	 * reset to the plan when another task is picked. "Open" = stopwatch.
+	 */
+	const pickedId = $derived(selected?.id);
+	const pickedPlan = $derived(selected?.durationMin ?? null);
+	let choice = $derived.by<DurationChoice>(() => {
+		void pickedId;
+		return initialDuration(pickedPlan).choice;
+	});
+	let custom = $derived.by<number | null>(() => {
+		void pickedId;
+		return initialDuration(pickedPlan).customMin;
+	});
+	const durationOptions = $derived([
+		...DURATION_PRESETS.map((m) => ({ value: `${m}`, label: `${m}` })),
+		{ value: 'open', label: t.focus.durationOpen },
+		{ value: 'other', label: t.focus.durationOther }
+	]);
+
+	/** "Keep learning · 45 min planned" under a task's title. */
+	function taskMeta(task: (typeof allTasks)[number]): string {
+		const quest = task.questName ?? t.common.other;
+		return task.durationMin
+			? `${quest} · ${t.tasks.plannedDuration(formatDurationMin(task.durationMin, t.intl))}`
+			: quest;
+	}
 
 	async function start(e: SubmitEvent) {
 		e.preventDefault();
 		if (!selected) return;
+		// "Other…" sends its raw minutes: the server validates them (and answers with an error).
+		const planned = plannedMinFor(choice, custom);
 		await timer.start({
 			task: { id: selected.id, title: selected.title },
 			mode,
-			plannedMin: mode === 'focus' ? (typeof planned === 'number' ? planned : null) : undefined
+			plannedMin:
+				mode !== 'focus'
+					? undefined
+					: typeof planned === 'number'
+						? planned
+						: planned === ''
+							? null
+							: Number(planned)
 		});
 	}
 
@@ -126,32 +181,44 @@
 	</form>
 {/snippet}
 
-<div class="screen">
-	<header class="top">
-		<p class="crumb">
-			<span class="dot" aria-hidden="true"></span>
-			<span>
-				{t.focus.title}{#if questLabel}&nbsp;·&nbsp;{questLabel}{/if}
+{#snippet taskRow(option: { value: string; label: string })}
+	{@const task = taskById.get(option.value)}
+	{#if task}
+		<span class="t-row" style:--q={questColorVar(task.questColor)}>
+			<span class="t-title">{task.title}</span>
+			<span class="t-sub">
+				<span class="qdot" aria-hidden="true"></span>
+				<span class="t-meta">{taskMeta(task)}</span>
 			</span>
-		</p>
-		<div class="top-actions">
-			<button
-				type="button"
-				class="icon-btn"
-				aria-label={t.focus.pomodoroSettings}
-				title={t.focus.pomodoroSettings}
-				onclick={() => (settingsOpen = true)}
-			>
-				<Settings size={18} strokeWidth={1.75} />
-			</button>
-			<a class="icon-btn" href={backHref} aria-label={t.focus.back} title={t.focus.back}>
-				<ArrowLeft size={18} strokeWidth={1.75} />
-			</a>
-		</div>
-	</header>
+		</span>
+	{/if}
+{/snippet}
 
-	<main class="center">
-		{#if active && view}
+<div class="screen">
+	{#if active && view}
+		<header class="top">
+			<p class="crumb">
+				<span class="dot" aria-hidden="true"></span>
+				<span>
+					{t.focus.title}{#if questLabel}&nbsp;·&nbsp;{questLabel}{/if}
+				</span>
+			</p>
+			<div class="top-actions">
+				<button
+					type="button"
+					class="icon-btn"
+					aria-label={t.focus.pomodoroSettings}
+					title={t.focus.pomodoroSettings}
+					onclick={() => (settingsOpen = true)}
+				>
+					<Settings size={18} strokeWidth={1.75} />
+				</button>
+				<a class="icon-btn" href={backHref} aria-label={t.focus.back} title={t.focus.back}>
+					<ArrowLeft size={18} strokeWidth={1.75} />
+				</a>
+			</div>
+		</header>
+		<main class="center">
 			<section class="running" aria-label={t.focus.activeTimer}>
 				{#if active.task.questName}
 					<QuestPill color={active.task.questColor} label={active.task.questName} outlined />
@@ -267,95 +334,121 @@
 				{/if}
 				{#if errorText}<p class="error" role="alert">{errorText}</p>{/if}
 			</section>
-		{:else}
+		</main>
+	{:else}
+		<main class="setup">
 			<form class="picker" method="POST" action="/api/timer" onsubmit={start}>
 				<input type="hidden" name="action" value="start" />
 				<input type="hidden" name="redirectTo" value="/focus" />
-				<h1 class="pick-title">{t.focus.pickTitle}</h1>
 
-				<div class="modes" role="radiogroup" aria-label={t.focus.timerMode}>
-					<label class:on={mode === 'focus'}>
-						<input type="radio" name="mode" value="focus" bind:group={mode} />
-						{t.focus.modeFocus}
-					</label>
-					<label class:on={mode === 'pomodoro'}>
-						<input type="radio" name="mode" value="pomodoro" bind:group={mode} />
-						{t.focus.modePomodoro}
-					</label>
+				<div class="toolbar">
+					<a class="tool-link" href={backHref}>
+						<ChevronLeft size={22} strokeWidth={2.25} aria-hidden="true" />{t.focus.back}
+					</a>
+					<button
+						type="button"
+						class="tool-icon hit-target"
+						aria-label={t.focus.pomodoroSettings}
+						title={t.focus.pomodoroSettings}
+						onclick={() => (settingsOpen = true)}
+					>
+						<Timer size={20} strokeWidth={2} />
+					</button>
 				</div>
+
+				<h1>{t.focus.pickTitle}</h1>
+
+				<SegmentedControl
+					name="mode"
+					label={t.focus.timerMode}
+					options={[
+						{ value: 'focus', label: t.focus.modeFocus },
+						{ value: 'pomodoro', label: t.focus.modePomodoro }
+					]}
+					bind:value={mode}
+				/>
 
 				{#if allTasks.length === 0}
 					<p class="muted empty">
 						{t.focus.noTasks} <a href="/">{t.focus.addOnHome}</a>.
 					</p>
 				{:else}
-					<fieldset class="tasks">
-						<legend class="sr-only">{t.common.task}</legend>
-						{#each data.groups as group (group.key)}
-							<p class="label group">{group.label}</p>
-							{#each group.tasks as task (task.id)}
-								<label
-									class="task"
-									class:on={task.id === selectedId}
-									style:--q={questColorVar(task.questColor)}
-								>
-									<input type="radio" name="taskId" value={task.id} bind:group={selectedId} />
-									<span class="t-title">{task.title}</span>
-									{#if task.questName}
-										<span class="t-quest muted">
-											<span class="qdot" aria-hidden="true"></span>{task.questName}
-										</span>
-									{/if}
-									{#if task.durationMin}<span class="t-dur muted tabular">
-											{formatDurationMin(task.durationMin, t.intl)}
-										</span>{/if}
-								</label>
-							{/each}
-						{/each}
-					</fieldset>
+					{#each data.groups as group (group.key)}
+						<GroupedList
+							header={group.label}
+							name="taskId"
+							options={group.tasks.map((task) => ({ value: task.id, label: task.title }))}
+							bind:value={selectedId}
+							optionRow={taskRow}
+						/>
+					{/each}
 				{/if}
 
 				{#if mode === 'focus'}
-					<label class="planned">
-						<span class="label">{t.focus.plannedMinutes}</span>
-						<input
-							type="number"
-							name="plannedMin"
-							min="1"
-							max={MAX_TIMER_MIN}
-							step="1"
-							placeholder={t.focus.openEnded}
-							bind:value={planned}
+					<section
+						class="duration"
+						aria-labelledby="{uid}-dur"
+						aria-describedby="{uid}-dur-foot"
+						data-testid="focus-duration"
+					>
+						<h2 class="group-head" id="{uid}-dur">{t.focus.duration}</h2>
+						<SegmentedControl
+							name="duration"
+							labelledby="{uid}-dur"
+							options={durationOptions}
+							bind:value={choice}
 						/>
-						<span class="muted hint">{t.focus.plannedHint}</span>
-					</label>
+						<!-- Only for "Other…" (CSS, so it also unfolds without JS). -->
+						<div class="custom">
+							<GroupedList label={t.focus.durationOther}>
+								<GroupedRow label={t.focus.customMinutes} for="{uid}-custom">
+									<input
+										id="{uid}-custom"
+										class="custom-min tabular"
+										type="number"
+										name="customMin"
+										step="1"
+										inputmode="numeric"
+										required={choice === 'other'}
+										bind:value={custom}
+									/>
+								</GroupedRow>
+							</GroupedList>
+						</div>
+						<p class="group-foot" id="{uid}-dur-foot">{t.focus.durationHint}</p>
+					</section>
 				{:else}
-					<p class="pomo muted">
-						<span class="tabular">
-							{t.focus.pomodoroSummary(
-								settings.focusMin,
-								settings.shortBreakMin,
-								settings.longBreakMin,
-								settings.longBreakEvery
-							)}
-						</span>
-						<button type="button" class="link" onclick={() => (settingsOpen = true)}>
-							{t.focus.change}
-						</button>
-					</p>
+					<GroupedList header={t.focus.modePomodoro}>
+						<GroupedRow>
+							<span class="pomo">
+								<span class="tabular">
+									{t.focus.pomodoroSummary(
+										settings.focusMin,
+										settings.shortBreakMin,
+										settings.longBreakMin,
+										settings.longBreakEvery
+									)}
+								</span>
+								<button type="button" class="link" onclick={() => (settingsOpen = true)}>
+									{t.focus.change}
+								</button>
+							</span>
+						</GroupedRow>
+					</GroupedList>
 				{/if}
 
 				{#if errorText}<p class="error" role="alert">{errorText}</p>{/if}
 
+				<!-- Thumb zone: sticks to the bottom while the lists scroll under it. -->
 				<div class="pick-actions">
-					<button type="submit" class="ctl primary" disabled={!selected || timer.busy}>
-						<Play size={18} />
-						{t.focus.start}
+					<button type="submit" class="cta" disabled={!selected || timer.busy}>
+						<Play size={18} fill="currentColor" aria-hidden="true" />
+						{t.focus.startFocus}
 					</button>
 					{#if selected}
 						<button
 							type="button"
-							class="link"
+							class="link log"
 							onclick={() => (timer.logTarget = { id: selected.id, title: selected.title })}
 						>
 							{t.focus.logAfterwards}
@@ -363,8 +456,8 @@
 					{/if}
 				</div>
 			</form>
-		{/if}
-	</main>
+		</main>
+	{/if}
 </div>
 
 {#if settingsOpen}
@@ -559,41 +652,6 @@
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
-	.ctl {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-3);
-		height: 56px;
-		padding: 0 var(--space-6);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-md);
-		background: var(--surface);
-		color: var(--text);
-		font-size: var(--fs-lg);
-		font-weight: var(--fw-medium);
-		white-space: nowrap;
-		transition:
-			background var(--dur) var(--ease),
-			border-color var(--dur) var(--ease);
-	}
-	.ctl:hover:not(:disabled) {
-		background: var(--surface-hover);
-		border-color: var(--text-faint);
-	}
-	.ctl.primary {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-ink);
-	}
-	.ctl.primary:hover:not(:disabled) {
-		background: var(--accent-hover);
-		border-color: var(--accent-hover);
-	}
-	.ctl:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
 	.more :global(.trigger) {
 		width: var(--hit-min);
 		height: var(--hit-min);
@@ -650,105 +708,79 @@
 		font-size: var(--fs-sm);
 	}
 
-	/* ── Picker ────────────────────────────────────────────────────────────── */
+	/* ── Setup (before a timer runs): one centred column, Apple building blocks ── */
+	.setup {
+		display: flex;
+		justify-content: center;
+		padding: calc(var(--space-4) + var(--safe-top)) calc(var(--space-4) + var(--safe-right)) 0
+			calc(var(--space-4) + var(--safe-left));
+		min-width: 0;
+	}
 	.picker {
 		display: grid;
+		align-content: start;
 		gap: var(--space-5);
-		width: min(560px, 100%);
+		width: min(var(--focus-setup-w), 100%);
 		min-width: 0;
 	}
-	.pick-title {
-		font-size: var(--fs-xl);
-		font-weight: var(--fw-regular);
-		text-align: center;
-	}
-	.modes {
-		justify-self: center;
-		display: inline-flex;
-		padding: 3px;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--surface);
-	}
-	.modes label {
-		position: relative;
-		padding: var(--space-2) var(--space-5);
-		border-radius: var(--radius-sm);
-		color: var(--text-muted);
-		font-size: var(--fs-md);
-		cursor: pointer;
-	}
-	.modes label.on {
-		background: var(--surface-2);
-		color: var(--text);
-		font-weight: var(--fw-medium);
-	}
-	.modes label:has(:focus-visible) {
-		box-shadow: var(--ring);
-	}
-	.modes input,
-	.task input {
-		position: absolute;
-		opacity: 0;
-		pointer-events: none;
-	}
-	.tasks {
-		display: grid;
-		gap: var(--space-1);
-		max-height: min(46dvh, 460px);
-		overflow-y: auto;
-		margin: 0;
-		padding: var(--space-1);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--surface);
-		min-width: 0;
-	}
-	.group {
-		padding: var(--space-3) var(--space-3) var(--space-1);
-	}
-	.task {
-		position: relative;
+	.toolbar {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
-		gap: var(--space-1) var(--space-3);
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid transparent;
-		border-radius: var(--radius-md);
-		cursor: pointer;
+		justify-content: space-between;
+		min-height: var(--hit-min);
+		margin-inline: calc(-1 * var(--space-2));
+	}
+	.tool-link {
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--hit-min);
+		padding-right: var(--space-2);
+		color: var(--accent-text);
+		font-size: var(--fs-md);
+	}
+	.tool-icon {
+		display: grid;
+		place-items: center;
+		width: var(--hit-min);
+		height: var(--hit-min);
+		padding: 0;
+		border: none;
+		border-radius: 50%;
+		background: transparent;
+		color: var(--accent-text);
+		transition: background var(--dur) var(--ease);
+	}
+	@media (hover: hover) {
+		.tool-icon:hover {
+			background: var(--surface-hover);
+		}
+	}
+	.t-row {
+		display: grid;
+		gap: 1px;
 		min-width: 0;
-	}
-	.task:hover {
-		background: var(--surface-hover);
-	}
-	.task.on {
-		border-color: var(--running-border);
-		background: var(--selected-bg);
-	}
-	.task:has(:focus-visible) {
-		box-shadow: var(--ring);
 	}
 	.t-title {
-		flex: 1 1 200px;
-		min-width: 0;
+		color: var(--text);
 		font-size: var(--fs-md);
-		overflow-wrap: anywhere;
 	}
-	.t-quest {
-		display: inline-flex;
+	.t-sub {
+		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: var(--space-1);
+		min-width: 0;
+		color: var(--text-muted);
 		font-size: var(--fs-xs);
 	}
 	.qdot {
+		flex: none;
 		width: 7px;
 		height: 7px;
 		border-radius: 50%;
 		background: var(--q);
 	}
-	.t-dur {
-		font-size: var(--fs-xs);
+	.t-meta {
+		min-width: 0;
 	}
 	.empty {
 		text-align: center;
@@ -756,36 +788,96 @@
 	.empty a {
 		color: var(--accent-text);
 	}
-	.planned {
+	/* Duration: header, the segmented control, "Other…" minutes, the footer (GroupedList's look). */
+	.duration {
 		display: grid;
-		grid-template-columns: auto 120px;
-		align-items: center;
-		gap: var(--space-2) var(--space-3);
-	}
-	.planned input {
+		gap: var(--space-2);
 		min-width: 0;
-		background: var(--bg);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
+	}
+	.group-head {
+		padding: 0 var(--grouped-inset);
+		font-size: var(--fs-label);
+		font-weight: var(--fw-semibold);
+		color: var(--text-muted);
+	}
+	.group-foot {
+		padding: 0 var(--grouped-inset);
+		font-size: var(--fs-xs);
+		color: var(--text-muted);
+	}
+	/* Six segments on a phone: less padding so "Other…" fits. */
+	.duration :global(.thumb) {
+		padding-inline: var(--space-1);
+	}
+	.duration:not(:has(input[value='other']:checked)) .custom {
+		display: none;
+	}
+	.custom {
+		animation: fade-in var(--dur) var(--ease-out);
+	}
+	.custom-min {
+		width: 88px;
+		padding: var(--space-1) var(--space-2);
+		border: 0;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
 		color: var(--text);
 		font-size: var(--fs-md);
-		padding: var(--space-2) var(--space-3);
-	}
-	.planned .hint {
-		grid-column: 1 / -1;
-		font-size: var(--fs-xs);
+		text-align: right;
 	}
 	.pomo {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--space-2) var(--space-3);
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-1) var(--space-3);
+		width: 100%;
+		color: var(--text-2);
 		font-size: var(--fs-sm);
 	}
+	/* The one primary, full width; the log link under it. */
 	.pick-actions {
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		gap: var(--space-1);
+		margin-top: var(--space-1);
+		padding: var(--space-3) 0 calc(var(--space-6) + var(--safe-bottom));
+		background: var(--bg);
+	}
+	.cta {
+		display: inline-flex;
 		align-items: center;
-		gap: var(--space-4);
+		justify-content: center;
+		gap: var(--space-2);
+		width: 100%;
+		height: var(--cta-h);
+		border: none;
+		border-radius: var(--radius-cta);
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-size: var(--fs-md);
+		font-weight: var(--fw-semibold);
+		transition: background var(--dur) var(--ease);
+	}
+	.cta:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+	.cta:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.link.log {
+		justify-self: center;
+		min-height: var(--hit-min);
+		font-size: var(--fs-md);
+	}
+
+	/* Thumb zone on phones: the actions stick to the bottom while the lists scroll under them. */
+	@media (max-width: 720px) {
+		.pick-actions {
+			position: sticky;
+			bottom: 0;
+			z-index: 1;
+		}
 	}
 
 	@media (max-width: 600px) {
@@ -801,11 +893,6 @@
 			width: var(--round-btn-phone);
 			height: var(--round-btn-phone);
 			font-size: var(--fs-sm);
-		}
-		.ctl {
-			height: 48px;
-			padding: 0 var(--space-4);
-			font-size: var(--fs-md);
 		}
 	}
 </style>

@@ -179,6 +179,22 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   without an emoji). Feedback is quiet: the row's value, the tick, `SaveStatus`
   ("Saving…"/"Saved", a live region). Without JS each form shows a small Save button until the
   page runs (`NoJsSave`). New settings follow the same pattern.
+- **Quest detail** (AB2, `routes/(app)/quests/[id]`): a toolbar ("‹ Quests", Edit → the
+  quest dialog, the shared `updateQuestAction`), the emoji in a tile tinted with the quest
+  colour and the name as the white large title, a summary card (this week / budget with a bar
+  in the quest colour, this quarter · % of target — `questSummary`, `#lib/quest-detail.ts`;
+  hours from `questDetailTime`, `server/stats.ts`), then Backlog and Scheduled as inset
+  grouped lists of `QuestTaskRow`s (round check in the quest colour; ↑/↓, Today, Tomorrow,
+  Delete in the backlog row's ⋯; the add row last). Scheduled rows say "planned"/"logged".
+  The column is `--detail-col` wide.
+- **Focus setup** (AB2, `/focus` without a running timer): a toolbar (‹ back, the Pomodoro
+  settings icon), "What are you working on?", the mode as a `SegmentedControl`, the tasks as
+  `GroupedList` choices with `optionRow` (Today — quest work then Other — and Backlog; title
+  over "quest · N min planned"), the duration as a segmented control 25 · 45 · 60 · 90 · Open ·
+  Other… (`#lib/focus-setup.ts`: the task's plan is preselected, "Other…" unfolds a minutes
+  row via CSS, `withPlannedChoice` folds the no-JS post into `plannedMin` in `/api/timer`;
+  the server still validates), and a full-width "Start focus" that sticks to the bottom on
+  phones. Picks survive background refreshes (writable deriveds on primitives only).
 - **Daily-goal ring** lives at **Home** in the nav, once (`AppNav` + `GoalRing.svelte`): a
   ≈16 px ring before the word "Home" (desktop/tablet) and around the Home tab's icon (phones);
   accent while it fills, `--success` with a check once reached, none without a goal. Home's
@@ -350,7 +366,8 @@ timer.serverNow)` so today moves live with the timer.
   `GroupedNavRow` (tile, label, value, chevron; `href` for a no-JS link, `tile` colours the
   tile), `Switch` (iOS switch) and `SegmentedControl` (radio group); `GroupedList` with
   `multiple` is a checklist (checkboxes, every checked row ticked), an option's `detail` is a
-  muted value before the tick — tokens `--grouped-*`, `--segmented-*` (inside a dialog
+  muted value before the tick, `optionRow` (a snippet) renders a row's content in place of the
+  label (a title over a detail line; the tick stays) — tokens `--grouped-*`, `--segmented-*` (inside a dialog
   set `--grouped-bg: var(--grouped-bg-raised)` and the raised separator, like `QuestForm`).
   Look at `/styleguide` in the running app before building new UI.
 - **Titles and figures**: every page title is the global `h1` — the large bold title

@@ -16,6 +16,8 @@
 	 *   every checked row ticked (iOS's multiple choice, e.g. rest days).
 	 *
 	 * An option may carry a muted `detail` before the tick and a `lang` for its label.
+	 * `optionRow` renders a row's content in place of its plain label (e.g. a title over a
+	 * detail line, the Focus setup's tasks); the checkmark stays.
 	 */
 	type Option = { value: string; label: string; detail?: string; lang?: string };
 	type Props = {
@@ -34,6 +36,8 @@
 		describedby?: string;
 		/** Footer as a snippet (rich text, a live status) instead of `footer`. */
 		foot?: Snippet;
+		/** Custom row content for choice/checklist options (the checkmark stays). */
+		optionRow?: Snippet<[Option]>;
 		children?: Snippet;
 	};
 	let {
@@ -47,6 +51,7 @@
 		values = $bindable([]),
 		describedby,
 		foot,
+		optionRow,
 		children
 	}: Props = $props();
 	const id = $props.id();
@@ -65,8 +70,12 @@
 					{:else}
 						<input type="radio" {name} value={option.value} bind:group={value} />
 					{/if}
-					<span class="text" lang={option.lang}>{option.label}</span>
-					{#if option.detail}<span class="detail">{option.detail}</span>{/if}
+					{#if optionRow}
+						<span class="text">{@render optionRow(option)}</span>
+					{:else}
+						<span class="text" lang={option.lang}>{option.label}</span>
+						{#if option.detail}<span class="detail">{option.detail}</span>{/if}
+					{/if}
 					<span class="check" aria-hidden="true"><Check size={20} strokeWidth={2.5} /></span>
 				</label>
 			{/each}

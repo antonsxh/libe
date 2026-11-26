@@ -1,16 +1,21 @@
-import { error, fail } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
+import { addDays, todayISO } from '#lib/dates.ts';
 import { isUuid } from '#lib/ids.ts';
+import { questSummary } from '#lib/quest-detail.ts';
 import { getQuest } from '#lib/server/quests.ts';
+import { updateQuestAction } from '#lib/server/quest-actions.ts';
+import { questDetailTime } from '#lib/server/stats.ts';
+import { addTaskAction, formStr } from '#lib/server/task-actions.ts';
 import {
-	createTask,
 	deleteTask,
 	getTask,
 	listQuestBacklog,
 	listQuestScheduled,
 	moveTask,
+	moveTaskToDay,
 	setTaskDone
 } from '#lib/server/tasks.ts';
-import { parseTaskDuration, validateTaskTitle } from '#lib/task-form.ts';
+import type { Task } from '#lib/server/db/schema.ts';
 import { i18n, type Locale } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -23,74 +28,58 @@ async function loadQuest(id: string, locale: Locale) {
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const quest = await loadQuest(params.id, locals.locale);
-	const [backlog, scheduled] = await Promise.all([
+	const [backlog, scheduled, time] = await Promise.all([
 		listQuestBacklog(quest.id),
-		listQuestScheduled(quest.id)
+		listQuestScheduled(quest.id),
+		questDetailTime(quest.id)
 	]);
-	return { quest, backlog, scheduled };
+	const summary = questSummary({
+		weekH: time.weekH,
+		quarterH: time.quarterH,
+		weeklyBudgetH: quest.weeklyBudgetH,
+		closed: quest.closedAt !== null,
+		today: todayISO()
+	});
+	return { quest, backlog, scheduled, summary, loggedMs: time.byTaskMs };
 };
 
-/** Resolve the task for a task action and ensure it belongs to this quest. */
-async function loadOwnTask(taskId: string, questId: string) {
-	if (!isUuid(taskId)) return undefined;
-	const task = await getTask(taskId);
-	if (!task || task.questId !== questId) return undefined;
-	return task;
+/** The `taskId` of a task action, if it names a task of this quest. */
+async function ownTask(request: Request, questId: string): Promise<Task | undefined> {
+	const id = formStr(await request.formData(), 'taskId');
+	if (!isUuid(id)) return undefined;
+	const task = await getTask(id);
+	return task?.questId === questId ? task : undefined;
+}
+
+type TaskEvent = { params: { id: string }; request: Request };
+
+/** A row action on one of this quest's tasks (other ids are ignored). */
+function taskAction(run: (task: Task) => Promise<void>) {
+	return async ({ params, request }: TaskEvent) => {
+		const task = await ownTask(request, params.id);
+		if (task) await run(task);
+	};
 }
 
 export const actions = {
-	add: async ({ params, request, locals }) => {
-		const quest = await loadQuest(params.id, locals.locale);
-		const t = i18n(locals.locale);
-		const formData = await request.formData();
-		const rawTitle = String(formData.get('title') ?? '');
-		const rawDuration = String(formData.get('duration') ?? '');
-		const echo = { intent: 'add', ok: false as const, title: rawTitle, duration: rawDuration };
-
-		const title = validateTaskTitle(rawTitle);
-		const duration = parseTaskDuration(rawDuration);
-		if (!title.ok || !duration.ok) {
-			return fail(400, {
-				...echo,
-				errors: {
-					title: title.ok ? undefined : t.errors[title.error],
-					duration: duration.ok ? undefined : t.errors[duration.error]
-				}
-			});
-		}
-
-		const task = await createTask(
-			{ kind: 'quest', questId: quest.id },
-			{ title: title.title, durationMin: duration.minutes }
-		);
-		return { intent: 'add', ok: true, taskId: task.id };
+	/** The backlog's add row: Enter / Add at the bottom, Shift+Enter at the top. */
+	add: async (event) => {
+		const quest = await loadQuest(event.params.id, event.locals.locale);
+		return addTaskAction('add', () => ({
+			ok: true,
+			target: { kind: 'quest', questId: quest.id },
+			day: null
+		}))(event);
 	},
 
-	toggle: async ({ params, request }) => {
-		const questId = params.id;
-		const task = await loadOwnTask(String((await request.formData()).get('taskId') ?? ''), questId);
-		if (task) await setTaskDone(task.id, task.doneAt === null);
-		return { intent: 'toggle', ok: true, taskId: task?.id };
-	},
+	/** The quest dialog behind "Edit" (the same action as on Quests). */
+	update: updateQuestAction,
 
-	delete: async ({ params, request }) => {
-		const questId = params.id;
-		const task = await loadOwnTask(String((await request.formData()).get('taskId') ?? ''), questId);
-		if (task) await deleteTask(task.id);
-		return { intent: 'delete', ok: true, taskId: task?.id };
-	},
-
-	moveUp: async ({ params, request }) => {
-		const questId = params.id;
-		const task = await loadOwnTask(String((await request.formData()).get('taskId') ?? ''), questId);
-		if (task) await moveTask(task.id, 'up');
-		return { intent: 'moveUp', ok: true, taskId: task?.id };
-	},
-
-	moveDown: async ({ params, request }) => {
-		const questId = params.id;
-		const task = await loadOwnTask(String((await request.formData()).get('taskId') ?? ''), questId);
-		if (task) await moveTask(task.id, 'down');
-		return { intent: 'moveDown', ok: true, taskId: task?.id };
-	}
+	toggle: taskAction((task) => setTaskDone(task.id, task.doneAt === null)),
+	delete: taskAction((task) => deleteTask(task.id)),
+	moveUp: taskAction((task) => moveTask(task.id, 'up')),
+	moveDown: taskAction((task) => moveTask(task.id, 'down')),
+	/** ⋯ Today / Tomorrow: a backlog task onto today's or tomorrow's list (server `TZ`). */
+	today: taskAction((task) => moveTaskToDay(task.id, todayISO())),
+	tomorrow: taskAction((task) => moveTaskToDay(task.id, addDays(todayISO(), 1)))
 } satisfies Actions;
