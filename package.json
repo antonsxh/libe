@@ -1,6 +1,6 @@
 {
 	"name": "libe",
-	"version": "0.1.0",
+	"version": "0.1.1-nightly.20261126.58",
 	"private": true,
 	"packageManager": "bun@1.4.5",
 	"type": "module",
