@@ -15,6 +15,12 @@ const TARGETS = {
 	goal: { row: 'row-goal', section: 'goal', sheet: 'Daily goal', pane: 'Daily goal and streak' },
 	rest: { row: 'row-rest', section: 'goal', sheet: 'Rest days', pane: 'Daily goal and streak' },
 	pomodoro: { row: 'row-pomodoro', section: 'focus', sheet: 'Pomodoro', pane: 'Focus' },
+	appearance: {
+		row: 'row-appearance',
+		section: 'appearance',
+		sheet: 'Appearance',
+		pane: 'Appearance'
+	},
 	language: { row: 'row-language', section: 'language', sheet: 'Language', pane: 'Language' }
 } as const;
 export type SettingsTarget = keyof typeof TARGETS;

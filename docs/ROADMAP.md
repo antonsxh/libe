@@ -1366,14 +1366,14 @@ quest to pick. The overhaul runs in small milestones, each shippable on its own:
 | O3b | Slimmer quest dialog ("More options"), empty states (one symbol, one sentence, one action), phone tab labels, wording                                       | ✅ done |
 | O4a | Hierarchy and feedback, part 1: one primary per screen (round Focus buttons), accent discipline + orange streak, "All done" card, large bold titles, motion | ✅ done |
 | O4b | Hierarchy and feedback, part 2: Review on phones (Week/Quarter, one summary), the daily-goal progress in the navigation                                     | ✅ done |
-| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                              | planned |
+| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                              | ✅ done |
 
 Owner decisions:
 
 - **Rebrand direction "Hain"** (grove: calm, natural, growing). The current look copies
   quest.app and must move away from it — that is what R1/R2 are for; O-milestones before them
   keep the existing tokens, fonts and logo.
-- **Dark stays the default**; a light mode is wanted later (R3).
+- **Dark stays the default** (done with R3: light is opt-in per device, "Automatic" follows the OS).
 - **Mint is the accent** (the competitor is yellow/amber; green fits "Hain"). **No Bricolage
   Grotesque** (or another quirky display face): it broke the timer's digits and isn't calm.
 - **How R1 is done** (after PR #31 was rejected): the first attempt changed tokens and ~50
@@ -2210,3 +2210,41 @@ Sections "3 · Plan" and "5 · Kalender" of the mock-up, as approved, plus the o
   reload; the add row and the "Other" pick follow the one add row per day. `calendar.spec.ts`:
   the "Show plan" switch overlays the blocks, survives a reload and the week links, and turns
   off again. Each new test fails with its bug put back.
+
+## R3 — what exists
+
+libe has a second theme — **light in iOS grey** — chosen per device in Settings → Appearance:
+**Automatic** (follows the OS), **Light** or **Dark** (the shipped default).
+
+- **Tokens only**: the dark palette stays the `:root` default; every light value lives in
+  `tokens.css` alone — one `[data-theme='light']` block and an **identical** `[data-theme='auto']`
+  block inside `@media (prefers-color-scheme: light)` (which is why "Automatic" works without JS).
+  Light follows iOS system grey: ground `#f2f2f7` (systemGroupedBackground), white grouped
+  surfaces and sheets (`--surface`, `--grouped-bg-raised`), elevation by whiteness instead of the
+  dark surface ramp. No component changed; quest colours have darker Apple light variants so they
+  stay readable on white, `--streak`/`--now-line` were checked per theme.
+- **Per device, not account**: the choice is the `libe_theme` cookie (`dark | light | auto`,
+  path `/`, ~1 year, readable by the client), not a `settings` row — the theme belongs to the
+  device (like the OS look), and the first paint is already right, no flash. `#lib/theme.ts` is
+  the single source: `parseTheme` (missing/invalid → dark) is read in `hooks.server.ts`, whose
+  `transformPageChunk` fills `data-theme` on `<html>` and the `theme-color`/`color-scheme` metas
+  in `app.html` (`auto` emits one `theme-color` per OS appearance via `media`, so browser chrome
+  and status bar follow the OS too). After a Settings save the client switches at once with
+  `applyTheme` — no reload.
+- **Settings → Appearance** (`appearance` in `#lib/settings-sections.ts`, inside "This device"
+  on phones, a sidebar section on desktop): three `GroupedList` choices, autosave like every
+  other setting; the action validates with `isTheme` (`errors.themeInvalid`) and returns the
+  saved theme. Tile token `--tile-appearance` (darker grey in light).
+- **Contrast for both themes**: `scripts/contrast.ts` parses the dark `:root` **and** the two
+  light blocks out of `tokens.css` and reports WCAG contrast and quest-colour spacing for each;
+  `contrast.test.ts` also fails if the light and auto blocks ever differ. `KNOWN_GAPS` is empty
+  in both themes.
+- **Stays dark** (decision): app icons, favicons and the PWA manifest (the shipped mark sits on
+  a dark tile — a light icon would mean regenerating every released icon), and the Tauri shell
+  (`src-tauri/ui`, window background).
+- **Tests**: unit `theme.test.ts` (cookie values, `parseTheme` fallback, meta HTML incl. the two
+  `auto` metas) and the extended contrast tests. e2e `appearance.spec.ts` (`@mobile` runs on
+  iPhone too): Light applies at once (attribute, painted ground, metas, cookie) and survives
+  reloads and navigation; a second context without the cookie stays dark (per device); Automatic
+  follows `emulateMedia` light/dark, also after reload; an unknown cookie value falls back to
+  Dark. Each fails with the bug reintroduced.

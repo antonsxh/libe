@@ -188,7 +188,7 @@
 		max-height: calc(100dvh - var(--space-16));
 		padding: 0;
 		overflow: hidden;
-		background: var(--surface);
+		background: var(--dialog-bg);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		color: var(--text);
@@ -273,7 +273,7 @@
 			   spring's overshoot lifts the sheet a few pixels without opening a gap. */
 			box-shadow:
 				var(--shadow-pop),
-				0 var(--sheet-underlap) 0 0 var(--surface);
+				0 var(--sheet-underlap) 0 0 var(--dialog-bg);
 			transform: translateY(var(--drag, 0px));
 			transition: transform var(--dur-sheet) var(--ease-out);
 		}
@@ -325,7 +325,7 @@
 			gap: var(--space-2);
 			margin: var(--space-5) calc(-1 * var(--sheet-pad)) calc(-1 * var(--sheet-pad-bottom));
 			padding: var(--space-3) var(--sheet-pad) var(--sheet-pad-bottom);
-			background: var(--surface);
+			background: var(--dialog-bg);
 			border-top: 1px solid var(--border);
 		}
 		.body :global(.dialog-actions .spacer) {

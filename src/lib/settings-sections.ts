@@ -14,6 +14,7 @@ export const SETTINGS_SECTIONS = [
 	'goal',
 	'focus',
 	'notifications',
+	'appearance',
 	'language',
 	'devices',
 	'desktop'

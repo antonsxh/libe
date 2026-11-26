@@ -590,12 +590,16 @@ export const en = {
 		language: 'Language',
 		languageDesc:
 			'For libe on all your devices. “System default” follows each browser’s language settings.',
+		/** R3: per-device light/dark choice (the `libe_theme` cookie). */
+		appearance: 'Appearance',
+		appearanceDesc: 'For this device only. “Automatic” follows your system’s light or dark look.',
 		/** AB1: the grouped list (phones) and the sidebar (wider screens). */
 		sections: {
 			profile: 'Profile',
 			goal: 'Daily goal and streak',
 			focus: 'Focus',
 			notifications: 'Notifications',
+			appearance: 'Appearance',
 			language: 'Language',
 			devices: 'Devices',
 			desktop: 'Desktop app'
@@ -623,6 +627,7 @@ export const en = {
 		saving: 'Saving…',
 		saved: 'Saved',
 		languageOptions: { auto: 'System default', en: 'English', de: 'Deutsch' },
+		appearanceOptions: { auto: 'Automatic', light: 'Light', dark: 'Dark' },
 		pair: {
 			title: 'Pair a new device',
 			isPaired: ' is paired.',
@@ -931,6 +936,7 @@ export const en = {
 		pairCodeWrong: 'Wrong code. Check the code on your other device and try again.',
 		// settings
 		languageInvalid: 'Pick one of the languages.',
+		themeInvalid: 'Pick one of the appearances.',
 		profileNameTooLong: `Keep the name to at most ${DISPLAY_NAME_MAX} characters.`,
 		profileColorInvalid: 'Pick one of the colours.',
 		profileEmojiInvalid: 'Use exactly one emoji.',

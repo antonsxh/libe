@@ -13,6 +13,7 @@ import { authenticate, countActiveDevices } from '#lib/server/devices.ts';
 import { getRequestSettings } from '#lib/server/settings.ts';
 import { startPushScheduler } from '#lib/server/push-scheduler.ts';
 import { i18n, negotiateLocale, resolveLocale } from '#lib/i18n/index.ts';
+import { THEME_COOKIE, parseTheme, themeMetaHtml } from '#lib/theme.ts';
 
 /**
  * Server start: arm the Web Push scheduler for timer phase ends (`push-scheduler.ts`). It
@@ -36,6 +37,10 @@ export const init: ServerInit = () => {
  * Profile (`locals.profile`), daily goal (`locals.dailyGoalMin`) and streak rest days
  * (`locals.streakRestDays`): read in the same query as the language, for paired devices only —
  * public pages never see the owner's name.
+ *
+ * Appearance (R3): the `libe_theme` cookie (dark | light | auto, missing/invalid = dark) is read
+ * for **every** document — public pages too — and written into `app.html` by `transformPageChunk`
+ * (`data-theme` + the `theme-color`/`color-scheme` metas), so the first paint is right.
  */
 export const handle: Handle = async ({ event, resolve }) => {
 	const { url, cookies, request } = event;
@@ -82,5 +87,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const lang = event.locals.locale;
-	return resolve(event, { transformPageChunk: ({ html }) => html.replace('%lang%', lang) });
+	const theme = parseTheme(event.cookies.get(THEME_COOKIE));
+	return resolve(event, {
+		transformPageChunk: ({ html }) =>
+			html
+				.replace('%libe.theme-metas%', themeMetaHtml(theme))
+				.replace('%libe.theme%', theme)
+				.replace('%lang%', lang)
+	});
 };

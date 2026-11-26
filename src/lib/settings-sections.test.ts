@@ -21,6 +21,7 @@ test('availableSections: notifications outside the desktop app, the app section 
 		'goal',
 		'focus',
 		'notifications',
+		'appearance',
 		'language',
 		'devices'
 	]);
@@ -28,6 +29,7 @@ test('availableSections: notifications outside the desktop app, the app section 
 		'profile',
 		'goal',
 		'focus',
+		'appearance',
 		'language',
 		'devices',
 		'desktop'

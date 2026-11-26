@@ -7,6 +7,7 @@
 		Bell,
 		ChevronLeft,
 		ChevronRight,
+		Contrast,
 		Flame,
 		Globe,
 		Monitor,
@@ -18,6 +19,7 @@
 	import Dialog from '#lib/components/Dialog.svelte';
 	import GroupedList from '#lib/components/GroupedList.svelte';
 	import GroupedNavRow from '#lib/components/GroupedNavRow.svelte';
+	import AppearanceEditor from '#lib/components/settings/AppearanceEditor.svelte';
 	import AutoStartForm from '#lib/components/settings/AutoStartForm.svelte';
 	import DesktopAppSection from '#lib/components/settings/DesktopAppSection.svelte';
 	import DeviceList from '#lib/components/settings/DeviceList.svelte';
@@ -31,6 +33,7 @@
 	import SaveStatus from '#lib/components/settings/SaveStatus.svelte';
 	import SettingsTile from '#lib/components/settings/SettingsTile.svelte';
 	import { provideSaveIndicator } from '#lib/autosave.svelte.ts';
+	import { applyTheme } from '#lib/theme.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 	import { DEFAULT_PROFILE } from '#lib/profile.ts';
@@ -86,11 +89,12 @@
 	});
 
 	/* ── Phone sheets ─────────────────────────────────────────────────────── */
-	type Sheet = 'profile' | 'goal' | 'rest' | 'pomodoro' | 'language';
+	type Sheet = 'profile' | 'goal' | 'rest' | 'pomodoro' | 'appearance' | 'language';
 	const SHEET_OF: Partial<Record<SettingsSection, Sheet>> = {
 		profile: 'profile',
 		goal: 'goal',
 		focus: 'pomodoro',
+		appearance: 'appearance',
 		language: 'language'
 	};
 	let sheet = $state<Sheet | null>(null);
@@ -120,6 +124,8 @@
 				return t.settings.restDays;
 			case 'pomodoro':
 				return t.settings.pomodoro;
+			case 'appearance':
+				return t.settings.appearance;
 			default:
 				return t.settings.language;
 		}
@@ -180,6 +186,7 @@
 	const pomodoroValue = $derived(
 		t.settings.pomodoroValue(pomodoro.focusMin, pomodoro.shortBreakMin, pomodoro.longBreakMin)
 	);
+	const appearanceValue = $derived(t.settings.appearanceOptions[data.theme]);
 
 	/* ── Rejected input of the last action (echoed by the editors) ────────── */
 	const profileFailure = $derived(
@@ -205,6 +212,16 @@
 	const languageError = $derived(
 		form?.intent === 'language' && 'error' in form ? (form.error ?? null) : null
 	);
+	const appearanceError = $derived(
+		form?.intent === 'appearance' && 'error' in form ? (form.error ?? null) : null
+	);
+	/**
+	 * Appearance saved: switch this document right away (the cookie is set; the server sends
+	 * `data-theme` and the metas from it on the next load — the reload would flash dark).
+	 */
+	$effect(() => {
+		if (form?.intent === 'appearance' && 'theme' in form && form.saved) applyTheme(form.theme);
+	});
 	const renameError = $derived(
 		form?.intent === 'rename' && 'error' in form && form.error
 			? { id: form.id ?? null, error: form.error }
@@ -215,6 +232,7 @@
 		goal: 'var(--tile-goal)',
 		focus: 'var(--tile-focus)',
 		notifications: 'var(--tile-notifications)',
+		appearance: 'var(--tile-appearance)',
 		language: 'var(--tile-language)',
 		devices: 'var(--tile-devices)',
 		desktop: 'var(--tile-neutral)'
@@ -223,6 +241,7 @@
 		goal: Target,
 		focus: Timer,
 		notifications: Bell,
+		appearance: Contrast,
 		language: Globe,
 		devices: MonitorSmartphone,
 		desktop: Monitor
@@ -305,6 +324,17 @@
 			</GroupedList>
 
 			<NotificationsGroup header={t.settings.thisDevice} fallbackFooter={t.settings.languageDesc}>
+				<GroupedNavRow
+					label={t.settings.appearance}
+					value={appearanceValue}
+					tile="var(--tile-appearance)"
+					href={settingsHref('appearance')}
+					dialog
+					testid="row-appearance"
+					onclick={() => openSheet('appearance')}
+				>
+					{#snippet icon()}<Contrast size={16} strokeWidth={2} />{/snippet}
+				</GroupedNavRow>
 				<GroupedNavRow
 					label={t.settings.language}
 					value={t.settings.languageOptions[data.language]}
@@ -402,6 +432,8 @@
 					</GroupedList>
 				{:else if section === 'notifications'}
 					<NotificationsGroup />
+				{:else if section === 'appearance'}
+					<AppearanceEditor theme={data.theme} error={appearanceError} />
 				{:else if section === 'language'}
 					<LanguageEditor language={data.language} error={languageError} />
 				{:else if section === 'devices'}
@@ -431,6 +463,8 @@
 				<RestDaysEditor {restMask} failure={streakFailure} {streakRule} heading={false} />
 			{:else if sheet === 'pomodoro'}
 				<PomodoroEditor settings={pomodoro} failure={pomodoroFailure} heading={false} />
+			{:else if sheet === 'appearance'}
+				<AppearanceEditor theme={data.theme} error={appearanceError} heading={false} />
 			{:else}
 				<LanguageEditor language={data.language} error={languageError} heading={false} />
 			{/if}
