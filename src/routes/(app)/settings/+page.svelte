@@ -357,7 +357,7 @@
 					{/if}
 				</div>
 				<div class="profile-actions">
-					<Button variant="primary" type="submit">{t.settings.saveProfile}</Button>
+					<Button variant="secondary" type="submit">{t.settings.saveProfile}</Button>
 					<span class="saved muted" role="status">
 						{profileSaved ? t.settings.profileSaved : ''}
 					</span>
@@ -435,7 +435,7 @@
 				<p class="hint muted" id="goal-hint">{t.settings.goalHint}</p>
 			{/if}
 			<div class="profile-actions">
-				<Button variant="primary" type="submit">{t.settings.saveGoal}</Button>
+				<Button variant="secondary" type="submit">{t.settings.saveGoal}</Button>
 				<span class="saved muted" role="status">{goalSaved ? t.settings.goalSaved : ''}</span>
 			</div>
 		</form>
@@ -475,7 +475,7 @@
 				<p class="hint muted" id="rest-hint">{t.settings.restDaysHint}</p>
 			{/if}
 			<div class="profile-actions">
-				<Button variant="primary" type="submit">{t.settings.saveRestDays}</Button>
+				<Button variant="secondary" type="submit">{t.settings.saveRestDays}</Button>
 				<span class="saved muted" role="status">
 					{restSaved ? t.settings.restDaysSaved : ''}
 				</span>
@@ -489,7 +489,7 @@
 				<h2 id="devices-title" class="label">{t.settings.devices}</h2>
 				<p class="muted desc">{t.settings.devicesDesc}</p>
 			</div>
-			<Button variant="primary" onclick={() => (pairOpen = true)}>
+			<Button variant="secondary" onclick={() => (pairOpen = true)}>
 				<QrCode size={16} />
 				{t.settings.pairNew}
 			</Button>
@@ -737,7 +737,7 @@
 		color: var(--text-muted);
 	}
 	.self .icon {
-		color: var(--accent-text);
+		color: var(--text);
 	}
 	.info {
 		flex: 1;
@@ -761,9 +761,9 @@
 	.badge {
 		flex: none;
 		padding: 1px var(--space-2);
-		border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-pill);
-		color: var(--accent-text);
+		color: var(--text-2);
 		font-size: var(--fs-xs);
 		font-weight: var(--fw-medium);
 	}

@@ -31,10 +31,12 @@ p {
 	margin: 0;
 }
 
+/* Every page title is the same large bold title (Apple's "Large Title"): Home's date,
+   PageHeader (Plan, Calendar, Quests, Review, Settings, …), the quest detail. */
 h1 {
-	font-size: var(--fs-2xl);
-	font-weight: var(--fw-regular);
-	letter-spacing: -0.02em;
+	font-size: var(--fs-title-lg);
+	font-weight: var(--fw-bold);
+	letter-spacing: var(--tracking-title);
 	line-height: 1.1;
 }
 
@@ -168,7 +170,7 @@ button {
 /* ── Phones: smaller page titles (the first screen belongs to the content) ─ */
 @media (max-width: 720px) {
 	h1 {
-		font-size: var(--fs-2xl-phone);
+		font-size: var(--fs-title);
 	}
 }
 

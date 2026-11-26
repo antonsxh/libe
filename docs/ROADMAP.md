@@ -1354,18 +1354,19 @@ quit on the first screen — admin wording on `/setup`, an empty Home without a 
 action on desktop, and the first field everybody types into answering "Pick a quest." with no
 quest to pick. The overhaul runs in small milestones, each shippable on its own:
 
-| #   | Scope                                                                                                                                                            | Status  |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                                   | ✅ done |
-| R1a | Token foundation, no visible change: role tokens, no colour literals outside `tokens.css`, palette check script, styleguide by role                              | ✅ done |
-| R1b | Rebrand "Hain": the palette picked from rendered variants (V3 "Waldboden"), mint accent, quest colours off the mint hue, Figtree                                 | ✅ done |
-| R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                                        | ✅ done |
-| R4  | "Apple + Linear" look (replaces Hain): palette, Geist, Apple system colours for quests, `--accent-text`                                                          | ✅ done |
-| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                     | ✅ done |
-| O3a | Less at once, part 1: Home as one list (variant A) — overdue rows, one "Today" list, one add row, Backlog and Daily plan as rows/sheets                          | ✅ done |
-| O3b | Slimmer quest dialog ("More options"), empty states (one symbol, one sentence, one action), phone tab labels, wording                                            | ✅ done |
-| O4  | Hierarchy and feedback: one primary action per screen, accent discipline, the one big "all done" celebration, nav progress, motion/type polish, Review on phones | planned |
-| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                                   | planned |
+| #   | Scope                                                                                                                                                       | Status  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| O1  | First-run hotfixes: no dead end without quests, Next up on desktop, one add button, one duration format, plain setup/pair copy                              | ✅ done |
+| R1a | Token foundation, no visible change: role tokens, no colour literals outside `tokens.css`, palette check script, styleguide by role                         | ✅ done |
+| R1b | Rebrand "Hain": the palette picked from rendered variants (V3 "Waldboden"), mint accent, quest colours off the mint hue, Figtree                            | ✅ done |
+| R2  | Rebrand "Hain", part 2: logo (`favicon.svg`, `Logo.svelte`) and app icons (`static/`, `src-tauri/icons/`)                                                   | ✅ done |
+| R4  | "Apple + Linear" look (replaces Hain): palette, Geist, Apple system colours for quests, `--accent-text`                                                     | ✅ done |
+| O2  | Guided start: `settings.onboarded_at`, `/welcome` (goal → first step → first focus), redirects after pairing                                                | ✅ done |
+| O3a | Less at once, part 1: Home as one list (variant A) — overdue rows, one "Today" list, one add row, Backlog and Daily plan as rows/sheets                     | ✅ done |
+| O3b | Slimmer quest dialog ("More options"), empty states (one symbol, one sentence, one action), phone tab labels, wording                                       | ✅ done |
+| O4a | Hierarchy and feedback, part 1: one primary per screen (round Focus buttons), accent discipline + orange streak, "All done" card, large bold titles, motion | ✅ done |
+| O4b | Hierarchy and feedback, part 2: Review on phones (Week/Quarter, one summary), the daily-goal progress in the navigation                                     | planned |
+| R3  | Light mode (tokens for a second theme; dark stays the default)                                                                                              | planned |
 
 Owner decisions:
 
@@ -1838,3 +1839,103 @@ einmal": quest dialog, empty states, tab bar, wording). Home itself is O3a (a se
   Updated: streak texts, Home/mobile placeholders, the filter's name, the quest dialog's
   labels, calendar/day-view slot tests (a session elsewhere keeps the grid), Plan week
   navigation (a task in every visited week).
+
+## O4a — what exists
+
+"Hierarchy and feedback", part one. The owner picked from the O4 mock-up ("Hierarchie und
+Feedback"): points 1, 2, 3 (variant **A**, the card) and 5; point 4 (progress in the
+navigation) and 6 (Review on phones) are O4b.
+
+- **One primary button per screen.** Audit of every page and dialog for more than one filled
+  accent button:
+  - **Quests**: the dashed "New quest" tile after the cards is gone — the header's **New
+    quest** is the one way to create (the empty page keeps O3b's `EmptyState`).
+  - **Focus, running**: two round buttons like the stopwatch in Apple's Clock — **Complete**
+    grey on the left, the likely next tap filled on the right (**Pause** while running,
+    **Resume** when paused, **Start focus** / **Start break** while a pomodoro phase waits), ⋯
+    (Log time, Stop, Discard) between them. A waiting break adds a grey **Skip**; a running
+    break has no filled button (resting is the point), only a grey **Skip break**. Labels
+    only, no icons; `--round-btn` 104 px / `--round-btn-phone` 94 px fit the longest label
+    ("Überspringen") without hyphenation; `--round-btn-bg(-hover)` for the grey ones. Overtime,
+    pomodoro dots, the cheer line and the picker are unchanged.
+  - **Settings**: Save profile / Save goal / Save rest days, **Pair new device** and
+    Notifications' **Turn on** are secondary — the page has no filled button unless the
+    desktop app offers **Restart to update** (then that is the one) or a device is being
+    renamed (its inline Save).
+  - **Time-block dialog** (`BlockDialog`): its Add/Save was secondary like Cancel → primary.
+  - Checked and unchanged: Home (Next up's button; the first-quest card is secondary), Plan
+    (the phone's per-day empty state shows one day at a time), Calendar, Review, quest detail,
+    every other dialog (one primary each), `/welcome`, `/setup`, `/pair`, `/offline`.
+- **Accent only for the primary action and the "now".** `--accent` / `--accent-text` stay for
+  the filled button, the running timer (Focus' clock/overtime/dots/crumb dot, the running row
+  and its progress line, the desktop updater's and pairing code's live progress), the now line
+  (Home's timeline, Calendar), "today" markers (Plan/Calendar/phone day strip, Review's today
+  label and pip) and focus rings — plus, as Apple's tint, interactive text (links such as
+  "All to today", "Whole day", "Plan tomorrow", the add row's "+ Add a task…", row actions'
+  hover, the active tab and quest filter, selection ticks, drag-and-drop drop lines, the
+  rename field's edge) and `--control-on` / `--selected-*`. Changed:
+  - Review: the quest-hours KPI number → `--text`; the week deltas → `--text-muted` (no green
+    for "better"); the per-day chart's today bar → `--progress-fill` (the label stays the
+    today marker); "Quest work vs Other" → one segment per quest in its colour (most first),
+    Other in slate (`splitSegments`, `#lib/review.ts`; `--chart-seg-gap`), the legend's quest
+    dot dropped.
+  - Calendar: the week bar's fill → `--progress-fill` (= `--text-2`).
+  - **Streak flames → `--streak`** (`#ff9230`, Apple's system orange; filled when lit): the
+    nav menu's streak, Home's meta line (`StreakStatus`), Review's "Longest streak" and the
+    done day marks. Unlit flames stay `--text-faint`.
+  - `EmptyState`'s symbol → `--text-muted` (the action below is the accent); Settings' own
+    device icon and "This device" badge → neutral; the "Welcome — this device is now paired"
+    notice → `--surface` + `--border-strong`; the styleguide's stat sample → `--text`.
+  - Kept on purpose: the `/welcome` flow's symbols and links (the owner-approved O2 look),
+    the avatar's goal ring (`--goal-ring`; the nav progress is O4b), `::selection`.
+  - `contrast.ts` checks `--streak` ≥ 3:1 on `--bg` / `--surface` / `--surface-2` (9.4 / 8.5 /
+    7.8:1), `--success-ink` on `--success`, `--success` on `--surface`, `--progress-fill` on
+    `--track` — all ok.
+- **"All done" (variant A).** When today had tasks and none is open — and no overdue task is
+  still open (overdue tasks are open work, just older) — Home's Next up card becomes the
+  **All done** card (`AllDoneCard.svelte`): a `--success` check circle with a soft halo that
+  pops once (`pop`, `--dur-celebrate`, `--ease-spring`) when the card appears after the last
+  tick — never on first paint or a reload, nothing under reduced motion — the title "All
+  done" („Alles erledigt“), one line of facts ("4 tasks · 1 h 35 min logged · daily goal
+  reached"; the logged part only when > 0, live with the timer; the goal part only when one is
+  set and reached) and a plain accent-text link **Plan tomorrow ›** (`planDayHref`: Plan on
+  tomorrow's week with the day selected). It stays while nothing is open and is replaced by
+  Next up as soon as a task is added or reopened. No confetti, no sound, no button. The rule
+  is `isAllDone({ total, open, overdue })` (`#lib/next-up.ts`) on unfiltered counts — the load
+  sends `dayCounts` from today's lists before `?q=` / `?hideDone=` — so a quest filter or
+  hidden done rows never fake or hide it. Today's list done while overdue tasks are open:
+  Next up's empty state says "Today’s list is done" + "2 overdue tasks are still open." (the
+  old "All done for today" title is gone). With no tasks at all the empty Next up stays. It
+  shows while a timer runs too (a status, not an action).
+- **One large title.** The global `h1` is the large bold title Home had (O3a): `--fs-title-lg`
+  32 px (phones `--fs-title` 28 px), `--fw-bold`, `--tracking-title` (−0.025em) — Plan,
+  Calendar, Quests, the quest detail (still in its quest colour), Review, Settings,
+  Styleguide via `PageHeader`, Home without its own override. Focus, `/setup`/`/pair` and
+  `/welcome` keep their own title styles. **Big numbers** share `--fw-figure` (semibold) in
+  Geist with tabular figures: Review KPIs, the quarter summary, quest cards and the Quests
+  summary, Calendar's week total, the Focus clock, the styleguide samples.
+- **Motion** (tokens only, all off under reduced motion, nothing on first paint): rows of
+  Home's Today list and Overdue group slide open when they appear (`rowIn`, `--dur-row`;
+  Svelte's local intros skip the list's first render); a checked-off row glides to its new
+  place in the done group, and rows close up after one leaves (`listFlip`: measure in
+  `$effect.pre`, animate `translate` after the update; skipped when the update added a row).
+  Sheets and dialogs arrive with a slight spring (`--ease-sheet`, ~2 % overshoot; the sheet's
+  `--sheet-underlap` shadow hides the gap the overshoot would open). Numbers tick when they
+  change: Home's "logged today" (as before) and Today's "N open".
+- **Decisions**: the running break has no filled button; Complete sits left and the filled
+  button right (stopwatch order), ⋯ in the middle; "All done" ignores the quest filter and
+  hidden done rows; logged time on the card uses `formatDurationMin` (durations as text), the
+  meta line keeps decimal hours; the card has no button (the link is enough, and the one
+  primary of an all-done Home would be nothing); the today bar in Review's day chart is
+  neutral (the mock-up's choice), its label stays accent.
+- **Tests**: unit `isAllDone` (`next-up.test.ts`), `planDayHref` (`day-view.test.ts`),
+  `splitSegments` (`review.test.ts`); `contrast.test.ts` runs the new checks. e2e
+  `home.spec.ts` "All done" (`@mobile`): open tasks up to today are parked as done (restored
+  afterwards); checking off today's last task with an overdue one still open shows "One
+  overdue task is still open." and no card — checked against the reintroduced bug (overdue
+  ignored → fails); checking off the overdue one shows the card with today's task count,
+  which survives a reload; adding a task removes it, checking that off brings it back,
+  reopening a done task removes it; **Plan tomorrow** opens `/plan?week=…&day=<tomorrow>`.
+  `quests.spec.ts` / `mobile-polish.spec.ts`: "New quest" is a strict locator now (a second
+  button fails). Focus' Pause/Resume/Complete keep their accessible names
+  (`focus.spec.ts` unchanged).

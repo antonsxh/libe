@@ -131,7 +131,7 @@
 	}
 	.big {
 		font-size: var(--fs-xl);
-		font-weight: var(--fw-medium);
+		font-weight: var(--fw-figure);
 	}
 	.mid {
 		font-size: var(--fs-lg);
@@ -202,7 +202,7 @@
 	}
 	.value {
 		font-size: var(--fs-xl);
-		font-weight: var(--fw-medium);
+		font-weight: var(--fw-figure);
 		letter-spacing: -0.01em;
 	}
 	.budget {

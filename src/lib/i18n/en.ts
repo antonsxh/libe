@@ -166,9 +166,20 @@ export const en = {
 			start: 'Start focus',
 			startAria: (title: string) => `Start focus: ${title}`,
 			emptyTitle: 'Nothing planned for today',
-			allDoneTitle: 'All done for today',
+			/** Today's list is done but overdue tasks are still open (not "All done"). */
+			todayDoneTitle: 'Today’s list is done',
+			overdueLeft: (n: number) =>
+				n === 1 ? 'One overdue task is still open.' : `${n} overdue tasks are still open.`,
 			emptyHint: 'Add a task below, or pick one from the backlog.',
 			addTask: 'Add a task'
+		},
+		/** Replaces Next up once nothing is open today (`isAllDone`). */
+		allDone: {
+			title: 'All done',
+			tasks: (n: number) => (n === 1 ? '1 task' : `${n} tasks`),
+			logged: (duration: string) => `${duration} logged`,
+			goalReached: 'daily goal reached',
+			planTomorrow: 'Plan tomorrow'
 		},
 		blockFailed:
 			'That time block could not be saved — start before end, and keep it within 00:00–24:00.',

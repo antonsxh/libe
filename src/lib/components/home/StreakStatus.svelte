@@ -72,9 +72,11 @@
 	.milestone {
 		color: var(--text);
 	}
+	/* A lit flame is the one reward colour (Apple Fitness orange), filled. */
 	.lit :global(svg),
 	.milestone :global(svg) {
-		color: var(--accent-text);
+		color: var(--streak);
+		fill: currentColor;
 	}
 	.milestone {
 		white-space: normal;

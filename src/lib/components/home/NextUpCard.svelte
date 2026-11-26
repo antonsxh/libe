@@ -14,10 +14,12 @@
 		/** Home's lists in display order (open tasks first). */
 		questTasks: TaskWithQuest[];
 		otherTasks: TaskWithQuest[];
+		/** Open overdue tasks (today's list may be done while these are still open). */
+		overdueCount: number;
 		/** Empty state: move focus to the add-task input. */
 		onadd: () => void;
 	};
-	let { questTasks, otherTasks, onadd }: Props = $props();
+	let { questTasks, otherTasks, overdueCount, onadd }: Props = $props();
 
 	const timer = useTimer();
 	const t = useI18n();
@@ -66,9 +68,13 @@
 			<div class="card empty">
 				<p class="label" id="next-up-label">{t.home.nextUp.label}</p>
 				<p class="title">
-					{next.allDone ? t.home.nextUp.allDoneTitle : t.home.nextUp.emptyTitle}
+					{next.allDone ? t.home.nextUp.todayDoneTitle : t.home.nextUp.emptyTitle}
 				</p>
-				<p class="muted hint">{t.home.nextUp.emptyHint}</p>
+				<p class="muted hint">
+					{next.allDone && overdueCount > 0
+						? t.home.nextUp.overdueLeft(overdueCount)
+						: t.home.nextUp.emptyHint}
+				</p>
 				<div class="cta">
 					<Button variant="primary" onclick={onadd}>
 						<Plus size={18} />

@@ -229,7 +229,7 @@
 	}
 	.big {
 		font-size: var(--fs-2xl);
-		font-weight: var(--fw-medium);
+		font-weight: var(--fw-figure);
 		line-height: 1;
 		letter-spacing: -0.02em;
 	}

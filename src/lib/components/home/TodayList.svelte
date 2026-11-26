@@ -9,6 +9,8 @@
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
+	import { listFlip, tickIn } from '#lib/motion.ts';
+	import { untrack } from 'svelte';
 
 	/**
 	 * Home's one "Today" list (variant A, O3a): quest work and Other in one inset grouped list
@@ -45,12 +47,26 @@
 	const t = useI18n();
 
 	const open = $derived(rows.filter((r) => r.task.doneAt === null).length);
+
+	/** A checked-off row glides to its new place (the done group) instead of jumping. */
+	let list = $state<HTMLUListElement>();
+	const flip = listFlip('task');
+	$effect.pre(() => {
+		void rows;
+		untrack(() => flip.measure(list));
+	});
+	$effect(() => {
+		void rows;
+		untrack(() => flip.play(list));
+	});
 </script>
 
 <section class="today" aria-labelledby="today-head">
 	<div class="head">
 		<h2 id="today-head">{t.common.today}</h2>
-		<span class="count tabular">{t.homeList.open(open)}</span>
+		<span class="count tabular">
+			{#key open}<span class="tick" in:tickIn>{t.homeList.open(open)}</span>{/key}
+		</span>
 		<span class="tools">
 			{#if quests.length > 0}
 				<QuestFilter {quests} selected={questFilter} onchange={onfilter} />
@@ -67,7 +83,7 @@
 		</span>
 	</div>
 
-	<ul class="group" data-testid="today-list">
+	<ul class="group" data-testid="today-list" bind:this={list}>
 		{#each rows as row (row.task.id)}
 			<TodayRow
 				task={row.task}
@@ -111,6 +127,9 @@
 	.count {
 		color: var(--text-muted);
 		font-size: var(--fs-sm);
+	}
+	.tick {
+		display: inline-block;
 	}
 	.tools {
 		display: flex;

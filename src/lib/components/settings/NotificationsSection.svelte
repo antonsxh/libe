@@ -161,7 +161,7 @@
 			</div>
 			{#if status === 'off'}
 				<div in:fadeScale>
-					<Button variant="primary" onclick={turnOn} disabled={busy}>
+					<Button variant="secondary" onclick={turnOn} disabled={busy}>
 						<Bell size={16} />
 						{n.turnOn}
 					</Button>

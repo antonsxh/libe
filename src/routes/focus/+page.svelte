@@ -1,17 +1,7 @@
 <script lang="ts">
 	import { formatDurationMin } from '#lib/duration.ts';
 	import { afterNavigate } from '$app/navigation';
-	import {
-		ArrowLeft,
-		Check,
-		Clock,
-		Pause,
-		Play,
-		Settings,
-		SkipForward,
-		Square,
-		Trash2
-	} from '@lucide/svelte';
+	import { ArrowLeft, Clock, Play, Settings, Square, Trash2 } from '@lucide/svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
 	import PomodoroSettingsDialog from '#lib/components/focus/PomodoroSettingsDialog.svelte';
@@ -126,15 +116,12 @@
 <svelte:head><title>{pageTitle}</title></svelte:head>
 
 {#snippet control(action: SimpleAction, label: string, primary = false)}
+	<!-- Round like the stopwatch in Apple's Clock: the likely next tap filled, the rest grey. -->
 	<form method="POST" action="/api/timer" onsubmit={command(action)}>
 		<input type="hidden" name="action" value={action} />
 		<input type="hidden" name="redirectTo" value="/focus" />
-		<button type="submit" class="ctl" class:primary disabled={timer.busy}>
-			{#if action === 'pause'}<Pause size={18} />
-			{:else if action === 'complete'}<Check size={18} />
-			{:else if action === 'skip'}<SkipForward size={18} />
-			{:else}<Play size={18} />{/if}
-			{label}
+		<button type="submit" class="round" class:primary disabled={timer.busy}>
+			<span>{label}</span>
 		</button>
 	</form>
 {/snippet}
@@ -194,24 +181,12 @@
 				{/if}
 
 				<div class="controls">
-					{#if view.status === 'waiting'}
-						{#if view.phase === 'focus'}
-							{@render control('startPhase', t.focus.startFocus, true)}
-						{:else}
-							{@render control('startPhase', t.focus.startBreak, true)}
-							{@render control('skip', t.focus.skip)}
-						{/if}
-					{:else if view.isFocus}
-						<!-- Paused: Resume is the obvious next tap → primary; running: the clock leads. -->
-						{@render control(
-							view.status === 'paused' ? 'resume' : 'pause',
-							view.status === 'paused' ? t.focus.resume : t.focus.pause,
-							view.status === 'paused'
-						)}
-					{:else}
-						{@render control('skip', t.focus.skipBreak)}
-					{/if}
+					<!-- Left: Complete (and Skip before a break) in grey; middle: ⋯; right: the one
+					     filled button — Start / Pause / Resume (a running break has none). -->
 					{@render control('complete', t.focus.complete)}
+					{#if view.status === 'waiting' && view.phase !== 'focus'}
+						{@render control('skip', t.focus.skip)}
+					{/if}
 					<span class="more">
 						<Menu label={t.focus.moreActions}>
 							{#snippet children(close)}
@@ -254,6 +229,21 @@
 							{/snippet}
 						</Menu>
 					</span>
+					{#if view.status === 'waiting'}
+						{@render control(
+							'startPhase',
+							view.phase === 'focus' ? t.focus.startFocus : t.focus.startBreak,
+							true
+						)}
+					{:else if view.isFocus}
+						{@render control(
+							view.status === 'paused' ? 'resume' : 'pause',
+							view.status === 'paused' ? t.focus.resume : t.focus.pause,
+							true
+						)}
+					{:else}
+						{@render control('skip', t.focus.skipBreak)}
+					{/if}
 				</div>
 
 				{#if switchCandidate}
@@ -476,7 +466,7 @@
 	.clock {
 		margin-top: var(--space-4);
 		font-size: min(var(--fs-timer), 25vw);
-		font-weight: var(--fw-medium);
+		font-weight: var(--fw-figure);
 		line-height: 1.05;
 		letter-spacing: -0.03em;
 		color: var(--text);
@@ -534,8 +524,40 @@
 		flex-wrap: wrap;
 		justify-content: center;
 		align-items: center;
-		gap: var(--space-4);
+		gap: var(--space-6);
 		margin-top: var(--space-12);
+	}
+	/* Stopwatch buttons (Apple's Clock): round, label inside; grey unless primary. */
+	.round {
+		display: grid;
+		place-items: center;
+		width: var(--round-btn);
+		height: var(--round-btn);
+		padding: var(--space-1);
+		border: none;
+		border-radius: 50%;
+		background: var(--round-btn-bg);
+		color: var(--text);
+		font-size: var(--fs-md);
+		font-weight: var(--fw-semibold);
+		line-height: 1.15;
+		text-align: center;
+		hyphens: auto;
+		transition: background var(--dur) var(--ease);
+	}
+	.round:hover:not(:disabled) {
+		background: var(--round-btn-bg-hover);
+	}
+	.round.primary {
+		background: var(--accent);
+		color: var(--accent-ink);
+	}
+	.round.primary:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+	.round:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 	.ctl {
 		display: inline-flex;
@@ -573,8 +595,9 @@
 		cursor: not-allowed;
 	}
 	.more :global(.trigger) {
-		width: 44px;
-		height: 44px;
+		width: var(--hit-min);
+		height: var(--hit-min);
+		border-radius: 50%;
 	}
 	.item {
 		display: flex;
@@ -771,8 +794,13 @@
 				calc(var(--space-4) + var(--safe-left));
 		}
 		.controls {
-			gap: var(--space-2);
+			gap: var(--space-4);
 			margin-top: var(--space-8);
+		}
+		.round {
+			width: var(--round-btn-phone);
+			height: var(--round-btn-phone);
+			font-size: var(--fs-sm);
 		}
 		.ctl {
 			height: 48px;

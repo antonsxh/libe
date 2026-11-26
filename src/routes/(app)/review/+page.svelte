@@ -93,7 +93,6 @@
 			share: pts
 		};
 	});
-	const sign = (n: number) => (Math.round(n * 10) === 0 ? 'zero' : n > 0 ? 'up' : 'down');
 	const signedPts = (n: number) =>
 		t.review.points(n === 0 ? '±0' : `${n > 0 ? '+' : '−'}${Math.abs(n)}`);
 </script>
@@ -141,14 +140,14 @@
 				<header class="kpi-head">
 					<h2 class="label">{t.review.questHours}</h2>
 					{#if deltas}
-						<span class="delta tabular" data-sign={sign(deltas.quest)} data-testid="delta-quest">
+						<span class="delta tabular" data-testid="delta-quest">
 							{formatSignedHours(deltas.quest, t.intl)}
 							{vs}
 						</span>
 					{/if}
 				</header>
 				<p class="figure">
-					<span class="num accent tabular" data-testid="kpi-quest">
+					<span class="num tabular" data-testid="kpi-quest">
 						{hours(week.questMin / 60)}
 					</span>
 					{#if week.budgetMin > 0}
@@ -166,7 +165,7 @@
 				<header class="kpi-head">
 					<h2 class="label">{t.review.dailyAverage}</h2>
 					{#if deltas}
-						<span class="delta tabular" data-sign={sign(deltas.avg)}>
+						<span class="delta tabular">
 							{formatSignedHours(deltas.avg, t.intl)}
 							{vs}
 						</span>
@@ -188,7 +187,7 @@
 				<header class="kpi-head">
 					<h2 class="label">{t.review.questVsOther}</h2>
 					{#if deltas && deltas.share !== null}
-						<span class="delta tabular" data-sign={sign(deltas.share)}>
+						<span class="delta tabular">
 							{signedPts(deltas.share)}
 							{vs}
 						</span>
@@ -217,7 +216,7 @@
 			/>
 			<div class="side">
 				<QuestHours rows={week.quests} />
-				<QuestVsOther questMin={week.questMin} otherMin={week.otherMin} />
+				<QuestVsOther questMin={week.questMin} otherMin={week.otherMin} rows={week.quests} />
 			</div>
 		</div>
 
@@ -254,13 +253,11 @@
 		justify-content: space-between;
 		gap: var(--space-1) var(--space-3);
 	}
+	/* Week-over-week: a plain fact, muted — no green/red for "better/worse". */
 	.delta {
 		font-size: var(--fs-xs);
-		color: var(--text-faint);
+		color: var(--text-muted);
 		white-space: nowrap;
-	}
-	.delta[data-sign='up'] {
-		color: color-mix(in srgb, var(--success) 70%, var(--text-faint));
 	}
 	.figure {
 		display: flex;
@@ -269,12 +266,9 @@
 	}
 	.num {
 		font-size: var(--fs-2xl);
-		font-weight: var(--fw-regular);
+		font-weight: var(--fw-figure);
 		letter-spacing: -0.02em;
 		line-height: 1.1;
-	}
-	.num.accent {
-		color: var(--accent-text);
 	}
 	.num.faint {
 		color: var(--text-faint);

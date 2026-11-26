@@ -17,6 +17,7 @@
 	--surface-2: #1a1a1d; /* raised: icon tiles, avatar, active nav item */
 	--surface-hover: #161618;
 	--track: #1a1a1d; /* empty progress/bar track */
+	--progress-fill: var(--text-2); /* progress that isn't "now" (Calendar's week bar) */
 	--bar-muted: #3a3a3e; /* inactive chart bars */
 
 	/* ── Lines (few and soft: structure is felt, not seen) ── */
@@ -31,6 +32,10 @@
 	--text-faint: #6e6e73; /* placeholders, done tasks */
 
 	/* ── Accent (Apple blue, used sparingly) ──────────────────
+	 * Only for the primary action and the "now": the one filled button, the running timer, the
+	 * now line, "today" markers, focus rings — plus the tint of interactive text (links, active
+	 * tab/filter, selection ticks). Never decoration: numbers, charts and finished progress use
+	 * text or quest colours, the streak flame `--streak`.
 	 * `--accent` is for fills, lines, rings and dots (≥ 3:1) and carries white text; as a text
 	 * or icon colour it is too dark on black, so text uses `--accent-text` (≥ 4.5:1). */
 	--accent: #0071e3;
@@ -55,6 +60,10 @@
 	/* ── Semantic ─────────────────────────────────────────── */
 	--danger: #ff6b62;
 	--success: #30d158;
+	--success-ink: #000000; /* a tick on a --success fill (Home's "All done") */
+	--success-halo: color-mix(in srgb, var(--success) 14%, transparent); /* … its soft ring */
+	/* Streak flames (nav, Home, Review): Apple Fitness orange — the one reward colour. */
+	--streak: #ff9230;
 	/* Overdue tasks: dots, markers and small accents only — never a large red surface. */
 	--overdue: color-mix(in srgb, var(--danger) 72%, var(--text-muted));
 
@@ -85,7 +94,7 @@
 	--fs-md: 0.9375rem; /* 15  body, nav */
 	--fs-lg: 1.125rem; /* 18  card titles */
 	--fs-xl: 1.5rem; /* 24  section stat */
-	--fs-2xl: 2.75rem; /* 44  page titles ("Thursday, October 15") */
+	--fs-2xl: 2.75rem; /* 44  large figures (Review KPIs, quest cards) */
 	--fs-stat: 3rem; /* 48  KPI numbers */
 	--fs-timer: 11rem; /* focus timer */
 	--fs-input-touch: 16px; /* min. input size on touch screens (iOS zooms below 16px) */
@@ -95,6 +104,7 @@
 	--fw-medium: 500;
 	--fw-semibold: 600;
 	--fw-bold: 700; /* large titles only */
+	--fw-figure: var(--fw-semibold); /* big numbers: KPIs, totals, the Focus clock */
 
 	--fs-label: 0.875rem; /* 14  section labels (.label, grouped list headers) */
 	--tracking-label: 0.12em; /* the few uppercase lines left: Focus' crumb and timer state */
@@ -139,7 +149,7 @@
 	--day-dot: 4px; /* the strip's "something on this day" indicator */
 	--day-slide: 40px; /* phone day view: the new day slides in from this far */
 	--day-swipe-min-h: 50dvh; /* phone day view: swipeable even below a short day's content */
-	--fs-2xl-phone: 2rem; /* 32  page titles on phones */
+	--fs-2xl-phone: 2rem; /* 32  large figures on phones */
 	--avatar-sm: 28px; /* profile avatar (Avatar.svelte) */
 	--avatar-md: 40px; /* nav */
 	--avatar-lg: 64px; /* settings preview */
@@ -178,7 +188,12 @@
 	--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* slight overshoot: pops, active tab */
 	--dur-press: 90ms; /* touch press feedback */
 	--dur-pop: 220ms; /* checkbox pop, tab indicator, number tick */
+	--dur-celebrate: 520ms; /* Home's "All done" check: one pop when the day is done */
 	--dur-sheet: 320ms; /* bottom sheet / mini-player slide in */
+	--dur-row: 260ms; /* a list row slides in when added, glides when it settles */
+	/* Sheets and dialogs arrive with a slight spring (~2 % overshoot). */
+	--ease-sheet: cubic-bezier(0.3, 1.25, 0.5, 1);
+	--sheet-underlap: 32px; /* surface below a sheet, so its overshoot shows no gap */
 	--dur-sheet-out: 220ms; /* … and out */
 	--press-scale: 0.96; /* pressed buttons / tab items */
 	--press-scale-card: 0.985; /* pressed cards (larger surfaces move less) */
@@ -199,6 +214,7 @@
 	--chart-radius: 3px; /* bars, tracks */
 	--chart-track-h: 6px; /* horizontal hour bars */
 	--chart-stack-h: 36px; /* quest vs other stacked bar */
+	--chart-seg-gap: 2px; /* gap between its segments (one per quest, then Other) */
 
 	/* ── Daily goal (avatar ring) ──────────────────────────── */
 	--goal-ring: var(--accent);
@@ -222,8 +238,14 @@
 	--page-dot-off: color-mix(in srgb, var(--text) 22%, transparent);
 	--page-dot-on: var(--text);
 	--cta-h: 50px; /* full-width primary button at the bottom of a phone screen */
+	/* Round stopwatch buttons on the running Focus screen (Apple's Clock). */
+	/* Sized for the longest label ("Überspringen": 96 px at 15 px, 85 px at 13 px) + padding. */
+	--round-btn: 104px;
+	--round-btn-phone: 94px;
+	--round-btn-bg: color-mix(in srgb, var(--text) 15%, var(--bg)); /* the grey ones */
+	--round-btn-bg-hover: color-mix(in srgb, var(--text) 21%, var(--bg));
 	--radius-cta: 14px;
-	--fs-title: 1.75rem; /* 28  large bold screen titles (first-run flow) */
+	--fs-title: 1.75rem; /* 28  large bold titles on phones, the first-run flow */
 	--symbol-lg: 52px; /* accent symbol above a large title */
 	--welcome-col: 480px; /* the first-run flow's column on wide screens */
 	--empty-text-max: 34ch; /* EmptyState: the one sentence */
@@ -233,8 +255,11 @@
 	--row-check: 22px; /* round check / "+" at the start of a task row */
 	--row-icon: 28px; /* icon tile of a navigation row (Backlog, Daily plan) */
 	--row-badge-h: 22px; /* count badge at the end of a navigation row */
-	--fs-title-lg: 2rem; /* 32  Home's large date title on wider screens */
+	--fs-title-lg: 2rem; /* 32  every page's large bold title (global h1) on wider screens */
+	--tracking-title: -0.025em; /* … tight, like Apple's Large Title */
 	--home-side: 300px; /* Home's slim right column (backlog row, compact daily plan) */
+	--done-check: 60px; /* the "All done" card's check circle (O4a) */
+	--done-halo-w: 8px; /* … and its soft ring */
 
 	/* ── Hatching (planned blocks, calendar entries) ──────── */
 	--hatch-angle: 135deg;

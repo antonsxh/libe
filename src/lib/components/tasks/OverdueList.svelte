@@ -5,7 +5,8 @@
 	import { ArrowRight, CalendarClock, Inbox, Trash2 } from '@lucide/svelte';
 	import Menu from '#lib/components/Menu.svelte';
 	import QuestPill from '#lib/components/QuestPill.svelte';
-	import { fadeScale } from '#lib/motion.ts';
+	import { fadeScale, listFlip, rowIn } from '#lib/motion.ts';
+	import { untrack } from 'svelte';
 	import { overdueAgeLabel } from '#lib/overdue.ts';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
@@ -54,12 +55,25 @@
 	}: Props = $props();
 	const t = useI18n();
 
+	/** Home (grouped): rows slide in when they appear and the others glide into place. */
+	let list = $state<HTMLUListElement>();
+	const flip = listFlip('overdue');
+	$effect.pre(() => {
+		void tasks;
+		if (grouped) untrack(() => flip.measure(list));
+	});
+	$effect(() => {
+		void tasks;
+		if (grouped) untrack(() => flip.play(list));
+	});
+
 	const age = (day: string | null) => (day ? overdueAgeLabel(day, today, t.overdue, t.intl) : '');
 </script>
 
-<ul class="rows" class:compact class:grouped>
+<ul class="rows" class:compact class:grouped bind:this={list}>
 	{#each tasks as task (task.id)}
 		<li
+			in:rowIn={{ enabled: grouped }}
 			class="row"
 			class:dragging={draggingId === task.id}
 			style:--q={questColorVar(task.questColor)}

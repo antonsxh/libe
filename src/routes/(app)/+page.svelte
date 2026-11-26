@@ -3,7 +3,7 @@
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Inbox, Rows3 } from '@lucide/svelte';
-	import { formatHours, formatMinutes } from '#lib/dates.ts';
+	import { addDays, formatHours, formatMinutes } from '#lib/dates.ts';
 	import {
 		nextHalfHourMinutes,
 		planSummary,
@@ -17,6 +17,7 @@
 	import BlockDialog from '#lib/components/home/BlockDialog.svelte';
 	import DayPlanCard from '#lib/components/home/DayPlanCard.svelte';
 	import DayTimeline from '#lib/components/home/DayTimeline.svelte';
+	import AllDoneCard from '#lib/components/home/AllDoneCard.svelte';
 	import FirstQuestCard from '#lib/components/home/FirstQuestCard.svelte';
 	import NextUpCard from '#lib/components/home/NextUpCard.svelte';
 	import OverdueGroup from '#lib/components/home/OverdueGroup.svelte';
@@ -26,6 +27,8 @@
 	import type { QuestFormResult } from '#lib/quest-form.ts';
 	import { prefersReducedMotion, tickIn } from '#lib/motion.ts';
 	import { BACKLOG_PARAM } from '#lib/nav.ts';
+	import { isAllDone } from '#lib/next-up.ts';
+	import { planDayHref } from '#lib/day-view.ts';
 	import { mergeDayLists } from '#lib/ordering.ts';
 	import type { TaskFormResult } from '#lib/task-form.ts';
 	import type { TaskWithQuest } from '#lib/server/tasks.ts';
@@ -63,6 +66,9 @@
 				)
 			: null
 	);
+
+	/** Nothing open today (nor overdue): Next up becomes the "All done" card. */
+	const allDone = $derived(isAllDone({ ...data.dayCounts, overdue: data.overdue.length }));
 
 	/** Quest work and Other as one list: open first, each stored list in its order. */
 	const rows = $derived(mergeDayLists(data.questTasks, data.otherTasks));
@@ -220,7 +226,21 @@
 			<p class="form-error" role="alert">{t.home.blockFailed}</p>
 		{/if}
 
-		<NextUpCard questTasks={data.questTasks} otherTasks={data.otherTasks} onadd={focusAdd} />
+		{#if allDone}
+			<AllDoneCard
+				total={data.dayCounts.total}
+				loggedMin={todayMin}
+				goalMin={data.dailyGoalMin ?? null}
+				tomorrowHref={planDayHref(addDays(data.day, 1))}
+			/>
+		{:else}
+			<NextUpCard
+				questTasks={data.questTasks}
+				otherTasks={data.otherTasks}
+				overdueCount={data.overdue.length}
+				onadd={focusAdd}
+			/>
+		{/if}
 
 		<OverdueGroup tasks={data.overdue} today={data.day} />
 
@@ -338,11 +358,6 @@
 		color: var(--text-muted);
 		font-size: var(--fs-md);
 	}
-	h1 {
-		font-size: var(--fs-title-lg);
-		font-weight: var(--fw-bold);
-		letter-spacing: -0.025em;
-	}
 	.meta {
 		display: flex;
 		flex-wrap: wrap;
@@ -398,14 +413,11 @@
 		}
 	}
 
-	/* Phones: less at once — no week total (Review has it); a smaller large title. */
+	/* Phones: less at once — no week total (Review has it). */
 	@media (max-width: 720px) {
 		.main-col,
 		.home {
 			gap: var(--space-5);
-		}
-		h1 {
-			font-size: var(--fs-title);
 		}
 		.greeting {
 			font-size: var(--fs-sm);

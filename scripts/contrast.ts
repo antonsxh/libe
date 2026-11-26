@@ -190,6 +190,10 @@ export const CHECKS: Check[] = [
 	...TEXT_SURFACES.map((bg) => ({ fg: '--danger', bg, min: AA_TEXT, what: 'error text' })),
 	...TEXT_SURFACES.map((bg) => ({ fg: '--success', bg, min: AA_TEXT, what: 'success text' })),
 	{ fg: '--overdue', bg: '--surface', min: AA_UI, what: 'overdue dots' },
+	...TEXT_SURFACES.map((bg) => ({ fg: '--streak', bg, min: AA_UI, what: 'streak flame' })),
+	{ fg: '--success-ink', bg: '--success', min: AA_UI, what: 'all-done check' },
+	{ fg: '--success', bg: '--surface', min: AA_UI, what: 'all-done circle' },
+	{ fg: '--progress-fill', bg: '--track', min: AA_UI, what: 'neutral progress fill' },
 	{ fg: '--focus-ring', bg: '--bg', min: AA_UI, what: 'focus ring' },
 	{ fg: '--focus-ring', bg: '--surface', min: AA_UI, what: 'focus ring' }
 ];
