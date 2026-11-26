@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { Funnel } from '@lucide/svelte';
+	import Switch from '#lib/components/Switch.svelte';
 	import { questColorVar } from '#lib/quest-colors.ts';
 	import type { Quest } from '#lib/server/db/schema.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
@@ -9,11 +10,19 @@
 		quests,
 		/** Quest ids to show; null = no filter (all). */
 		selected,
-		onchange
+		onchange,
+		round = false,
+		hideDone,
+		onhidedone
 	}: {
 		quests: Quest[];
 		selected: string[] | null;
 		onchange: (ids: string[] | null) => void;
+		/** A round toolbar button (Plan's header, AB3) instead of the small funnel. */
+		round?: boolean;
+		/** With `onhidedone`: a "Hide done tasks" switch at the end of the menu (Plan). */
+		hideDone?: boolean;
+		onhidedone?: (hide: boolean) => void;
 	} = $props();
 
 	const t = useI18n();
@@ -65,14 +74,15 @@
 	<button
 		type="button"
 		class="funnel"
-		class:active={selected !== null}
+		class:round
+		class:active={selected !== null || !!hideDone}
 		bind:this={trigger}
 		aria-label={t.tasks.filter}
 		aria-haspopup="dialog"
 		aria-expanded={open}
 		onclick={toggleOpen}
 	>
-		<Funnel size={16} />
+		<Funnel size={round ? 17 : 16} />
 	</button>
 
 	{#if open}
@@ -91,6 +101,12 @@
 			{:else}
 				<p class="hint muted">{t.tasks.noOpenQuests}</p>
 			{/each}
+			{#if onhidedone}
+				<label class="done-row">
+					<span>{t.common.hideDone}</span>
+					<Switch checked={!!hideDone} onchange={onhidedone} />
+				</label>
+			{/if}
 		</div>
 	{/if}
 </span>
@@ -120,6 +136,37 @@
 	}
 	.funnel.active {
 		color: var(--accent-text);
+	}
+	/* Toolbar (Plan): a round button, the icon in the accent's text colour. */
+	.funnel.round {
+		width: var(--toolbar-btn);
+		height: var(--toolbar-btn);
+		border-radius: var(--radius-pill);
+		background: var(--toolbar-btn-bg);
+		color: var(--accent-text);
+	}
+	@media (hover: hover) {
+		.funnel.round:hover {
+			background: var(--toolbar-btn-bg-hover);
+			color: var(--accent-text);
+		}
+	}
+	/* Active filter: the round button fills (the icon is already accent). */
+	.funnel.round.active {
+		background: var(--selected-bg);
+	}
+	.done-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		margin-top: var(--space-1);
+		padding: var(--space-2) var(--space-2) var(--space-1);
+		border-top: 1px solid var(--border);
+		font-size: var(--fs-sm);
+		color: var(--text-2);
+		white-space: nowrap;
+		cursor: pointer;
 	}
 
 	.pop {

@@ -32,8 +32,8 @@
 	--text-faint: #6e6e73; /* placeholders, done tasks */
 
 	/* ── Accent (Apple blue, used sparingly) ──────────────────
-	 * Only for the primary action and the "now": the one filled button, the running timer, the
-	 * now line, "today" markers, focus rings — plus the tint of interactive text (links, active
+	 * Only for the primary action and the "now": the one filled button, the running timer,
+	 * "today" markers, focus rings — plus the tint of interactive text (links, active
 	 * tab/filter, selection ticks). Never decoration: numbers, charts and finished progress use
 	 * text or quest colours, the streak flame `--streak`.
 	 * `--accent` is for fills, lines, rings and dots (≥ 3:1) and carries white text; as a text
@@ -44,6 +44,11 @@
 	--accent-text: #4da3ff; /* accent as text/icon colour: today, links, active states */
 	--accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 	--today-tint: color-mix(in srgb, var(--accent) 7%, transparent); /* today column / timeline */
+	--today-col-tint: color-mix(
+		in srgb,
+		var(--accent) 4%,
+		transparent
+	); /* calendar: today's column, barely */
 	--running-border: color-mix(
 		in srgb,
 		var(--accent) 50%,
@@ -64,6 +69,9 @@
 	--success-halo: color-mix(in srgb, var(--success) 14%, transparent); /* … its soft ring */
 	/* Streak flames (nav, Home, Review): Apple Fitness orange — the one reward colour. */
 	--streak: #ff9230;
+	/* The now line of every time grid (Calendar, Home's day timeline) and its dot: Apple
+	 * Calendar's red — the one exception to "the accent is the now" (AB3). UI colour, ≥ 3:1. */
+	--now-line: #ff4245;
 	/* Overdue tasks: dots, markers and small accents only — never a large red surface. */
 	--overdue: color-mix(in srgb, var(--danger) 72%, var(--text-muted));
 
@@ -205,6 +213,14 @@
 	--cal-hour: 50px; /* calendar: height of one hour */
 	--cal-col-min: 120px; /* calendar: narrowest day column (mobile scrolls horizontally) */
 	--cal-gutter: 52px; /* calendar: hour label column */
+	/* Blocks on a time grid (`.event`: Calendar, Home's day plan) — like Apple Calendar's events. */
+	--event-tint: 22%; /* fill: this much quest colour over the surface */
+	--event-edge: 3px; /* the quest-colour left edge (planned blocks too) */
+	--event-dash-mix: 70%; /* a planned block's dashed outline: quest colour over transparent */
+	--event-time-mix: 55%; /* a block's time line: quest colour mixed into --text */
+	--cal-today-num: 28px; /* calendar head: today's date in a filled accent circle */
+	--now-line-w: 2px; /* now line thickness … */
+	--now-dot: 8px; /* … and the dot at its start */
 
 	/* ── Charts (review) ───────────────────────────────────── */
 	--chart-h: 220px; /* plot height of the per-day bars */
@@ -240,6 +256,12 @@
 	--segmented-thumb: color-mix(in srgb, var(--text) 16%, var(--surface)); /* selected segment */
 	--segmented-shadow: 0 1px 3px rgb(var(--shadow-color) / 0.45);
 	--segmented-h: 32px;
+	--plan-col-w: 252px; /* Plan board: a day column … */
+	--plan-rail-w: 240px; /* … and the backlog rail */
+	/* Round icon buttons of a page toolbar (Plan, Calendar: ‹ › filter, backlog). */
+	--toolbar-btn: 34px;
+	--toolbar-btn-bg: var(--surface-2);
+	--toolbar-btn-bg-hover: color-mix(in srgb, var(--text) 12%, var(--surface-2));
 	--page-dot: 7px; /* step dots of a multi-step flow */
 	--page-dot-off: color-mix(in srgb, var(--text) 22%, transparent);
 	--page-dot-on: var(--text);
@@ -298,9 +320,4 @@
 	--fs-detail-tile: 1.75rem; /* 28  the emoji in it */
 	--track-raised: var(--border-strong); /* a bar's empty track on a --surface card */
 	--focus-setup-w: 480px; /* the Focus setup's column on wide screens */
-
-	/* ── Hatching (planned blocks, calendar entries) ──────── */
-	--hatch-angle: 135deg;
-	--hatch-line: 2px;
-	--hatch-gap: 7px;
 }

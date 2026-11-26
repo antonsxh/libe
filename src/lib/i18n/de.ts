@@ -194,16 +194,12 @@ export const de: Messages = {
 		}
 	},
 	plan: {
-		title: 'Woche planen',
-		addOther: 'Zu Sonstiges …',
+		title: 'Plan',
 		todayMarker: '(heute)',
 		openBacklog: 'Offene Aufgaben im Backlog',
 		collapseBacklog: 'Backlog einklappen',
 		expandBacklog: 'Backlog ausklappen',
-		emptyDay: (weekday) => `Für ${weekday} ist nichts geplant`,
 		emptyDayHint: 'Füge eine Aufgabe hinzu oder hol dir eine aus dem Backlog.',
-		addTask: 'Aufgabe hinzufügen',
-		openBacklogSheet: 'Backlog öffnen',
 		hasOpenTasks: 'offene Aufgaben',
 		emptyWeek: {
 			title: 'Nichts geplant',
@@ -229,7 +225,6 @@ export const de: Messages = {
 	calendar: {
 		title: 'Kalender',
 		showPlan: 'Plan einblenden',
-		hidePlan: 'Plan ausblenden',
 		hasLogged: 'Zeit erfasst',
 		questTotal: (hours) => `/ ${hours} Quest`,
 		budgetBar: 'Quest-Stunden im Verhältnis zum Quest-Wochenbudget',

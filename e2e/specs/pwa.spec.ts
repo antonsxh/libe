@@ -114,7 +114,7 @@ test.describe('service worker', () => {
 			await server.start();
 			await page.goto('/plan');
 			await live(page);
-			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan the week');
+			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan');
 		} finally {
 			await ctx.close();
 			await server.stop();

@@ -124,14 +124,18 @@
 </section>
 
 <section>
-	<h2 class="label">Hatching</h2>
+	<h2 class="label">Time-grid blocks</h2>
 	<div class="blocks">
 		{#each QUEST_COLORS as color (color)}
-			<div class="hatch block" style:--q={questColorVar(color)}>
+			<div class="event block" style:--q={questColorVar(color)}>
 				<strong>{color}</strong>
 				<span class="tabular">09:00 – 10:30</span>
 			</div>
 		{/each}
+		<div class="event planned block" style:--q={questColorVar('green')}>
+			<strong>planned</strong>
+			<span class="tabular">11:00 – 12:00</span>
+		</div>
 	</div>
 </section>
 

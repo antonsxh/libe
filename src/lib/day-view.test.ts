@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { dayDirection, dayHref, planDayHref, resolveDay, stepDay } from './day-view.ts';
+import { dayDirection, dayHref, planDayHref, resolveDay, stepDay, todayHref } from './day-view.ts';
 
 const MON = '2026-11-16';
 const SUN = '2026-11-22';
@@ -77,5 +77,23 @@ describe('planDayHref', () => {
 	test('Plan on that day and its week (a Sunday → Monday crosses into the next week)', () => {
 		expect(planDayHref('2026-11-19')).toBe('/plan?week=2026-11-16&day=2026-11-19');
 		expect(planDayHref('2026-11-23')).toBe('/plan?week=2026-11-23&day=2026-11-23');
+	});
+});
+
+describe('todayHref', () => {
+	test('drops week, day and the week-scoped params, keeps the rest', () => {
+		expect(
+			todayHref('?week=2026-11-16&day=2026-11-18&q=a,b&other=2026-11-17&hideDone=1', ['other'])
+		).toBe('?q=a%2Cb&hideDone=1');
+	});
+	test('keeps a param that is not week-scoped on this page', () => {
+		expect(todayHref('?week=2026-11-16&plan=1')).toBe('?plan=1');
+	});
+	test('nothing left → a bare "?" (still a same-page link)', () => {
+		expect(todayHref('?week=2026-11-16&day=2026-11-18')).toBe('?');
+		expect(todayHref('')).toBe('?');
+	});
+	test('never keeps an action param', () => {
+		expect(todayHref('?/add&week=2026-11-16&q=x')).toBe('?q=x');
 	});
 });

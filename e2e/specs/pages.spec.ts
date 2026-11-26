@@ -7,7 +7,7 @@ import { test, expect, live, expectNoHorizontalScroll } from '../support/fixture
 
 const PAGES: { path: string; heading: RegExp; public?: boolean }[] = [
 	{ path: '/', heading: /day/ },
-	{ path: '/plan', heading: /^Plan the week$/ },
+	{ path: '/plan', heading: /^Plan$/ },
 	{ path: '/calendar', heading: /^Calendar$/ },
 	{ path: '/focus', heading: /./ },
 	{ path: '/quests', heading: /^Quests$/ },

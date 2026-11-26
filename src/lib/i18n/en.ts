@@ -205,18 +205,13 @@ export const en = {
 		}
 	},
 	plan: {
-		title: 'Plan the week',
-		/** Add row of an Other zone (Plan's days, Home's Other). */
-		addOther: 'Add to Other…',
+		title: 'Plan',
 		todayMarker: '(today)',
 		openBacklog: 'Open backlog tasks',
 		collapseBacklog: 'Collapse backlog',
 		expandBacklog: 'Expand backlog',
-		/** Phones: the day view's empty state and the backlog sheet. */
-		emptyDay: (weekday: string) => `Nothing planned for ${weekday}`,
+		/** Phones: under an empty day's list. */
 		emptyDayHint: 'Add a task, or pull one from the backlog.',
-		addTask: 'Add a task',
-		openBacklogSheet: 'Open the backlog',
 		hasOpenTasks: 'open tasks',
 		/** A week without any planned task: one sentence + one action. */
 		emptyWeek: {
@@ -249,7 +244,6 @@ export const en = {
 	calendar: {
 		title: 'Calendar',
 		showPlan: 'Show plan',
-		hidePlan: 'Hide plan',
 		/** Phones: the day strip's dot. */
 		hasLogged: 'time logged',
 		questTotal: (hours: string) => `/ ${hours} quest`,

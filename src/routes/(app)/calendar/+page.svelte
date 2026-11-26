@@ -2,11 +2,12 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { CalendarDays, LayoutList, Plus } from '@lucide/svelte';
+	import { CalendarDays, Plus } from '@lucide/svelte';
 	import DayStrip from '#lib/components/DayStrip.svelte';
 	import DaySwipe from '#lib/components/DaySwipe.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
+	import Switch from '#lib/components/Switch.svelte';
 	import WeekNav from '#lib/components/WeekNav.svelte';
 	import WeekGrid from '#lib/components/calendar/WeekGrid.svelte';
 	import SessionDialog, { type SessionEditor } from '#lib/components/calendar/SessionDialog.svelte';
@@ -20,7 +21,7 @@
 	} from '#lib/calendar.ts';
 	import { addDays, formatHours, formatMinutes, todayISO } from '#lib/dates.ts';
 	import { formatDurationMs } from '#lib/duration.ts';
-	import { dayHref, resolveDay, stepDay } from '#lib/day-view.ts';
+	import { dayHref, resolveDay, stepDay, todayHref } from '#lib/day-view.ts';
 	import { clockElapsedMs } from '#lib/timer.ts';
 	import { useTimer } from '#lib/timer-store.svelte.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
@@ -85,7 +86,13 @@
 		const qs = p.toString();
 		return qs ? `?${qs}` : '?';
 	}
-	const planHref = $derived(href((p) => (data.showPlan ? p.delete('plan') : p.set('plan', '1'))));
+	/** "Show plan" switch: `?plan=1` overlays the week's planned blocks (kept on week links). */
+	function togglePlan(show: boolean) {
+		void goto(
+			href((p) => (show ? p.set('plan', '1') : p.delete('plan'))),
+			{ reset: false }
+		);
+	}
 
 	/* ── Phones: day view (`?day=`, client-only — the server loads the whole week) ── */
 	const selected = $derived(
@@ -94,6 +101,10 @@
 	const dayLink = (day: string) => dayHref(page.url.search, day, data.weekMonday);
 	function selectDay(day: string) {
 		return goto(dayLink(day), { reset: false, replace: true });
+	}
+	/** Swiping the day strip: the same weekday of the previous / next week (a new history entry). */
+	function stepWeek(delta: -1 | 1) {
+		return goto(dayLink(addDays(selected, 7 * delta)), { reset: false });
 	}
 	/** The strip's dot: days with logged time (incl. the running session). */
 	const loggedDays = $derived(new Set(dayList.filter((_, i) => week.dayMs[i] > 0)));
@@ -156,23 +167,6 @@
 
 <PageHeader title={t.calendar.title}>
 	{#snippet titleActions()}
-		<div class="nav-wrap">
-			<WeekNav monday={data.weekMonday} rangeLabel={data.rangeLabel} {isCurrentWeek}>
-				<a
-					class="pill-btn plan-toggle"
-					class:on={data.showPlan}
-					href={planHref}
-					aria-label={data.showPlan ? t.calendar.hidePlan : t.calendar.showPlan}
-					data-sveltekit-reset="false"
-				>
-					<LayoutList size={15} />
-					<span class="box" aria-hidden="true"></span>
-					{t.calendar.showPlan}
-				</a>
-			</WeekNav>
-		</div>
-	{/snippet}
-	{#snippet actions()}
 		<div class="week-stats" class:hidden={empty}>
 			<p class="totals tabular">
 				<strong data-testid="week-total">{formatDurationMs(week.totalMs, t.intl)}</strong>
@@ -192,7 +186,36 @@
 			</div>
 		</div>
 	{/snippet}
+	{#snippet actions()}
+		<label class="plan-switch">
+			<span>{t.calendar.showPlan}</span>
+			<Switch checked={data.showPlan} onchange={togglePlan} />
+		</label>
+		<!-- Phones change weeks on the day strip (swipe, "Today"), not with ‹ ›. -->
+		<span class="week-tools">
+			<WeekNav
+				variant="toolbar"
+				monday={data.weekMonday}
+				rangeLabel={data.rangeLabel}
+				{isCurrentWeek}
+			/>
+		</span>
+	{/snippet}
 </PageHeader>
+
+<!-- Phones: the month, "Today" and the week's days (swipe the strip for other weeks). -->
+<DayStrip
+	monday={data.weekMonday}
+	{selected}
+	today={data.today}
+	marked={loggedDays}
+	markLabel={t.calendar.hasLogged}
+	hrefFor={dayLink}
+	onselect={selectDay}
+	onweek={stepWeek}
+	month={data.monthLabel}
+	todayLink={todayHref(page.url.search)}
+/>
 
 {#if empty}
 	<EmptyState
@@ -205,16 +228,6 @@
 		testid="calendar-empty"
 	/>
 {:else}
-	<DayStrip
-		monday={data.weekMonday}
-		{selected}
-		today={data.today}
-		marked={loggedDays}
-		markLabel={t.calendar.hasLogged}
-		hrefFor={dayLink}
-		onselect={selectDay}
-	/>
-
 	<DaySwipe day={selected} onstep={(delta) => selectDay(stepDay(selected, delta).day)}>
 		<WeekGrid
 			days={data.days}
@@ -241,43 +254,18 @@
 {/if}
 
 <style>
-	.nav-wrap {
-		margin-left: var(--space-4);
+	.week-tools {
+		display: contents;
 	}
-	.pill-btn {
+	.plan-switch {
 		display: inline-flex;
 		align-items: center;
-		justify-content: center;
 		gap: var(--space-2);
-		height: 34px;
-		padding: 0 var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--surface);
-		color: var(--text-2);
+		margin-right: var(--space-2);
+		color: var(--text-muted);
 		font-size: var(--fs-sm);
 		white-space: nowrap;
-		transition:
-			background var(--dur) var(--ease),
-			color var(--dur) var(--ease);
-	}
-	.pill-btn:hover {
-		background: var(--surface-hover);
-		color: var(--text);
-	}
-	.box {
-		width: 12px;
-		height: 12px;
-		border: 1px solid var(--border-strong);
-		border-radius: 3px;
-	}
-	.plan-toggle.on {
-		color: var(--text);
-		border-color: var(--border-strong);
-	}
-	.plan-toggle.on .box {
-		background: var(--control-on);
-		border-color: var(--control-on);
+		cursor: pointer;
 	}
 
 	/* An empty week has no totals to show (but keeps its place in the header). */
@@ -287,8 +275,8 @@
 	.week-stats {
 		display: flex;
 		align-items: center;
-		gap: var(--space-5);
-		padding-bottom: var(--space-1);
+		gap: var(--space-4);
+		margin-left: var(--space-4);
 	}
 	.totals {
 		white-space: nowrap;
@@ -303,7 +291,7 @@
 		margin-right: var(--space-1);
 	}
 	.bar {
-		width: 128px;
+		width: 96px;
 		height: 4px;
 		border-radius: var(--radius-pill);
 		background: var(--surface-2);
@@ -316,14 +304,15 @@
 		transition: width var(--dur) var(--ease);
 	}
 
-	@media (max-width: 900px) {
-		.nav-wrap {
-			margin-left: 0;
-		}
-	}
 	/* Phones: the day view's header line carries the day total; the week sums stay on wider screens. */
 	@media (max-width: 720px) {
 		.week-stats {
+			display: none;
+		}
+		.plan-switch {
+			margin-right: 0;
+		}
+		.week-tools {
 			display: none;
 		}
 	}
