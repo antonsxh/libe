@@ -76,6 +76,10 @@ test('goalChoice: off, a preset or custom', () => {
 	expect(goalChoice(null)).toBe('off');
 	expect(goalChoice(240)).toBe('240');
 	expect(goalChoice(135)).toBe('custom');
+	// Settings lists fewer presets: everything else is custom there.
+	expect(goalChoice(120, [30, 60, 120, 180])).toBe('120');
+	expect(goalChoice(240, [30, 60, 120, 180])).toBe('custom');
+	expect(goalChoice(null, [30, 60])).toBe('off');
 });
 
 test('splitMinutes', () => {

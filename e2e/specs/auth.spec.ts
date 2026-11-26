@@ -9,7 +9,7 @@
 import { createHash } from 'node:crypto';
 import jsQR from 'jsqr';
 import type { Browser, Page } from '@playwright/test';
-import { test, expect, live, gotoLive } from '../support/fixtures.ts';
+import { test, expect, live, gotoLive, actionDone } from '../support/fixtures.ts';
 import { bearer, freshIp, issueCode, pairWithSecret, storageStateFor } from '../support/auth.ts';
 import { BASE, COOKIE, SETUP_SECRET } from '../support/env.ts';
 import { uid } from '../support/db.ts';
@@ -140,8 +140,8 @@ test('pairing code: the dialog shows a code and its QR; a second device pairs wi
 }) => {
 	console.allow(/status of 401/);
 	const name = `Phone ${uid()}`;
-	await gotoLive(page, '/settings');
-	await page.getByRole('button', { name: 'Pair new device' }).click();
+	await gotoLive(page, '/settings?section=devices');
+	await page.getByRole('button', { name: 'Pair a device' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Pair a new device' });
 	const codeEl = dialog.locator('.code-box .code:not(.faint)');
 	await expect(codeEl).toHaveText(/^\d{3} \d{3}$/);
@@ -257,22 +257,22 @@ test('Settings: rename a device; revoking it closes its live stream and sends it
 		streamEnded = true;
 	})();
 
-	await gotoLive(page, '/settings');
-	const device = (n: string) => page.locator('li.device', { hasText: n });
-	await device(name)
-		.getByRole('button', { name: `Actions for ${name}` })
-		.click();
-	await page.getByRole('menuitem', { name: 'Rename…' }).click();
-	const rename = page.locator('form.rename');
-	await rename.getByLabel('Device name').fill(`${name} (renamed)`);
-	await rename.getByRole('button', { name: 'Save' }).click();
+	await gotoLive(page, '/settings?section=devices');
+	const device = (n: string) => page.getByTestId('device-row').filter({ hasText: n });
+	// A row opens the device's sheet; its name saves once committed (no Save button).
+	await device(name).click();
+	const sheet = page.getByRole('dialog', { name });
+	const renamed = actionDone(page, 'rename');
+	await sheet.getByLabel('Device name').fill(`${name} (renamed)`);
+	await sheet.getByLabel('Device name').press('Enter');
+	await renamed;
 	await expect(device(`${name} (renamed)`)).toBeVisible();
 	expect(await sql`select 1 from devices where name = ${`${name} (renamed)`}`).toHaveLength(1);
 
-	await device(`${name} (renamed)`)
-		.getByRole('button', { name: /^Actions for/ })
+	await page
+		.getByRole('dialog', { name: `${name} (renamed)` })
+		.getByRole('button', { name: 'Revoke…' })
 		.click();
-	await page.getByRole('menuitem', { name: 'Revoke…' }).click();
 	await page
 		.getByRole('dialog', { name: 'Revoke device?' })
 		.getByRole('button', { name: 'Revoke' })
@@ -300,12 +300,17 @@ test('Signing out this device revokes it: back to /pair, its token stops working
 		serviceWorkers: 'block'
 	});
 	const page = await ctx.newPage();
-	await gotoLive(page, '/settings');
-	await page.getByRole('button', { name: `Actions for ${name}` }).click();
-	await page.getByRole('menuitem', { name: 'Sign out' }).click();
-	await page.getByRole('dialog').getByRole('button', { name: 'Sign out' }).click();
+	await gotoLive(page, '/settings?section=devices');
+	const row = page.getByTestId('device-row').filter({ hasText: name });
+	await expect(row).toContainText('This device');
+	await row.click();
+	await page.getByRole('dialog', { name }).getByRole('button', { name: 'Sign out' }).click();
+	await page
+		.getByRole('dialog', { name: 'Sign out this device?' })
+		.getByRole('button', { name: 'Sign out' })
+		.click();
 	// The action redirects to /pair; the revoked SSE stream may get there first (with `next`).
-	await expect(page).toHaveURL(/\/pair(\?next=%2Fsettings)?$/);
+	await expect(page).toHaveURL(/\/pair(\?next=%2Fsettings[^&]*)?$/);
 	expect(await cookieOf(page)).toBeUndefined();
 	expect(
 		(await sql`select revoked_at from devices where name = ${name}`)[0].revoked_at

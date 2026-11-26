@@ -152,8 +152,33 @@ then `CONNECTION_CLOSED`). That is a PGlite artefact, not an app bug.
   `parseAvatarEmoji`, `initials`, `greetingPart`) and `#lib/daily-goal.ts`; show people with
   `Avatar.svelte` (emoji, initials or a neutral icon — no ring), pick colours with
   `ColorSwatches.svelte`, single emojis with `EmojiPicker.svelte`. Edit links: `PROFILE_HREF`
-  (`/settings#profile`), `GOAL_HREF` (`/settings#goal`). Use the name only as a vocative
+  (`/settings?section=profile`), `GOAL_HREF` (`/settings?section=goal`). Use the name only as a vocative
   ("Nice work, Anton"), never in the genitive.
+- **Settings** (AB1, `routes/(app)/settings`, pieces in `components/settings/`): phones
+  (≤ 720px) show one large title and inset grouped sections like iOS Settings — the profile
+  row, "Your day" (Daily goal, Rest days), "Focus" (Pomodoro, the Auto-start switch), "This
+  device" (Notifications switch, Language), "Devices" (rows + "Pair a device"), and "Desktop
+  app" only inside the app; rows show the current value and open a `Dialog` sheet with the
+  editor. Wider screens show macOS System Settings: a sidebar (profile on top, then the
+  sections with their tiles, the selected one on `--sidebar-active-bg`) and the section's
+  editors inline. The section is `?section=` (`#lib/settings-sections.ts`: `requestedSection`,
+  `settingsHref`; client-only, `load` never reads it; old `#profile` / `#goal` / `#streak`
+  anchors are rewritten to it; on phones a section link opens its sheet). One tree is
+  server-rendered for both layouts (CSS picks); after hydration only the current layout stays
+  mounted, so every field exists once. Rows use coloured iOS symbol tiles: `GroupedNavRow`'s
+  `tile` / `SettingsTile` with the role tokens `--tile-*` (never a literal colour); switches
+  are `Switch.svelte` (`role="switch"`, `--switch-*`).
+- **Autosave — no Save buttons in Settings**: every editor is a form action with
+  `use:enhance={save.enhance} {@attach save.form}` from `createAutosave()`
+  (`#lib/autosave.svelte.ts`, queue in `#lib/autosave.ts`): choices, checklists and switches
+  save on `change`, text/number fields when committed (blur or Enter, never per keystroke, the
+  same values never twice), saves of one form never overlap (a change during a save resends
+  the form once it answers). The server rules stay the only validation (`novalidate`): a
+  rejected value comes back as the action's `form`, the field shows the inline error, nothing
+  is saved. A step that is not a value yet is skipped (`skip`: "Custom duration…", "Emoji"
+  without an emoji). Feedback is quiet: the row's value, the tick, `SaveStatus`
+  ("Saving…"/"Saved", a live region). Without JS each form shows a small Save button until the
+  page runs (`NoJsSave`). New settings follow the same pattern.
 - **Daily-goal ring** lives at **Home** in the nav, once (`AppNav` + `GoalRing.svelte`): a
   ≈16 px ring before the word "Home" (desktop/tablet) and around the Home tab's icon (phones);
   accent while it fills, `--success` with a check once reached, none without a goal. Home's
@@ -259,8 +284,8 @@ timer.serverNow)` so today moves live with the timer.
   (`desktopApp()` → `null` outside the app). Remote pages may call nothing but the four
   `update_*` commands, `app_unpair` and `app_quit` (runtime capability, `SERVER_COMMANDS` in
   `src-tauri/src/lib.rs`); a new command must be listed in `src-tauri/build.rs` and granted
-  explicitly. Settings → Desktop app (`components/settings/DesktopAppSection.svelte`) is the
-  update UI and has "Change server / Unpair…". Only macOS has a native menu; on Linux/Windows
+  explicitly. Settings → Desktop app (`components/settings/DesktopAppSection.svelte`,
+  `?section=desktop`) is the update UI and has "Change server / Unpair…". Only macOS has a native menu; on Linux/Windows
   `src-tauri/src/shortcuts.js` (injected into every page) handles Ctrl+R / Ctrl+Q.
   Nix builds compile with `LIBE_DISTRIBUTION=nix` (`updates::Distribution`): no self-updates,
   `update_state` reports `managedBy: "nix"` and Settings explains the flake input instead.
@@ -321,8 +346,11 @@ timer.serverNow)` so today moves live with the timer.
   `MiniPlayer` (phone timer bar, rendered by the `(app)` layout), `DayStrip` / `DaySwipe`
   (phone day view). Apple-style (later milestones move more pages to these): `GroupedList`
   (inset grouped rows, header/footer; with `options` a radio choice list with a checkmark) +
-  `GroupedRow` (label left, control right, or a borderless text field filling the row) and
-  `SegmentedControl` (radio group) — tokens `--grouped-*`, `--segmented-*` (inside a dialog
+  `GroupedRow` (label left, control right, or a borderless text field filling the row),
+  `GroupedNavRow` (tile, label, value, chevron; `href` for a no-JS link, `tile` colours the
+  tile), `Switch` (iOS switch) and `SegmentedControl` (radio group); `GroupedList` with
+  `multiple` is a checklist (checkboxes, every checked row ticked), an option's `detail` is a
+  muted value before the tick — tokens `--grouped-*`, `--segmented-*` (inside a dialog
   set `--grouped-bg: var(--grouped-bg-raised)` and the raised separator, like `QuestForm`).
   Look at `/styleguide` in the running app before building new UI.
 - **Titles and figures**: every page title is the global `h1` — the large bold title
@@ -363,8 +391,9 @@ timer.serverNow)` so today moves live with the timer.
 
 Playwright (`@playwright/test`, pinned) in `e2e/`: config `e2e/playwright.config.ts`, specs per
 feature in `e2e/specs/` (quests, home, plan, focus, calendar, review, auth, pwa, pages, mobile,
-i18n, palette, profile, streak, mobile-polish, day-view, push, overdue, onboarding),
-helpers in `e2e/support/`, the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
+i18n, palette, profile, streak, mobile-polish, day-view, push, overdue, onboarding, settings),
+helpers in `e2e/support/` (`settings.ts`: `openSettings` — the sheet on phones, the pane
+on wider screens — `choose`, `closeSheet`), the Tauri spec in `e2e/tauri/`. Artefacts (traces/screenshots only on
 failure, HTML report, auth state) go to the ignored `e2e/.output/`.
 
 - **Isolation**: the suite never touches the dev DB `libe`. Playwright's `webServer` runs

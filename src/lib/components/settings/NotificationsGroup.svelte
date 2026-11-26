@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { page } from '$app/state';
-	import { Bell, BellOff, Check, Send, Share } from '@lucide/svelte';
-	import Button from '#lib/components/Button.svelte';
+	import { Bell, Check, Send } from '@lucide/svelte';
+	import GroupedList from '#lib/components/GroupedList.svelte';
+	import Switch from '#lib/components/Switch.svelte';
+	import SettingsTile from './SettingsTile.svelte';
 	import { desktopApp } from '#lib/desktop.ts';
 	import { isStandalone } from '#lib/pwa.ts';
-	import { fadeScale } from '#lib/motion.ts';
 	import { isAppleMobile, notificationsState, type NotificationsState } from '#lib/push.ts';
 	import {
 		base64urlToBytes,
@@ -18,13 +19,24 @@
 	} from '#lib/push-client.ts';
 	import { useI18n } from '#lib/i18n/context.svelte.ts';
 
+	/**
+	 * Settings → Notifications (this device): one switch row in a `GroupedList` (+ "Send test"
+	 * while on); the footer explains the state (install first, blocked, unsupported). Extra
+	 * rows (`children`, e.g. Language on phones) follow in the same group. In the desktop app
+	 * (and wherever push can't exist) only those rows show, with `fallbackFooter`.
+	 */
+	type Props = { header?: string; fallbackFooter?: string; children?: Snippet };
+	let { header, fallbackFooter, children }: Props = $props();
 	const t = useI18n();
 	const n = $derived(t.settings.notifications);
+	const switchId = $props.id();
 	/** A device paired as the desktop app: hidden from the first (server) render on. */
 	const tauri = $derived(page.data.device?.kind === 'tauri');
 
 	/** null until the browser was asked (SSR, first frame): no buttons yet. */
 	let status = $state<NotificationsState | null>(null);
+	/** The switch: follows the state after every refresh (a failed or refused turn-on flips back). */
+	let on = $state(false);
 	let apple = $state(false);
 	let busy = $state(false);
 	let error = $state<string | null>(null);
@@ -74,6 +86,7 @@
 			permission: notificationPermission(),
 			subscribed
 		});
+		on = status === 'on';
 	}
 
 	async function turnOn() {
@@ -146,128 +159,93 @@
 		}
 	}
 
+	const visible = $derived(!tauri && status !== 'hidden');
+	const footer = $derived.by(() => {
+		if (!visible) return fallbackFooter;
+		if (status === 'install') return n.install;
+		if (status === 'denied') return apple ? n.deniedApple : n.deniedBrowser;
+		if (status === 'unsupported') return n.unsupported;
+		return n.desc;
+	});
+
+	function toggle(next: boolean) {
+		if (busy) return;
+		void (next ? turnOn() : turnOff());
+	}
+
 	onMount(() => {
 		void refresh();
 		return () => clearTimeout(sentTimer);
 	});
 </script>
 
-{#if !tauri && status !== 'hidden'}
-	<section class="card section" aria-labelledby="notifications-title" data-state={status}>
-		<header class="section-head">
-			<div>
-				<h2 id="notifications-title" class="label">{n.title}</h2>
-				<p class="muted desc">{n.desc}</p>
+<div class="notifications" data-state={visible ? status : 'hidden'}>
+	<GroupedList {header} label={header ? undefined : n.title}>
+		{#if visible}
+			<div class="row">
+				<SettingsTile color="var(--tile-notifications)">
+					<Bell size={16} strokeWidth={2} />
+				</SettingsTile>
+				<label class="text" for={switchId}>{n.title}</label>
+				<Switch
+					id={switchId}
+					bind:checked={on}
+					disabled={busy || (status !== 'on' && status !== 'off')}
+					describedby="{switchId}-foot"
+					testid="notifications-switch"
+					onchange={toggle}
+				/>
 			</div>
-			{#if status === 'off'}
-				<div in:fadeScale>
-					<Button variant="secondary" onclick={turnOn} disabled={busy}>
-						<Bell size={16} />
-						{n.turnOn}
-					</Button>
-				</div>
-			{/if}
-		</header>
-
-		{#key status}
 			{#if status === 'on'}
-				<div class="row" in:fadeScale>
-					<p class="status" role="status">
-						<span class="dot" aria-hidden="true"></span>
-						{n.on}
-					</p>
-					<div class="actions">
-						<Button variant="secondary" size="sm" onclick={sendTest} disabled={busy || sent}>
-							{#if sent}
-								<span class="sent" in:fadeScale><Check size={14} /> {n.sent}</span>
-							{:else}
-								<Send size={14} />
-								{n.sendTest}
-							{/if}
-						</Button>
-						<Button variant="ghost" size="sm" onclick={turnOff} disabled={busy}>
-							{n.turnOff}
-						</Button>
-					</div>
-				</div>
-			{:else if status === 'install'}
-				<p class="row note" in:fadeScale>
-					<Share size={16} aria-hidden="true" />
-					<span>{n.install}</span>
-				</p>
-			{:else if status === 'denied'}
-				<p class="row note" in:fadeScale>
-					<BellOff size={16} aria-hidden="true" />
-					<span>{apple ? n.deniedApple : n.deniedBrowser}</span>
-				</p>
-			{:else if status === 'unsupported'}
-				<p class="row note" in:fadeScale>
-					<BellOff size={16} aria-hidden="true" />
-					<span>{n.unsupported}</span>
-				</p>
+				<button type="button" class="row test" onclick={sendTest} disabled={busy || sent}>
+					{#if sent}
+						<span class="sent" role="status"><Check size={16} aria-hidden="true" /> {n.sent}</span>
+					{:else}
+						<Send size={16} aria-hidden="true" />
+						{n.sendTest}
+					{/if}
+				</button>
 			{/if}
-		{/key}
-		{#if error}<p class="error" role="alert">{error}</p>{/if}
-	</section>
-{/if}
+		{/if}
+		{@render children?.()}
+	</GroupedList>
+	{#if footer}<p class="foot" id="{switchId}-foot">{footer}</p>{/if}
+	{#if error}<p class="error" role="alert">{error}</p>{/if}
+</div>
 
 <style>
-	.section {
-		padding: var(--space-6);
-		border-radius: var(--radius-xl);
-		min-width: 0;
-	}
-	.section-head {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: var(--space-4);
-	}
-	.section-head > div:first-child {
-		flex: 1 1 280px;
-		min-width: 0;
-	}
-	.desc {
-		margin-top: var(--space-2);
-		font-size: var(--fs-sm);
-		max-width: 56ch;
+	.notifications {
+		display: grid;
+		gap: var(--space-2);
 	}
 	.row {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: var(--space-3) var(--space-4);
-		margin-top: var(--space-5);
-		padding-top: var(--space-5);
-		border-top: 1px solid var(--border);
+		gap: var(--space-3);
+		min-height: var(--grouped-row-h);
+		padding: var(--space-2) var(--grouped-inset);
 	}
-	.status {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--fs-sm);
-		color: var(--text-2);
+	.text {
+		flex: 1;
+		min-width: 0;
+		cursor: pointer;
 	}
-	.dot {
-		width: 8px;
-		height: 8px;
-		border-radius: var(--radius-pill);
-		background: var(--success);
-		box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 18%, transparent);
-		animation: pop var(--dur-pop) var(--ease-spring) both;
+	.test {
+		width: 100%;
+		border: 0;
+		background: transparent;
+		color: var(--accent-text);
+		font-size: var(--fs-md);
+		text-align: left;
+		transition: background var(--dur) var(--ease);
 	}
-	@keyframes pop {
-		from {
-			transform: scale(0.4);
-			opacity: 0;
+	@media (hover: hover) {
+		.test:hover:not(:disabled) {
+			background: var(--surface-hover);
 		}
 	}
-	.actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
+	.test:disabled {
+		cursor: default;
 	}
 	.sent {
 		display: inline-flex;
@@ -275,32 +253,15 @@
 		gap: var(--space-2);
 		color: var(--success);
 	}
-	.note {
-		justify-content: flex-start;
-		flex-wrap: nowrap;
-		align-items: flex-start;
-		gap: var(--space-3);
-		font-size: var(--fs-sm);
-		color: var(--text-2);
-		max-width: 64ch;
+	.foot,
+	.error {
+		padding: 0 var(--grouped-inset);
+		font-size: var(--fs-xs);
 	}
-	.note :global(svg) {
-		flex: none;
-		margin-top: 2px;
+	.foot {
 		color: var(--text-muted);
 	}
 	.error {
-		margin-top: var(--space-3);
 		color: var(--danger);
-		font-size: var(--fs-sm);
-	}
-	@media (max-width: 600px) {
-		.section {
-			padding: var(--space-5) var(--space-4);
-		}
-		.section-head > div:not(:first-child),
-		.section-head :global(.btn) {
-			width: 100%;
-		}
 	}
 </style>

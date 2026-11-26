@@ -22,9 +22,12 @@ export const DISPLAY_NAME_MAX = 40;
 /** Avatar colour of a fresh install (the app's accent family). Matches the column default. */
 export const DEFAULT_AVATAR_COLOR: QuestColor = 'amber';
 
-/** Where the profile is edited (Settings section anchor) — avatar menu, command palette. */
+/**
+ * Where the profile is edited — avatar menu, command palette: Settings' "Profile" section
+ * (`#lib/settings-sections.ts`). The old anchor `/settings#profile` still lands there.
+ */
 export const PROFILE_ANCHOR = 'profile';
-export const PROFILE_HREF = `/settings#${PROFILE_ANCHOR}`;
+export const PROFILE_HREF = '/settings?section=profile';
 
 export interface Profile {
 	/** Null = no name set (the avatar shows a neutral icon). */

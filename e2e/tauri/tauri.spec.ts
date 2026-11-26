@@ -187,8 +187,8 @@ async function pair(d: WebDriver, name?: string) {
 }
 /** The desktop app's section of the server's Settings page (only rendered inside the app). */
 async function desktopSettings(d: WebDriver) {
-	await d.get(`${BASE}/settings`);
-	await onLibe(d, '/settings');
+	await d.get(`${BASE}/settings?section=desktop`);
+	await onLibe(d, '/settings?section=desktop');
 	await visible(d, 'desktop-title');
 }
 /** A button of that section. */

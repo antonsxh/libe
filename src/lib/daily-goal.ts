@@ -23,9 +23,9 @@ export const DAILY_GOAL_PRESETS = [30, 60, 120, 180, 240, 300, 360, 480] as cons
 /** Minute choices of the custom hours/minutes input. */
 export const DAILY_GOAL_MINUTE_STEPS = [0, 15, 30, 45] as const;
 
-/** Where the goal is edited (Settings section anchor). */
+/** Where the goal is edited: Settings' "Daily goal and streak" (old anchor `#goal` too). */
 export const GOAL_ANCHOR = 'goal';
-export const GOAL_HREF = `/settings#${GOAL_ANCHOR}`;
+export const GOAL_HREF = '/settings?section=goal';
 
 /** Values of the Settings goal select besides the presets. */
 export const GOAL_OFF = 'off';
@@ -78,12 +78,16 @@ export function parseDailyGoal(fields: {
 	return isDailyGoal(total) ? { ok: true, value: total } : { ok: false, error: 'dailyGoalInvalid' };
 }
 
-/** The select value for a stored goal: `off`, a preset, or `custom`. */
-export function goalChoice(goalMin: number | null): string {
+/**
+ * The choice for a stored goal: `off`, one of `presets` (default: `DAILY_GOAL_PRESETS`), or
+ * `custom`. Settings lists the first-run flow's presets (`WELCOME_GOALS`); the rest is custom.
+ */
+export function goalChoice(
+	goalMin: number | null,
+	presets: readonly number[] = DAILY_GOAL_PRESETS
+): string {
 	if (goalMin === null) return GOAL_OFF;
-	return (DAILY_GOAL_PRESETS as readonly number[]).includes(goalMin)
-		? String(goalMin)
-		: GOAL_CUSTOM;
+	return presets.includes(goalMin) ? String(goalMin) : GOAL_CUSTOM;
 }
 
 /** Whole hours and the remaining minutes (negative → 0; fractions rounded down). */
